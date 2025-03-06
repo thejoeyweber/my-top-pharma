@@ -30,7 +30,35 @@ const featuredCompanies = [
     logo: '/images/mock/novartis.svg',
     headquarters: 'Basel, Switzerland',
     marketCap: '$210B',
-    therapeuticAreas: ['Cardiovascular', 'Ophthalmology', 'Neuroscience'],
+    therapeuticAreas: ['Ophthalmology', 'Cardiovascular', 'Neuroscience'],
+  },
+];
+
+// Mock data for trending products
+const trendingProducts = [
+  {
+    id: 1,
+    name: 'Comirnaty',
+    company: 'Pfizer/BioNTech',
+    description: 'COVID-19 mRNA vaccine.',
+    status: 'Approved',
+    year: '2020',
+  },
+  {
+    id: 2,
+    name: 'Keytruda',
+    company: 'Merck',
+    description: 'Immunotherapy for various cancer types.',
+    status: 'Approved',
+    year: '2014',
+  },
+  {
+    id: 3,
+    name: 'Humira',
+    company: 'AbbVie',
+    description: 'Treatment for various autoimmune diseases.',
+    status: 'Approved',
+    year: '2002',
   },
 ];
 
@@ -43,9 +71,19 @@ const therapeuticAreas = [
   { id: 5, name: 'Cardiovascular', count: 118 },
   { id: 6, name: 'Infectious Diseases', count: 103 },
 ];
+
+// Breadcrumbs for home page
+const breadcrumbs = [
+  { label: 'Home', href: '/', isActive: true },
+];
 ---
 
-<BaseLayout title="Top Pharma - Pharmaceutical Industry Directory" description="Discover and explore pharmaceutical companies, products, and websites in one comprehensive directory.">
+<BaseLayout 
+  title="Top Pharma - Pharmaceutical Industry Directory"
+  description="Discover and explore pharmaceutical companies, products, and websites in one comprehensive directory."
+  currentPath="/"
+  breadcrumbs={breadcrumbs}
+>
   <!-- Hero Section -->
   <div class="bg-gradient-to-r from-primary-600 to-primary-800 text-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
@@ -107,15 +145,15 @@ const therapeuticAreas = [
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="grid grid-cols-2 gap-5 sm:grid-cols-4">
         <div class="text-center">
-          <p class="text-4xl font-bold text-primary-600">1,200+</p>
+          <p class="text-4xl font-bold text-primary-600">2,800+</p>
           <p class="mt-2 text-sm font-medium text-gray-500">Companies</p>
         </div>
         <div class="text-center">
-          <p class="text-4xl font-bold text-primary-600">5,000+</p>
+          <p class="text-4xl font-bold text-primary-600">14,000+</p>
           <p class="mt-2 text-sm font-medium text-gray-500">Products</p>
         </div>
         <div class="text-center">
-          <p class="text-4xl font-bold text-primary-600">8,500+</p>
+          <p class="text-4xl font-bold text-primary-600">9,200+</p>
           <p class="mt-2 text-sm font-medium text-gray-500">Websites</p>
         </div>
         <div class="text-center">
@@ -138,7 +176,7 @@ const therapeuticAreas = [
 
       <div class="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
         {featuredCompanies.map((company) => (
-          <Card hover={true} class="h-full flex flex-col">
+          <Card>
             <div class="flex items-center mb-4">
               <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mr-4">
                 <span class="text-xl font-bold text-primary-600">{company.name.charAt(0)}</span>
@@ -178,8 +216,51 @@ const therapeuticAreas = [
     </div>
   </div>
 
-  <!-- Therapeutic Areas Section -->
+  <!-- Trending Products Section -->
   <div class="bg-white py-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center">
+        <h2 class="text-3xl font-bold text-gray-900">Trending Products</h2>
+        <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+          Popular pharmaceutical products making an impact in the industry.
+        </p>
+      </div>
+
+      <div class="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        {trendingProducts.map((product) => (
+          <Card>
+            <div class="p-6">
+              <div class="flex justify-between mb-2">
+                <h3 class="text-lg font-semibold text-gray-900">{product.name}</h3>
+                <span class:list={[
+                  "text-xs px-2.5 py-0.5 rounded-full",
+                  product.status === "Approved" 
+                    ? "bg-green-100 text-green-800" 
+                    : "bg-yellow-100 text-yellow-800"
+                ]}>
+                  {product.status}
+                </span>
+              </div>
+              <p class="text-sm text-gray-500 mb-3">{product.company} • {product.year}</p>
+              <p class="text-gray-600">{product.description}</p>
+              <div class="mt-4">
+                <Button href={`/products/${product.id}`} variant="outline" size="sm">View Details</Button>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <div class="mt-12 text-center">
+        <Button href="/products" variant="secondary">
+          View All Products
+        </Button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Therapeutic Areas Section -->
+  <div class="bg-gray-50 py-16">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center">
         <h2 class="text-3xl font-bold text-gray-900">Therapeutic Areas</h2>
@@ -191,8 +272,8 @@ const therapeuticAreas = [
       <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {therapeuticAreas.map((area) => (
           <a href={`/therapeutic-areas/${area.id}`} class="group">
-            <Card hover={true} class="h-full">
-              <div class="flex justify-between items-center">
+            <Card>
+              <div class="flex justify-between items-center p-6">
                 <h3 class="text-lg font-medium text-gray-900 group-hover:text-primary-600">{area.name}</h3>
                 <span class="bg-primary-50 text-primary-700 text-sm font-medium px-2.5 py-0.5 rounded-full">
                   {area.count}

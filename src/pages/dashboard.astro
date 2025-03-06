@@ -1,0 +1,160 @@
+---
+/**
+ * Dashboard Page
+ * 
+ * Main dashboard overview page showing key metrics and statistics.
+ */
+import DashboardLayout from '../components/templates/DashboardLayout.astro';
+import Card from '../components/atoms/Card.astro';
+
+// Mock data for dashboard metrics
+const metrics = [
+  { label: 'Total Companies', value: '2,847', change: '+12%', trend: 'up' },
+  { label: 'Active Products', value: '14,382', change: '+8%', trend: 'up' },
+  { label: 'Websites Indexed', value: '9,271', change: '+15%', trend: 'up' },
+  { label: 'Therapeutic Areas', value: '128', change: '+3', trend: 'up' },
+];
+
+// Breadcrumbs for the dashboard page
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Dashboard', href: '/dashboard', isActive: true },
+];
+---
+
+<DashboardLayout 
+  title="Dashboard | Top Pharma"
+  description="Top Pharma dashboard with key metrics and industry insights"
+  currentPath="/dashboard"
+  breadcrumbs={breadcrumbs}
+>
+  <div class="space-y-6">
+    <!-- Page header -->
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+      <p class="mt-1 text-sm text-gray-500">
+        Overview of pharmaceutical industry metrics and activity
+      </p>
+    </div>
+    
+    <!-- Metrics cards -->
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {metrics.map((metric) => (
+        <Card>
+          <div class="px-4 py-5 sm:p-6">
+            <div class="flex items-center">
+              <div class="flex-shrink-0 rounded-md bg-primary-50 p-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </div>
+              <div class="ml-5 w-0 flex-1">
+                <dl>
+                  <dt class="text-sm font-medium text-gray-500 truncate">{metric.label}</dt>
+                  <dd>
+                    <div class="text-lg font-semibold text-gray-900">{metric.value}</div>
+                    <div class="flex items-center text-sm">
+                      <span class:list={[
+                        "mr-1 flex items-center",
+                        metric.trend === 'up' ? 'text-green-600' : 'text-red-600'
+                      ]}>
+                        {metric.trend === 'up' ? (
+                          <svg class="h-4 w-4 self-center" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                          </svg>
+                        ) : (
+                          <svg class="h-4 w-4 self-center" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        )}
+                        {metric.change}
+                      </span>
+                      <span class="text-gray-500">from previous month</span>
+                    </div>
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+    
+    <!-- Recent activity section -->
+    <div class="space-y-4">
+      <h2 class="text-lg font-medium text-gray-900">Recent Activity</h2>
+      <Card>
+        <div class="px-4 py-5 sm:p-6">
+          <div class="flex flex-col">
+            <div class="-my-2 overflow-x-auto">
+              <div class="py-2 align-middle inline-block min-w-full">
+                <div class="overflow-hidden">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="flex items-center">
+                            <div class="text-sm font-medium text-gray-900">Pfizer</div>
+                          </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="text-sm text-gray-900">New Website Launch</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="text-sm text-gray-900">Today</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Websites</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="flex items-center">
+                            <div class="text-sm font-medium text-gray-900">Novartis</div>
+                          </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="text-sm text-gray-900">Product Approval</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="text-sm text-gray-900">Yesterday</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Products</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="flex items-center">
+                            <div class="text-sm font-medium text-gray-900">Roche</div>
+                          </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="text-sm text-gray-900">Acquisition Announced</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <div class="text-sm text-gray-900">3 days ago</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                          <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">Companies</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  </div>
+</DashboardLayout> 

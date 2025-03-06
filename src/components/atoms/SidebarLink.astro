@@ -1,0 +1,33 @@
+---
+/**
+ * SidebarLink Component
+ * 
+ * A navigation link styled specifically for sidebar navigation.
+ * Includes active state styling and icon support.
+ */
+
+interface Props {
+  href: string;
+  label: string;
+  icon?: string;
+  isActive?: boolean;
+}
+
+const { href, label, icon, isActive = false } = Astro.props;
+---
+
+<a 
+  href={href} 
+  class:list={[
+    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+    isActive 
+      ? "bg-primary-50 text-primary-700" 
+      : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+  ]}
+  aria-current={isActive ? "page" : undefined}
+>
+  {icon && (
+    <span class="text-gray-500" aria-hidden="true" set:html={icon}></span>
+  )}
+  {label}
+</a> 

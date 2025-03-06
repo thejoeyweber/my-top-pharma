@@ -1,0 +1,212 @@
+---
+/**
+ * Sidebar Component
+ * 
+ * A collapsible sidebar navigation for the dashboard layout.
+ * Displays links to main application areas and user tools.
+ */
+
+import SidebarLink from '../atoms/SidebarLink.astro';
+import { Fragment } from 'astro:components';
+
+interface Props {
+  currentPath?: string;
+  isOpen?: boolean;
+}
+
+const { currentPath = '/', isOpen = false } = Astro.props;
+
+// Navigation structure with sections and links
+const navigation = [
+  {
+    label: 'Overview',
+    links: [
+      {
+        href: '/dashboard',
+        label: 'Dashboard',
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M2.25 13.5h8.25V6a2.25 2.25 0 0 1 2.25-2.25h9a2.25 2.25 0 0 1 2.25 2.25v10.5a2.25 2.25 0 0 1-2.25 2.25h-9a2.25 2.25 0 0 1-2.25-2.25V15H2.25A2.25 2.25 0 0 1 0 12.75v-1.5a2.25 2.25 0 0 1 2.25-2.25Z" /></svg>'
+      },
+      {
+        href: '/analytics',
+        label: 'Analytics',
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M18.375 2.25c-1.035 0-1.875.84-1.875 1.875v15.75c0 1.035.84 1.875 1.875 1.875h.75c1.035 0 1.875-.84 1.875-1.875V4.125c0-1.036-.84-1.875-1.875-1.875h-.75ZM9.75 8.625c0-1.036.84-1.875 1.875-1.875h.75c1.036 0 1.875.84 1.875 1.875v11.25c0 1.035-.84 1.875-1.875 1.875h-.75a1.875 1.875 0 0 1-1.875-1.875V8.625ZM3 13.125c0-1.036.84-1.875 1.875-1.875h.75c1.036 0 1.875.84 1.875 1.875v6.75c0 1.035-.84 1.875-1.875 1.875h-.75A1.875 1.875 0 0 1 3 19.875v-6.75Z" /></svg>'
+      },
+    ]
+  },
+  {
+    label: 'Directory',
+    links: [
+      {
+        href: '/companies',
+        label: 'Companies',
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M4.5 2.25a.75.75 0 0 0 0 1.5v16.5h-.75a.75.75 0 0 0 0 1.5h16.5a.75.75 0 0 0 0-1.5h-.75V3.75a.75.75 0 0 0 0-1.5h-15ZM9 6a.75.75 0 0 0 0 1.5h1.5a.75.75 0 0 0 0-1.5H9Zm-.75 3.75A.75.75 0 0 1 9 9h1.5a.75.75 0 0 1 0 1.5H9a.75.75 0 0 1-.75-.75ZM9 12a.75.75 0 0 0 0 1.5h1.5a.75.75 0 0 0 0-1.5H9Zm3.75-5.25A.75.75 0 0 1 13.5 6H15a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1-.75-.75ZM13.5 9a.75.75 0 0 0 0 1.5H15A.75.75 0 0 0 15 9h-1.5Zm-.75 3.75a.75.75 0 0 1 .75-.75H15a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1-.75-.75ZM9 19.5v-2.25a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-.75.75h-4.5A.75.75 0 0 1 9 19.5Z" clip-rule="evenodd" /></svg>'
+      },
+      {
+        href: '/products',
+        label: 'Products',
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M11.25 3v4.046a3 3 0 0 0-4.277 4.204H1.5v-6A2.25 2.25 0 0 1 3.75 3h7.5ZM12.75 3h7.5A2.25 2.25 0 0 1 22.5 5.25v6h-5.473a3 3 0 0 0-4.277-4.204V3ZM1.5 15.75v-1.5h4.973a3 3 0 0 0 4.277 4.204V21h-7.5a2.25 2.25 0 0 1-2.25-2.25v-3ZM12.75 21v-2.546a3 3 0 0 0 4.277-4.204H22.5v1.5A2.25 2.25 0 0 1 20.25 21h-7.5Z" /></svg>'
+      },
+      {
+        href: '/therapeutic-areas',
+        label: 'Therapeutic Areas',
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M12 1.5a.75.75 0 0 1 .75.75V4.5a.75.75 0 0 1-1.5 0V2.25A.75.75 0 0 1 12 1.5ZM5.636 4.136a.75.75 0 0 1 1.06 0l1.592 1.591a.75.75 0 0 1-1.061 1.06l-1.591-1.59a.75.75 0 0 1 0-1.061Zm12.728 0a.75.75 0 0 1 0 1.06l-1.591 1.592a.75.75 0 0 1-1.06-1.061l1.59-1.591a.75.75 0 0 1 1.061 0Zm-6.816 4.496a.75.75 0 0 1 .82.311l5.228 7.917a.75.75 0 0 1-.154 1.027l-2.158 1.423a.75.75 0 0 1-1.04-.362l-2.732-6.771-4.096 2.86a.75.75 0 0 1-1.014-.717l.343-5.113L6.775 8.97a.75.75 0 0 1 .772-.763ZM22.5 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21.75a.75.75 0 0 1 .75.75Zm-20.25.75a.75.75 0 0 1 0-1.5H4.5a.75.75 0 0 1 0 1.5H2.25ZM6.17 19.864a.75.75 0 0 1-1.06-1.06l1.59-1.591a.75.75 0 0 1 1.061 1.06l-1.591 1.591Zm11.521 0a.75.75 0 0 1 0-1.06l1.591-1.591a.75.75 0 1 1 1.06 1.06l-1.59 1.591a.75.75 0 0 1-1.061 0ZM12 21.75a.75.75 0 0 1-.75-.75v-2.25a.75.75 0 0 1 1.5 0V21a.75.75 0 0 1-.75.75Z" clip-rule="evenodd" /></svg>'
+      },
+      {
+        href: '/websites',
+        label: 'Websites',
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M21.721 12.752a9.711 9.711 0 0 0-.945-5.003 12.754 12.754 0 0 1-4.339 2.708 18.991 18.991 0 0 1-.214 4.772 17.165 17.165 0 0 0 5.498-2.477ZM14.634 15.55a17.324 17.324 0 0 0 .332-4.647c-.952.227-1.945.347-2.966.347-1.021 0-2.014-.12-2.966-.347a17.515 17.515 0 0 0 .332 4.647 17.385 17.385 0 0 0 5.268 0ZM9.772 17.119a18.963 18.963 0 0 0 4.456 0A17.182 17.182 0 0 1 12 21.724a17.18 17.18 0 0 1-2.228-4.605ZM7.777 15.23a18.87 18.87 0 0 1-.214-4.774 12.753 12.753 0 0 1-4.34-2.708 9.711 9.711 0 0 0-.944 5.004 17.165 17.165 0 0 0 5.498 2.477ZM21.356 14.752a9.765 9.765 0 0 1-7.478 6.817 18.64 18.64 0 0 0 1.988-4.718 18.627 18.627 0 0 0 5.49-2.098ZM2.644 14.752c1.682.971 3.53 1.688 5.49 2.099a18.64 18.64 0 0 0 1.988 4.718 9.765 9.765 0 0 1-7.478-6.816ZM13.878 2.43a9.755 9.755 0 0 1 6.116 3.986 11.267 11.267 0 0 1-3.746 2.504 18.63 18.63 0 0 0-2.37-6.49ZM12 2.276a17.152 17.152 0 0 1 2.805 7.121c-.897.23-1.837.353-2.805.353-.968 0-1.908-.122-2.805-.353A17.151 17.151 0 0 1 12 2.276ZM10.122 2.43a18.629 18.629 0 0 0-2.37 6.49 11.266 11.266 0 0 1-3.746-2.504 9.754 9.754 0 0 1 6.116-3.985Z" /></svg>'
+      },
+    ]
+  },
+  {
+    label: 'Insights',
+    links: [
+      {
+        href: '/reports',
+        label: 'Reports',
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M5.625 1.5H9a3.75 3.75 0 0 1 3.75 3.75v1.875c0 1.036.84 1.875 1.875 1.875H16.5a3.75 3.75 0 0 1 3.75 3.75v7.875c0 1.035-.84 1.875-1.875 1.875H5.625a1.875 1.875 0 0 1-1.875-1.875V3.375c0-1.036.84-1.875 1.875-1.875Zm6.905 9.97a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 1 0 1.06 1.06l1.72-1.72V18a.75.75 0 0 0 1.5 0v-4.19l1.72 1.72a.75.75 0 1 0 1.06-1.06l-3-3Z" clip-rule="evenodd" /></svg>'
+      },
+      {
+        href: '/alerts',
+        label: 'Alerts',
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M5.25 9a6.75 6.75 0 0 1 13.5 0v.75c0 2.123.8 4.057 2.118 5.52a.75.75 0 0 1-.297 1.206c-1.544.57-3.16.99-4.831 1.243a3.75 3.75 0 1 1-7.48 0 24.585 24.585 0 0 1-4.831-1.244.75.75 0 0 1-.298-1.205A8.217 8.217 0 0 0 5.25 9.75V9Zm4.502 8.9a2.25 2.25 0 1 0 4.496 0 25.057 25.057 0 0 1-4.496 0Z" clip-rule="evenodd" /></svg>'
+      },
+      {
+        href: '/watchlist',
+        label: 'Watchlist',
+        icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M6.32 2.577a49.255 49.255 0 0 1 11.36 0c1.497.174 2.57 1.46 2.57 2.93V21a.75.75 0 0 1-1.085.67L12 18.089l-7.165 3.583A.75.75 0 0 1 3.75 21V5.507c0-1.47 1.073-2.756 2.57-2.93Z" clip-rule="evenodd" /></svg>'
+      }
+    ]
+  }
+];
+
+// Function to check if a link is active
+const isActive = (href: string) => {
+  if (href === '/') {
+    return currentPath === href;
+  }
+  return currentPath.startsWith(href);
+};
+---
+
+<!-- Sidebar component -->
+<aside 
+  id="sidebar"
+  class:list={[
+    "fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 flex-shrink-0 border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out",
+    isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+  ]}
+  aria-label="Sidebar"
+>
+  <div class="flex h-full flex-col overflow-y-auto px-3 py-4">
+    <!-- Navigation sections -->
+    <nav class="flex-1 space-y-6">
+      {navigation.map((section) => (
+        <div>
+          <h3 class="px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            {section.label}
+          </h3>
+          <div class="mt-2 space-y-1">
+            {section.links.map((link) => (
+              <SidebarLink 
+                href={link.href}
+                label={link.label}
+                icon={link.icon}
+                isActive={isActive(link.href)}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </nav>
+
+    <!-- User section at bottom -->
+    <div class="mt-auto border-t border-gray-200 pt-4">
+      <div class="px-3">
+        <a href="/settings" class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5 text-gray-500">
+            <path fill-rule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 0 0-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 0 0-2.282.819l-.922 1.597a1.875 1.875 0 0 0 .432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 0 0 0 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 0 0-.432 2.385l.922 1.597a1.875 1.875 0 0 0 2.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 0 0 2.28-.819l.923-1.597a1.875 1.875 0 0 0-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 0 0 0-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 0 0-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 0 0-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 0 0-1.85-1.567h-1.843ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" clip-rule="evenodd" />
+          </svg>
+          Settings
+        </a>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- Toggle/collapse button for narrow screens that's only shown in the bottom corner when sidebar is hidden -->
+<button
+  type="button"
+  id="sidebar-toggle-float"
+  aria-controls="sidebar"
+  aria-expanded="false"
+  class="fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary-600 text-white shadow-lg lg:hidden"
+>
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-6 w-6">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+  </svg>
+</button>
+
+<script>
+  // Toggle sidebar visibility when the toggle button is clicked
+  document.addEventListener('DOMContentLoaded', () => {
+    const toggleButton = document.getElementById('sidebar-toggle');
+    const toggleButtonFloat = document.getElementById('sidebar-toggle-float');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    // Function to toggle sidebar visibility
+    const toggleSidebar = () => {
+      sidebar?.classList.toggle('-translate-x-full');
+      overlay?.classList.toggle('hidden');
+
+      // Update aria-expanded attribute
+      const isExpanded = !sidebar?.classList.contains('-translate-x-full');
+      toggleButton?.setAttribute('aria-expanded', isExpanded.toString());
+      toggleButtonFloat?.setAttribute('aria-expanded', isExpanded.toString());
+    };
+    
+    // Toggle sidebar when the button in header is clicked
+    toggleButton?.addEventListener('click', toggleSidebar);
+    
+    // Toggle sidebar when floating button is clicked
+    toggleButtonFloat?.addEventListener('click', toggleSidebar);
+    
+    // Close sidebar when clicking the overlay
+    overlay?.addEventListener('click', () => {
+      sidebar?.classList.add('-translate-x-full');
+      overlay?.classList.add('hidden');
+      
+      // Update aria-expanded attribute
+      toggleButton?.setAttribute('aria-expanded', 'false');
+      toggleButtonFloat?.setAttribute('aria-expanded', 'false');
+    });
+    
+    // Close sidebar when ESC key is pressed
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !sidebar?.classList.contains('-translate-x-full')) {
+        sidebar?.classList.add('-translate-x-full');
+        overlay?.classList.add('hidden');
+        
+        // Update aria-expanded attribute
+        toggleButton?.setAttribute('aria-expanded', 'false');
+        toggleButtonFloat?.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    // Close sidebar when clicking on a link (for mobile)
+    const sidebarLinks = sidebar?.querySelectorAll('a');
+    sidebarLinks?.forEach(link => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth < 1024) { // lg breakpoint
+          sidebar?.classList.add('-translate-x-full');
+          overlay?.classList.add('hidden');
+          
+          // Update aria-expanded attribute
+          toggleButton?.setAttribute('aria-expanded', 'false');
+          toggleButtonFloat?.setAttribute('aria-expanded', 'false');
+        }
+      });
+    });
+  });
+</script> 
