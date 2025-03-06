@@ -1,0 +1,42 @@
+---
+/**
+ * Card Component
+ * 
+ * A versatile card component that can be used throughout the application.
+ * Supports different padding sizes and hover effects.
+ */
+
+interface Props {
+  padding?: 'none' | 'sm' | 'md' | 'lg';
+  hover?: boolean;
+  class?: string;
+}
+
+const {
+  padding = 'md',
+  hover = false,
+  class: className = '',
+} = Astro.props;
+
+// Padding classes
+const paddingClasses = {
+  none: '',
+  sm: 'p-3',
+  md: 'p-4',
+  lg: 'p-6',
+};
+
+// Hover classes
+const hoverClasses = hover ? 'transition-shadow hover:shadow-card-hover' : '';
+
+const classes = [
+  'bg-white rounded-lg shadow-card',
+  paddingClasses[padding],
+  hoverClasses,
+  className,
+].join(' ');
+---
+
+<div class={classes}>
+  <slot />
+</div> 

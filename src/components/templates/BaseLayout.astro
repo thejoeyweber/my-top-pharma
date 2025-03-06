@@ -1,0 +1,36 @@
+---
+/**
+ * BaseLayout Template
+ * 
+ * The main layout template for most pages in the Top Pharma application.
+ * Includes header, footer, and main content area.
+ */
+
+import Layout from '../../layouts/Layout.astro';
+import Header from '../organisms/Header.astro';
+import Footer from '../organisms/Footer.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+  currentPath?: string;
+}
+
+const { 
+  title,
+  description,
+  currentPath = Astro.url.pathname 
+} = Astro.props;
+---
+
+<Layout title={title} description={description}>
+  <div class="min-h-full flex flex-col">
+    <Header currentPath={currentPath} />
+    
+    <main class="flex-grow">
+      <slot />
+    </main>
+    
+    <Footer />
+  </div>
+</Layout> 

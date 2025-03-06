@@ -1,0 +1,75 @@
+---
+/**
+ * Button Component
+ * 
+ * A versatile button component that can be used throughout the application.
+ * Supports different variants, sizes, and states.
+ */
+
+interface Props {
+  variant?: 'primary' | 'secondary' | 'outline' | 'text';
+  size?: 'sm' | 'md' | 'lg';
+  type?: 'button' | 'submit' | 'reset';
+  disabled?: boolean;
+  fullWidth?: boolean;
+  href?: string;
+  class?: string;
+}
+
+const {
+  variant = 'primary',
+  size = 'md',
+  type = 'button',
+  disabled = false,
+  fullWidth = false,
+  href,
+  class: className = '',
+} = Astro.props;
+
+// Base classes
+const baseClasses = 'inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500';
+
+// Size classes
+const sizeClasses = {
+  sm: 'text-sm px-3 py-1.5 rounded',
+  md: 'text-base px-4 py-2 rounded-md',
+  lg: 'text-lg px-6 py-3 rounded-lg',
+};
+
+// Variant classes
+const variantClasses = {
+  primary: 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500',
+  secondary: 'bg-secondary-500 text-white hover:bg-secondary-600 focus:ring-secondary-500',
+  outline: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-primary-500',
+  text: 'text-primary-600 hover:text-primary-700 hover:bg-gray-100 focus:ring-primary-500',
+};
+
+// State classes
+const stateClasses = {
+  disabled: 'opacity-50 cursor-not-allowed',
+  fullWidth: 'w-full',
+};
+
+const classes = [
+  baseClasses,
+  sizeClasses[size],
+  variantClasses[variant],
+  disabled ? stateClasses.disabled : '',
+  fullWidth ? stateClasses.fullWidth : '',
+  className,
+].join(' ');
+
+const Element = href ? 'a' : 'button';
+---
+
+{
+  href ? (
+    <a href={href} class={classes} {...disabled && { 'aria-disabled': 'true', tabindex: '-1' }}>
+      <slot />
+    </a>
+  ) : (
+    <button type={type} class={classes} disabled={disabled}>
+      <slot />
+    </button>
+  )
+} 
