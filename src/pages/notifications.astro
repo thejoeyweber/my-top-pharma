@@ -1,0 +1,292 @@
+---
+/**
+ * Notifications Page
+ * 
+ * Displays user notifications for companies, products, and therapeutic areas.
+ * This is a UI mockup with no actual backend functionality.
+ */
+import DashboardLayout from '../components/templates/DashboardLayout.astro';
+import Card from '../components/atoms/Card.astro';
+import Button from '../components/atoms/Button.astro';
+import { notifications } from '../data/user';
+
+// Breadcrumbs for the notifications page
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Dashboard', href: '/dashboard' },
+  { label: 'Notifications', href: '/notifications', isActive: true },
+];
+
+// Format date for display
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - date.getTime());
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) {
+    // Today - show time
+    return new Intl.DateTimeFormat('en-US', { 
+      hour: 'numeric', 
+      minute: 'numeric',
+      hour12: true
+    }).format(date);
+  } else if (diffDays === 1) {
+    return 'Yesterday';
+  } else if (diffDays < 7) {
+    // Within a week - show day of week
+    return new Intl.DateTimeFormat('en-US', { 
+      weekday: 'long'
+    }).format(date);
+  } else {
+    // Older - show full date
+    return new Intl.DateTimeFormat('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    }).format(date);
+  }
+};
+
+// Get notification icon based on type
+const getNotificationIcon = (type: string) => {
+  switch (type) {
+    case 'company_update':
+      return `<svg class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>`;
+    case 'product_approval':
+    case 'product_update':
+      return `<svg class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>`;
+    case 'website_launch':
+      return `<svg class="h-6 w-6 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+      </svg>`;
+    case 'therapeutic_area':
+      return `<svg class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+      </svg>`;
+    default:
+      return `<svg class="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>`;
+  }
+};
+
+// Sort notifications by date (newest first)
+const sortedNotifications = [...notifications].sort((a, b) => 
+  new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+);
+
+// Group notifications by date
+const groupedNotifications = sortedNotifications.reduce((groups, notification) => {
+  const date = new Date(notification.timestamp);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  let groupKey;
+  
+  if (date.toDateString() === today.toDateString()) {
+    groupKey = 'Today';
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    groupKey = 'Yesterday';
+  } else {
+    groupKey = new Intl.DateTimeFormat('en-US', { 
+      month: 'long',
+      day: 'numeric'
+    }).format(date);
+  }
+  
+  if (!groups[groupKey]) {
+    groups[groupKey] = [];
+  }
+  
+  groups[groupKey].push(notification);
+  return groups;
+}, {} as Record<string, typeof notifications>);
+---
+
+<DashboardLayout 
+  title="Notifications | Top Pharma"
+  description="View your Top Pharma notifications"
+  currentPath="/notifications"
+  breadcrumbs={breadcrumbs}
+>
+  <div class="space-y-6">
+    <!-- Page header -->
+    <div class="flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Notifications</h1>
+        <p class="mt-1 text-sm text-gray-500">
+          Stay updated on companies, products, and therapeutic areas you follow
+        </p>
+      </div>
+      <div>
+        <Button type="button" variant="outline" class="text-sm">
+          Mark all as read
+        </Button>
+      </div>
+    </div>
+    
+    <!-- Notifications list -->
+    <Card>
+      <div class="divide-y divide-gray-200">
+        {Object.keys(groupedNotifications).length === 0 ? (
+          <div class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No notifications</h3>
+            <p class="mt-1 text-sm text-gray-500">You don't have any notifications yet.</p>
+          </div>
+        ) : (
+          Object.entries(groupedNotifications).map(([date, dateNotifications]) => (
+            <div>
+              <div class="bg-gray-50 px-6 py-3">
+                <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wider">{date}</h3>
+              </div>
+              <ul class="divide-y divide-gray-200">
+                {dateNotifications.map((notification) => (
+                  <li class:list={[
+                    "px-6 py-4 hover:bg-gray-50 transition-colors duration-150 ease-in-out",
+                    notification.read ? "bg-white" : "bg-blue-50"
+                  ]}>
+                    <div class="flex items-start">
+                      <div class="flex-shrink-0 mt-1">
+                        <span set:html={getNotificationIcon(notification.type)} />
+                      </div>
+                      <div class="ml-4 flex-1">
+                        <div class="flex justify-between">
+                          <p class:list={[
+                            "text-sm",
+                            notification.read ? "text-gray-900" : "text-gray-900 font-semibold"
+                          ]}>
+                            {notification.title}
+                          </p>
+                          <p class="text-sm text-gray-500">{formatDate(notification.timestamp)}</p>
+                        </div>
+                        <p class="mt-1 text-sm text-gray-600">{notification.description}</p>
+                        <div class="mt-2">
+                          <a 
+                            href={`/${notification.entityType}s/${notification.entityId}`} 
+                            class="text-sm text-primary-600 hover:text-primary-900"
+                          >
+                            View details
+                          </a>
+                        </div>
+                      </div>
+                      <div class="ml-4 flex-shrink-0 flex">
+                        <button 
+                          type="button" 
+                          class="text-gray-400 hover:text-gray-500" 
+                          data-notification-id={notification.id}
+                          aria-label={notification.read ? "Mark as unread" : "Mark as read"}
+                        >
+                          {notification.read ? (
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                          ) : (
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        )}
+      </div>
+    </Card>
+  </div>
+</DashboardLayout>
+
+<script>
+  // Client-side script for handling notification actions
+  document.addEventListener('DOMContentLoaded', () => {
+    // Handle mark as read/unread buttons
+    const notificationButtons = document.querySelectorAll('button[data-notification-id]');
+    notificationButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const notificationId = button.getAttribute('data-notification-id');
+        const listItem = button.closest('li');
+        
+        // Toggle read/unread state
+        if (listItem) {
+          const isCurrentlyRead = !listItem.classList.contains('bg-blue-50');
+          
+          // Toggle background color
+          if (isCurrentlyRead) {
+            listItem.classList.remove('bg-white');
+            listItem.classList.add('bg-blue-50');
+          } else {
+            listItem.classList.remove('bg-blue-50');
+            listItem.classList.add('bg-white');
+          }
+          
+          // Toggle icon
+          if (isCurrentlyRead) {
+            button.innerHTML = `
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+            `;
+            button.setAttribute('aria-label', 'Mark as read');
+          } else {
+            button.innerHTML = `
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+            `;
+            button.setAttribute('aria-label', 'Mark as unread');
+          }
+          
+          // Toggle title font weight
+          const title = listItem.querySelector('p:first-child');
+          if (title) {
+            if (isCurrentlyRead) {
+              title.classList.add('font-semibold');
+            } else {
+              title.classList.remove('font-semibold');
+            }
+          }
+        }
+      });
+    });
+    
+    // Handle mark all as read button
+    const markAllButton = document.querySelector('button.text-sm');
+    markAllButton?.addEventListener('click', () => {
+      // Mark all notifications as read
+      const unreadItems = document.querySelectorAll('li.bg-blue-50');
+      unreadItems.forEach(item => {
+        item.classList.remove('bg-blue-50');
+        item.classList.add('bg-white');
+        
+        // Update title font weight
+        const title = item.querySelector('p:first-child');
+        if (title) {
+          title.classList.remove('font-semibold');
+        }
+        
+        // Update button icon
+        const button = item.querySelector('button[data-notification-id]');
+        if (button) {
+          button.innerHTML = `
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+          `;
+          button.setAttribute('aria-label', 'Mark as unread');
+        }
+      });
+    });
+  });
+</script> 

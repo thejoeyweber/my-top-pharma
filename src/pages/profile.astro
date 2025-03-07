@@ -1,0 +1,207 @@
+---
+/**
+ * User Profile Page
+ * 
+ * Displays user profile information and allows editing.
+ * This is a UI mockup with no actual backend functionality.
+ */
+import DashboardLayout from '../components/templates/DashboardLayout.astro';
+import Card from '../components/atoms/Card.astro';
+import Button from '../components/atoms/Button.astro';
+import { userProfile } from '../data/user';
+
+// Breadcrumbs for the profile page
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Dashboard', href: '/dashboard' },
+  { label: 'Profile', href: '/profile', isActive: true },
+];
+---
+
+<DashboardLayout 
+  title="Your Profile | Top Pharma"
+  description="Manage your Top Pharma profile settings"
+  currentPath="/profile"
+  breadcrumbs={breadcrumbs}
+>
+  <div class="space-y-6">
+    <!-- Page header -->
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Your Profile</h1>
+      <p class="mt-1 text-sm text-gray-500">
+        Manage your account information and preferences
+      </p>
+    </div>
+    
+    <!-- Profile information -->
+    <Card>
+      <div class="px-4 py-5 sm:p-6">
+        <div class="md:grid md:grid-cols-3 md:gap-6">
+          <div class="md:col-span-1">
+            <h3 class="text-lg font-medium leading-6 text-gray-900">Profile Information</h3>
+            <p class="mt-1 text-sm text-gray-500">
+              Update your personal information and how others see you on the platform.
+            </p>
+          </div>
+          <div class="mt-5 md:col-span-2 md:mt-0">
+            <form>
+              <div class="grid grid-cols-6 gap-6">
+                <div class="col-span-6 sm:col-span-3">
+                  <label for="first-name" class="block text-sm font-medium text-gray-700">Full name</label>
+                  <input type="text" name="full-name" id="full-name" value={userProfile.name}
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+                </div>
+                
+                <div class="col-span-6 sm:col-span-4">
+                  <label for="email" class="block text-sm font-medium text-gray-700">Email address</label>
+                  <input type="email" name="email" id="email" value={userProfile.email}
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+                </div>
+                
+                <div class="col-span-6 sm:col-span-3">
+                  <label for="job-title" class="block text-sm font-medium text-gray-700">Job title</label>
+                  <input type="text" name="job-title" id="job-title" value={userProfile.jobTitle}
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+                </div>
+                
+                <div class="col-span-6 sm:col-span-3">
+                  <label for="company" class="block text-sm font-medium text-gray-700">Company</label>
+                  <input type="text" name="company" id="company" value={userProfile.company}
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+                </div>
+                
+                <div class="col-span-6">
+                  <label for="about" class="block text-sm font-medium text-gray-700">About</label>
+                  <div class="mt-1">
+                    <textarea id="about" name="about" rows="3" 
+                      class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                      placeholder="Brief description about yourself"></textarea>
+                  </div>
+                  <p class="mt-2 text-sm text-gray-500">
+                    Brief description for your profile. URLs are hyperlinked.
+                  </p>
+                </div>
+                
+                <div class="col-span-6">
+                  <label class="block text-sm font-medium text-gray-700">Photo</label>
+                  <div class="mt-2 flex items-center">
+                    <span class="h-12 w-12 overflow-hidden rounded-full bg-gray-100">
+                      <svg class="h-full w-full text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                    </span>
+                    <Button type="button" variant="outline" class="ml-5">
+                      Change
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="mt-6 flex justify-end">
+                <Button type="button" variant="outline" class="mr-3">
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary">
+                  Save
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </Card>
+    
+    <!-- Password section -->
+    <Card>
+      <div class="px-4 py-5 sm:p-6">
+        <div class="md:grid md:grid-cols-3 md:gap-6">
+          <div class="md:col-span-1">
+            <h3 class="text-lg font-medium leading-6 text-gray-900">Password</h3>
+            <p class="mt-1 text-sm text-gray-500">
+              Update your password to keep your account secure.
+            </p>
+          </div>
+          <div class="mt-5 md:col-span-2 md:mt-0">
+            <form>
+              <div class="grid grid-cols-6 gap-6">
+                <div class="col-span-6 sm:col-span-4">
+                  <label for="current-password" class="block text-sm font-medium text-gray-700">Current password</label>
+                  <input type="password" name="current-password" id="current-password"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+                </div>
+                
+                <div class="col-span-6 sm:col-span-4">
+                  <label for="new-password" class="block text-sm font-medium text-gray-700">New password</label>
+                  <input type="password" name="new-password" id="new-password"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+                </div>
+                
+                <div class="col-span-6 sm:col-span-4">
+                  <label for="confirm-password" class="block text-sm font-medium text-gray-700">Confirm password</label>
+                  <input type="password" name="confirm-password" id="confirm-password"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm" />
+                </div>
+              </div>
+              
+              <div class="mt-6 flex justify-end">
+                <Button type="button" variant="outline" class="mr-3">
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary">
+                  Update Password
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </Card>
+    
+    <!-- Delete account section -->
+    <Card>
+      <div class="px-4 py-5 sm:p-6">
+        <div class="md:grid md:grid-cols-3 md:gap-6">
+          <div class="md:col-span-1">
+            <h3 class="text-lg font-medium leading-6 text-gray-900 text-red-600">Delete Account</h3>
+            <p class="mt-1 text-sm text-gray-500">
+              Permanently delete your account and all associated data.
+            </p>
+          </div>
+          <div class="mt-5 md:col-span-2 md:mt-0">
+            <div class="text-sm text-gray-500">
+              <p>Once you delete your account, there is no going back. Please be certain.</p>
+              <div class="mt-5">
+                <Button type="button" variant="outline" class="text-red-600 border-red-600 hover:bg-red-50">
+                  Delete Account
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Card>
+  </div>
+</DashboardLayout>
+
+<script>
+  // Client-side script for handling form submission
+  document.addEventListener('DOMContentLoaded', () => {
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        // In a real app, this would make an API call
+        // For the mockup, we just show an alert
+        alert('Changes saved successfully!');
+      });
+    });
+    
+    // Handle delete account button
+    const deleteButton = document.querySelector('button.text-red-600');
+    deleteButton?.addEventListener('click', () => {
+      if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+        alert('Account deletion request submitted. In a real app, this would delete your account.');
+      }
+    });
+  });
+</script> 

@@ -1,0 +1,293 @@
+---
+/**
+ * Following Page
+ * 
+ * Displays companies, products, and therapeutic areas the user is following.
+ * This is a UI mockup with no actual backend functionality.
+ */
+import DashboardLayout from '../components/templates/DashboardLayout.astro';
+import Card from '../components/atoms/Card.astro';
+import Button from '../components/atoms/Button.astro';
+import TabGroup from '../components/molecules/TabGroup.astro';
+import { followedCompanies, followedProducts, followedTherapeuticAreas } from '../data/user';
+
+// Breadcrumbs for the following page
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Dashboard', href: '/dashboard' },
+  { label: 'Following', href: '/following', isActive: true },
+];
+
+// Format date for display
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return new Intl.DateTimeFormat('en-US', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  }).format(date);
+};
+
+// Define tabs
+const tabs = [
+  { id: 'companies', label: `Companies (${followedCompanies.length})` },
+  { id: 'products', label: `Products (${followedProducts.length})` },
+  { id: 'therapeutic-areas', label: `Therapeutic Areas (${followedTherapeuticAreas.length})` },
+];
+---
+
+<DashboardLayout 
+  title="Following | Top Pharma"
+  description="View and manage the companies, products, and therapeutic areas you're following"
+  currentPath="/following"
+  breadcrumbs={breadcrumbs}
+>
+  <div class="space-y-6">
+    <!-- Page header -->
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Following</h1>
+      <p class="mt-1 text-sm text-gray-500">
+        View and manage the companies, products, and therapeutic areas you're following
+      </p>
+    </div>
+    
+    <!-- Tabs for different following types -->
+    <div>
+      <TabGroup
+        tabs={tabs}
+        activeTab="companies"
+        ariaLabel="Following categories"
+        tabPanelId="following-content"
+      />
+      
+      <!-- Companies tab -->
+      <div id="following-content-companies" role="tabpanel" class="mt-6">
+        {followedCompanies.length === 0 ? (
+          <div class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No companies followed</h3>
+            <p class="mt-1 text-sm text-gray-500">You haven't followed any companies yet.</p>
+            <div class="mt-6">
+              <Button href="/companies" variant="primary">
+                Browse Companies
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Card>
+            <div class="overflow-hidden">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Followed On</th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  {followedCompanies.map((company) => (
+                    <tr>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                          <div class="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
+                            <span class="text-lg font-medium text-gray-600">{company.name.charAt(0)}</span>
+                          </div>
+                          <div class="ml-4">
+                            <div class="text-sm font-medium text-gray-900">
+                              <a href={`/companies/${company.id}`} class="hover:text-primary-600">{company.name}</a>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(company.followedAt)}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button type="button" class="text-primary-600 hover:text-primary-900 mr-4" data-company-id={company.id}>Unfollow</button>
+                        <a href={`/companies/${company.id}`} class="text-gray-600 hover:text-gray-900">View</a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+      </div>
+      
+      <!-- Products tab -->
+      <div id="following-content-products" role="tabpanel" class="mt-6 hidden">
+        {followedProducts.length === 0 ? (
+          <div class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No products followed</h3>
+            <p class="mt-1 text-sm text-gray-500">You haven't followed any products yet.</p>
+            <div class="mt-6">
+              <Button href="/products" variant="primary">
+                Browse Products
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Card>
+            <div class="overflow-hidden">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Followed On</th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  {followedProducts.map((product) => (
+                    <tr>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">
+                          <a href={`/products/${product.id}`} class="hover:text-primary-600">{product.name}</a>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {product.company}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(product.followedAt)}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button type="button" class="text-primary-600 hover:text-primary-900 mr-4" data-product-id={product.id}>Unfollow</button>
+                        <a href={`/products/${product.id}`} class="text-gray-600 hover:text-gray-900">View</a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+      </div>
+      
+      <!-- Therapeutic Areas tab -->
+      <div id="following-content-therapeutic-areas" role="tabpanel" class="mt-6 hidden">
+        {followedTherapeuticAreas.length === 0 ? (
+          <div class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No therapeutic areas followed</h3>
+            <p class="mt-1 text-sm text-gray-500">You haven't followed any therapeutic areas yet.</p>
+            <div class="mt-6">
+              <Button href="/therapeutic-areas" variant="primary">
+                Browse Therapeutic Areas
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Card>
+            <div class="overflow-hidden">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Therapeutic Area</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Followed On</th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  {followedTherapeuticAreas.map((area) => (
+                    <tr>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">
+                          <a href={`/therapeutic-areas/${area.id}`} class="hover:text-primary-600">{area.name}</a>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(area.followedAt)}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button type="button" class="text-primary-600 hover:text-primary-900 mr-4" data-area-id={area.id}>Unfollow</button>
+                        <a href={`/therapeutic-areas/${area.id}`} class="text-gray-600 hover:text-gray-900">View</a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
+
+<script>
+  // Client-side script for handling unfollow actions
+  document.addEventListener('DOMContentLoaded', () => {
+    // Handle unfollow buttons for companies
+    const companyUnfollowButtons = document.querySelectorAll('button[data-company-id]');
+    companyUnfollowButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const companyId = button.getAttribute('data-company-id');
+        if (confirm(`Are you sure you want to unfollow this company?`)) {
+          // In a real app, this would make an API call
+          // For the mockup, we just remove the row from the table
+          const row = button.closest('tr');
+          row?.remove();
+          
+          // Update the count in the tab
+          const tab = document.querySelector('[href="#companies"]');
+          if (tab) {
+            const currentCount = parseInt(tab.textContent?.match(/\((\d+)\)/)?.[1] || '0', 10);
+            tab.textContent = tab.textContent?.replace(/\(\d+\)/, `(${Math.max(0, currentCount - 1)})`);
+          }
+        }
+      });
+    });
+    
+    // Handle unfollow buttons for products
+    const productUnfollowButtons = document.querySelectorAll('button[data-product-id]');
+    productUnfollowButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const productId = button.getAttribute('data-product-id');
+        if (confirm(`Are you sure you want to unfollow this product?`)) {
+          // In a real app, this would make an API call
+          // For the mockup, we just remove the row from the table
+          const row = button.closest('tr');
+          row?.remove();
+          
+          // Update the count in the tab
+          const tab = document.querySelector('[href="#products"]');
+          if (tab) {
+            const currentCount = parseInt(tab.textContent?.match(/\((\d+)\)/)?.[1] || '0', 10);
+            tab.textContent = tab.textContent?.replace(/\(\d+\)/, `(${Math.max(0, currentCount - 1)})`);
+          }
+        }
+      });
+    });
+    
+    // Handle unfollow buttons for therapeutic areas
+    const areaUnfollowButtons = document.querySelectorAll('button[data-area-id]');
+    areaUnfollowButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const areaId = button.getAttribute('data-area-id');
+        if (confirm(`Are you sure you want to unfollow this therapeutic area?`)) {
+          // In a real app, this would make an API call
+          // For the mockup, we just remove the row from the table
+          const row = button.closest('tr');
+          row?.remove();
+          
+          // Update the count in the tab
+          const tab = document.querySelector('[href="#therapeutic-areas"]');
+          if (tab) {
+            const currentCount = parseInt(tab.textContent?.match(/\((\d+)\)/)?.[1] || '0', 10);
+            tab.textContent = tab.textContent?.replace(/\(\d+\)/, `(${Math.max(0, currentCount - 1)})`);
+          }
+        }
+      });
+    });
+  });
+</script> 
