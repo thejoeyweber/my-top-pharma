@@ -102,45 +102,72 @@
 /* Custom base styles */
 @layer base {
   html {
-    @apply text-gray-900;
+    color: var(--color-gray-900);
   }
   
   h1 {
-    @apply text-4xl font-bold mb-4;
+    font-size: var(--text-4xl);
+    line-height: var(--text-4xl--line-height);
+    font-weight: 700;
+    margin-bottom: 1rem;
   }
   
   h2 {
-    @apply text-3xl font-bold mb-3;
+    font-size: var(--text-3xl);
+    line-height: var(--text-3xl--line-height);
+    font-weight: 700;
+    margin-bottom: 0.75rem;
   }
   
   h3 {
-    @apply text-2xl font-semibold mb-2;
+    font-size: var(--text-2xl);
+    line-height: var(--text-2xl--line-height);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
   }
   
   h4 {
-    @apply text-xl font-semibold mb-2;
+    font-size: var(--text-xl);
+    line-height: var(--text-xl--line-height);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
   }
   
   p {
-    @apply mb-4;
+    margin-bottom: 1rem;
   }
 }
 
 /* Custom component styles */
 @layer components {
   .btn {
-    @apply px-4 py-2 rounded-md font-medium transition-colors;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    transition-property: color, background-color, border-color;
+    transition-duration: 150ms;
   }
   
   .btn-primary {
-    @apply bg-primary-600 text-white hover:bg-primary-700;
+    background-color: var(--color-primary-600);
+    color: white;
+  }
+  .btn-primary:hover {
+    background-color: var(--color-primary-700);
   }
   
   .btn-secondary {
-    @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+    background-color: var(--color-gray-200);
+    color: var(--color-gray-800);
+  }
+  .btn-secondary:hover {
+    background-color: var(--color-gray-300);
   }
   
   .card {
-    @apply bg-white rounded-lg shadow-md p-4;
+    background-color: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: 1rem;
   }
 }

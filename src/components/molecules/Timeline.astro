@@ -1,0 +1,85 @@
+---
+/**
+ * Timeline Component
+ * 
+ * A component for displaying a chronological timeline of events,
+ * designed specifically for showing product development stages.
+ */
+
+import type { ProductStage, ProductTimeline } from '../../data/products';
+import { getStageName, getStageColor } from '../../data/products';
+
+interface Props {
+  events: ProductTimeline[];
+  currentStage?: ProductStage;
+}
+
+const { events = [], currentStage } = Astro.props;
+
+// Sort events chronologically
+const sortedEvents = [...events].sort((a, b) => {
+  return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+});
+
+// Format date for display (MM/YYYY)
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+};
+
+// Get color for timeline point based on stage
+const getStagePointColor = (stage: ProductStage) => {
+  const colorMap = {
+    'gray': 'bg-gray-500',
+    'blue': 'bg-blue-500', 
+    'indigo': 'bg-indigo-500',
+    'purple': 'bg-purple-500',
+    'yellow': 'bg-yellow-500',
+    'green': 'bg-green-500',
+    'emerald': 'bg-emerald-500'
+  };
+  return colorMap[getStageColor(stage)] || 'bg-gray-500';
+};
+
+// Check if event is the current stage
+const isCurrentStage = (stage: ProductStage) => {
+  return stage === currentStage;
+};
+---
+
+<div class="timeline relative py-4">
+  {/* Vertical timeline line */}
+  <div class="absolute top-0 left-6 bottom-0 w-0.5 bg-gray-200"></div>
+  
+  {/* Timeline Events */}
+  {sortedEvents.map((event, index) => (
+    <div class="relative pl-8 pb-8 last:pb-0">
+      {/* Timeline point */}
+      <div class={`absolute top-0 left-0 w-3 h-3 rounded-full border-4 border-white ${getStagePointColor(event.stage)} ${isCurrentStage(event.stage) ? 'ring-2 ring-offset-2 ring-[color:var(--color-primary-500)]' : ''}`}></div>
+      
+      {/* Timeline content */}
+      <div class="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2">
+          <h4 class="font-medium text-gray-900">
+            {getStageName(event.stage)}
+            {isCurrentStage(event.stage) && (
+              <span class="ml-2 inline-block px-2 py-0.5 text-xs rounded-full bg-[color:var(--color-primary-50)] text-[color:var(--color-primary-700)]">
+                Current Stage
+              </span>
+            )}
+          </h4>
+          <div class="text-sm text-gray-500 mt-1 sm:mt-0">
+            {formatDate(event.startDate)} 
+            {event.endDate ? ` – ${formatDate(event.endDate)}` : ' – Present'}
+          </div>
+        </div>
+        
+        {event.milestone && (
+          <div class="mt-2 text-sm text-gray-600">
+            <span class="font-medium text-gray-700">Key Milestone:</span> {event.milestone}
+          </div>
+        )}
+      </div>
+    </div>
+  ))}
+</div> 

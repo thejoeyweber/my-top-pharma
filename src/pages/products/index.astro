@@ -1,0 +1,502 @@
+---
+/**
+ * Products Directory Page
+ * 
+ * Main page for browsing pharmaceutical products with 
+ * filtering and sorting capabilities.
+ */
+import DashboardLayout from '../../components/templates/DashboardLayout.astro';
+import Card from '../../components/atoms/Card.astro';
+import Button from '../../components/atoms/Button.astro';
+import FilterBar from '../../components/organisms/FilterBar.astro';
+import SortSelect from '../../components/molecules/SortSelect.astro';
+import ViewToggle from '../../components/molecules/ViewToggle.astro';
+import ProductCard from '../../components/molecules/ProductCard.astro';
+import { products, getStageName } from '../../data/products';
+import { therapeuticAreas, getCompanyById } from '../../data/companies';
+
+// Define breadcrumbs for navigation
+const breadcrumbs = [
+  { label: 'Products', href: '/products' },
+];
+
+// Define filter options
+const filters = [
+  {
+    id: 'stage',
+    label: 'Development Stage',
+    type: 'select',
+    options: [
+      { value: 'preclinical', label: 'Preclinical' },
+      { value: 'phase1', label: 'Phase 1' },
+      { value: 'phase2', label: 'Phase 2' },
+      { value: 'phase3', label: 'Phase 3' },
+      { value: 'submitted', label: 'Submitted' },
+      { value: 'approved', label: 'Approved' },
+      { value: 'marketed', label: 'Marketed' },
+    ]
+  },
+  {
+    id: 'therapeuticAreas',
+    label: 'Therapeutic Areas',
+    type: 'multi-select',
+    options: therapeuticAreas.map(area => ({
+      value: area.id,
+      label: area.name
+    }))
+  },
+  {
+    id: 'moleculeType',
+    label: 'Molecule Type',
+    type: 'select',
+    options: [
+      { value: 'Small Molecule', label: 'Small Molecule' },
+      { value: 'Monoclonal Antibody', label: 'Monoclonal Antibody' },
+      { value: 'Peptide', label: 'Peptide' },
+      { value: 'Biologic', label: 'Biologic' },
+      { value: 'Gene Therapy', label: 'Gene Therapy' },
+      { value: 'Cell Therapy', label: 'Cell Therapy' },
+    ]
+  }
+];
+
+// Define sort options
+const sortOptions = [
+  { value: 'name-asc', label: 'Name (A-Z)' },
+  { value: 'name-desc', label: 'Name (Z-A)' },
+  { value: 'stage-desc', label: 'Latest Stage First' },
+  { value: 'stage-asc', label: 'Early Stage First' },
+  { value: 'newest', label: 'Newest First' },
+  { value: 'oldest', label: 'Oldest First' },
+];
+
+// Helper: Extract the earliest start date from the timeline
+const getStartDate = (product) => {
+  if (!product.timeline || product.timeline.length === 0) return '';
+  const dates = product.timeline.map(event => new Date(event.startDate).getTime());
+  return new Date(Math.min(...dates)).toISOString();
+};
+
+// Get the stage order for sorting
+const getStageOrder = (stage) => {
+  const stageOrder = {
+    'preclinical': 1,
+    'phase1': 2,
+    'phase2': 3,
+    'phase3': 4,
+    'submitted': 5,
+    'approved': 6,
+    'marketed': 7
+  };
+  return stageOrder[stage] || 0;
+};
+
+// Sort products based on selected option
+const sortedProducts = [...products].sort((a, b) => {
+  // Default sort: name ascending
+  return a.name.localeCompare(b.name);
+});
+---
+
+<DashboardLayout
+  title="Products Directory | Top Pharma"
+  description="Browse and search pharmaceutical products and pipeline candidates in the Top Pharma directory"
+  currentPath="/products"
+  breadcrumbs={breadcrumbs}
+>
+  <div class="space-y-6">
+    <!-- Page header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Products Directory</h1>
+        <p class="mt-1 text-sm text-gray-500">
+          Browse all pharmaceutical products and pipeline candidates in our database
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <Button href="/products/pipeline" variant="outline">View Pipeline</Button>
+        <Button href="/products/new" variant="primary">Add Product</Button>
+      </div>
+    </div>
+    
+    <!-- Filters -->
+    <FilterBar filters={filters}>
+      <!-- Primary Filters Section -->
+      <div class="mb-6 border-b border-gray-200 pb-6">
+        <h3 class="text-base font-medium text-gray-900 mb-4">Quick Filters</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <label for="stage" class="block text-sm font-medium text-gray-700 mb-1">Development Stage</label>
+            <select
+              id="stage"
+              name="stage"
+              class="w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            >
+              <option value="">All Stages</option>
+              <option value="marketed,approved">Marketed & Approved</option>
+              <option value="phase3,submitted">Late Stage (Phase 3/Submitted)</option>
+              <option value="phase1,phase2">Early Clinical (Phase 1-2)</option>
+              <option value="preclinical">Preclinical</option>
+            </select>
+          </div>
+          
+          <div>
+            <label for="therapeuticArea" class="block text-sm font-medium text-gray-700 mb-1">Therapeutic Area</label>
+            <select
+              id="therapeuticArea"
+              name="therapeuticArea"
+              class="w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            >
+              <option value="">All Areas</option>
+              {therapeuticAreas.map(area => (
+                <option value={area.id}>{area.name}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div>
+            <label for="moleculeType" class="block text-sm font-medium text-gray-700 mb-1">Molecule Type</label>
+            <select
+              id="moleculeType"
+              name="moleculeType"
+              class="w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            >
+              <option value="">All Types</option>
+              <option value="Small Molecule">Small Molecule</option>
+              <option value="Monoclonal Antibody">Monoclonal Antibody</option>
+              <option value="Biologic">Biologic</option>
+              <option value="Peptide">Peptide</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Advanced Filters Section -->
+      <div class="mb-2">
+        <div class="flex justify-end items-center mb-4">
+          <h3 class="text-base font-medium text-gray-900 advanced-filter-heading hidden mr-auto">Advanced Filters</h3>
+          <button 
+            type="button" 
+            class="text-sm text-primary-600 font-medium hover:text-primary-800 flex items-center gap-1"
+            data-toggle-advanced
+          >
+            <span class="show-text flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+              <span>Advanced Filters</span>
+            </span>
+            <span class="hide-text hidden flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+              </svg>
+              <span>Hide Advanced Filters</span>
+            </span>
+          </button>
+        </div>
+        
+        <div class="hidden rounded-lg bg-gray-50 p-6 border border-gray-200 w-full mt-2" data-advanced-filters>
+          <div class="space-y-8">
+            <!-- First row -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label for="indication" class="block text-sm font-medium text-gray-700 mb-1">Indication</label>
+                <select
+                  id="indication"
+                  name="indication"
+                  class="w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                >
+                  <option value="">All Indications</option>
+                  <option value="Alzheimer's Disease">Alzheimer's Disease</option>
+                  <option value="Breast Cancer">Breast Cancer</option>
+                  <option value="COVID-19">COVID-19</option>
+                  <option value="Diabetes Mellitus">Diabetes Mellitus</option>
+                  <option value="Hypertension">Hypertension</option>
+                  <option value="Multiple Sclerosis">Multiple Sclerosis</option>
+                  <option value="Osteoarthritis">Osteoarthritis</option>
+                  <option value="Parkinson's Disease">Parkinson's Disease</option>
+                  <option value="Psoriasis">Psoriasis</option>
+                  <option value="Rheumatoid Arthritis">Rheumatoid Arthritis</option>
+                </select>
+              </div>
+              
+              <div class="space-y-4 bg-white p-4 rounded-md border border-gray-200">
+                <h4 class="text-sm font-medium text-gray-900">Regulatory Status</h4>
+                <div class="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="fdaApproved"
+                    name="fdaApproved"
+                    value="true"
+                    class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <label for="fdaApproved" class="ml-2 block text-sm text-gray-700">
+                    FDA Approved
+                  </label>
+                </div>
+                
+                <div class="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="emaApproved"
+                    name="emaApproved"
+                    value="true"
+                    class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <label for="emaApproved" class="ml-2 block text-sm text-gray-700">
+                    EMA Approved
+                  </label>
+                </div>
+                
+                <div class="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="pendingApproval"
+                    name="pendingApproval"
+                    value="true"
+                    class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <label for="pendingApproval" class="ml-2 block text-sm text-gray-700">
+                    Pending Approval
+                  </label>
+                </div>
+              </div>
+              
+              <div class="space-y-4 bg-white p-4 rounded-md border border-gray-200">
+                <h4 class="text-sm font-medium text-gray-900">Other Criteria</h4>
+                <div class="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="hasPatents"
+                    name="hasPatents"
+                    value="true"
+                    class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <label for="hasPatents" class="ml-2 block text-sm text-gray-700">
+                    Has Patents
+                  </label>
+                </div>
+                
+                <div class="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="hasWebsite"
+                    name="hasWebsite"
+                    value="true"
+                    class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <label for="hasWebsite" class="ml-2 block text-sm text-gray-700">
+                    Has Website
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Year range -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div class="simple-range-slider bg-white p-4 rounded-md border border-gray-200">
+                <label for="yearMin" class="block text-sm font-medium text-gray-700 mb-2">Program Start Year</label>
+                <div class="flex items-center gap-2 mb-1">
+                  <input 
+                    type="number" 
+                    id="yearMin" 
+                    name="yearMin" 
+                    min="2000" 
+                    max="2023" 
+                    placeholder="2000"
+                    class="w-full rounded-md border border-gray-300 py-1.5 px-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                  <span class="text-gray-500">to</span>
+                  <input 
+                    type="number" 
+                    id="yearMax" 
+                    name="yearMax" 
+                    min="2000" 
+                    max="2023" 
+                    placeholder="2023"
+                    class="w-full rounded-md border border-gray-300 py-1.5 px-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  />
+                </div>
+                <div class="text-xs text-gray-500 flex justify-between">
+                  <span>2000</span>
+                  <span>2023</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mt-8 flex justify-end gap-3">
+            <Button type="button" variant="outline" size="sm" class="px-4" data-reset-filters>Reset Filters</Button>
+            <Button type="button" variant="primary" size="sm" class="px-4" data-apply-filters>Apply Filters</Button>
+          </div>
+        </div>
+      </div>
+    </FilterBar>
+    
+    <!-- Results controls -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <p class="text-sm text-gray-700">
+        Showing <span class="font-medium">{products.length}</span> products
+      </p>
+      
+      <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+        <SortSelect
+          options={sortOptions}
+          selectedValue="name-asc"
+        />
+        
+        <ViewToggle initialValue="grid" />
+      </div>
+    </div>
+    
+    <!-- Product cards (Grid View) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-view="grid">
+      {sortedProducts.map(product => (
+        <ProductCard product={product} view="grid" />
+      ))}
+    </div>
+    
+    <!-- Product table (List View) -->
+    <div class="hidden overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg" data-view="list">
+      <table class="min-w-full divide-y divide-gray-300">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
+            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Stage</th>
+            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Molecule Type</th>
+            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Company</th>
+            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Indications</th>
+            <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
+              <span class="sr-only">View</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 bg-white">
+          {sortedProducts.map(product => {
+            const company = product.companyId ? getCompanyById(product.companyId) : null;
+            return (
+              <tr>
+                <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+                  <div class="font-medium text-gray-900">{product.name}</div>
+                  {product.genericName && (
+                    <div class="text-gray-500 italic">{product.genericName}</div>
+                  )}
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={
+                    product.stage === 'marketed' || product.stage === 'approved' 
+                      ? 'background-color:var(--color-green-100, #dcfce7); color:var(--color-green-800, #166534)' 
+                      : product.stage === 'submitted'
+                      ? 'background-color:var(--color-yellow-100, #fef9c3); color:var(--color-yellow-800, #854d0e)'
+                      : 'background-color:var(--color-blue-100, #dbeafe); color:var(--color-blue-800, #1e40af)'
+                  }>
+                    {getStageName(product.stage)}
+                  </span>
+                </td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{product.moleculeType}</td>
+                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                  {company ? (
+                    <a href={`/companies/${company.id}`} class="text-[color:var(--color-primary-600)] hover:underline">
+                      {company.name}
+                    </a>
+                  ) : ('N/A')}
+                </td>
+                <td class="px-3 py-4 text-sm text-gray-500">
+                  <div class="max-w-xs truncate">{product.indications.join(', ')}</div>
+                </td>
+                <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                  <a href={`/products/${product.id}`} class="text-[color:var(--color-primary-600)] hover:text-[color:var(--color-primary-900)]">
+                    View<span class="sr-only">, {product.name}</span>
+                  </a>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</DashboardLayout>
+
+<style>
+  /* Simple range slider styles */
+  .simple-range-slider input[type="number"] {
+    -moz-appearance: textfield;
+  }
+  
+  .simple-range-slider input[type="number"]::-webkit-outer-spin-button,
+  .simple-range-slider input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+</style>
+
+<script>
+  // Client-side view toggling and advanced filters
+  document.addEventListener('DOMContentLoaded', () => {
+    // View toggle functionality
+    const viewToggle = document.querySelector('[data-view-toggle]');
+    const gridView = document.querySelector('[data-view="grid"]');
+    const listView = document.querySelector('[data-view="list"]');
+    
+    viewToggle?.addEventListener('view:changed', (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const viewMode = customEvent.detail.value;
+      
+      if (viewMode === 'grid') {
+        gridView?.classList.remove('hidden');
+        listView?.classList.add('hidden');
+      } else if (viewMode === 'list') {
+        gridView?.classList.add('hidden');
+        listView?.classList.remove('hidden');
+      }
+    });
+    
+    // Advanced filters toggle
+    const advancedToggleBtn = document.querySelector('[data-toggle-advanced]');
+    const advancedFilters = document.querySelector('[data-advanced-filters]');
+    const showText = advancedToggleBtn?.querySelector('.show-text');
+    const hideText = advancedToggleBtn?.querySelector('.hide-text');
+    const filterHeading = document.querySelector('.advanced-filter-heading');
+    
+    advancedToggleBtn?.addEventListener('click', () => {
+      advancedFilters?.classList.toggle('hidden');
+      showText?.classList.toggle('hidden');
+      hideText?.classList.toggle('hidden');
+      filterHeading?.classList.toggle('hidden');
+    });
+    
+    // Simple range slider validation
+    const rangeInputs = document.querySelectorAll('.simple-range-slider input[type="number"]');
+    rangeInputs.forEach(input => {
+      input.addEventListener('change', (e) => {
+        const target = e.target as HTMLInputElement;
+        const value = parseInt(target.value);
+        const min = parseInt(target.min);
+        const max = parseInt(target.max);
+        
+        // Ensure value is within min/max bounds
+        if (value < min) target.value = min.toString();
+        if (value > max) target.value = max.toString();
+        
+        // For min inputs, ensure they don't exceed the max value
+        if (target.id.endsWith('Min')) {
+          const maxInput = document.getElementById(target.id.replace('Min', 'Max')) as HTMLInputElement;
+          if (maxInput && parseInt(target.value) > parseInt(maxInput.value)) {
+            maxInput.value = target.value;
+          }
+        }
+        
+        // For max inputs, ensure they don't go below the min value
+        if (target.id.endsWith('Max')) {
+          const minInput = document.getElementById(target.id.replace('Max', 'Min')) as HTMLInputElement;
+          if (minInput && parseInt(target.value) < parseInt(minInput.value)) {
+            minInput.value = target.value;
+          }
+        }
+      });
+    });
+    
+    console.log('View toggle and advanced filters functionality ready');
+  });
+</script> 
