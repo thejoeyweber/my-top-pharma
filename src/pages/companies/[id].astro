@@ -13,13 +13,25 @@ import KeyMetric from '../../components/molecules/KeyMetric.astro';
 import CompanyCard from '../../components/molecules/CompanyCard.astro';
 import { companies, getCompanyById, getRelatedCompanies, therapeuticAreas } from '../../data/companies';
 
+// Generate static paths for all companies
+export function getStaticPaths() {
+  return companies.map(company => ({
+    params: { id: company.id },
+  }));
+}
+
 // Get company ID from URL parameters
 const { id } = Astro.params;
 const company = getCompanyById(id as string);
 
 // Handle case when company is not found
 if (!company) {
-  return Astro.redirect('/companies');
+  return new Response(null, {
+    status: 302,
+    headers: {
+      'Location': '/companies'
+    }
+  });
 }
 
 // Get related companies

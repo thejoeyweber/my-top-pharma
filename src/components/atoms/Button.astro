@@ -14,6 +14,7 @@ interface Props {
   fullWidth?: boolean;
   href?: string;
   class?: string;
+  [key: string]: any; // Allow any additional props to be passed through
 }
 
 const {
@@ -24,6 +25,7 @@ const {
   fullWidth = false,
   href,
   class: className = '',
+  ...rest // Capture all other props
 } = Astro.props;
 
 // Base classes
@@ -64,11 +66,11 @@ const Element = href ? 'a' : 'button';
 
 {
   href ? (
-    <a href={href} class={classes} {...disabled && { 'aria-disabled': 'true', tabindex: '-1' }}>
+    <a href={href} class={classes} {...disabled && { 'aria-disabled': 'true', tabindex: '-1' }} {...rest}>
       <slot />
     </a>
   ) : (
-    <button type={type} class={classes} disabled={disabled}>
+    <button type={type} class={classes} disabled={disabled} {...rest}>
       <slot />
     </button>
   )

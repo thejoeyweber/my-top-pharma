@@ -1,0 +1,270 @@
+---
+/**
+ * FilterBar Component
+ * 
+ * A flexible container for search and filter components.
+ * Includes collapsible sections for filters and selected filter chips.
+ */
+import SearchBar from '../molecules/SearchBar.astro';
+import FilterChip from '../atoms/FilterChip.astro';
+import Card from '../atoms/Card.astro';
+import Button from '../atoms/Button.astro';
+
+interface FilterOption {
+  value: string;
+  label: string;
+}
+
+interface Filter {
+  id: string;
+  label: string;
+  type: 'select' | 'multi-select' | 'range' | 'checkbox';
+  options?: FilterOption[];
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+interface Props {
+  filters: Filter[];
+  selectedFilters?: {
+    [key: string]: any;
+  };
+  showFilterButton?: boolean;
+  class?: string;
+}
+
+const {
+  filters = [],
+  selectedFilters = {},
+  showFilterButton = true,
+  class: className = "",
+} = Astro.props;
+
+// Process selected filters to create chips
+const filterChips: { id: string; label: string; value: string; type: string }[] = [];
+
+Object.entries(selectedFilters).forEach(([filterId, value]) => {
+  const filter = filters.find(f => f.id === filterId);
+  
+  if (!filter) return;
+  
+  if (Array.isArray(value)) {
+    // Multi-select filter
+    value.forEach(val => {
+      const option = filter.options?.find(opt => opt.value === val);
+      if (option) {
+        filterChips.push({
+          id: filter.id,
+          label: `${filter.label}: ${option.label}`,
+          value: val,
+          type: filter.id
+        });
+      }
+    });
+  } else if (typeof value === 'object' && value !== null) {
+    // Range filter
+    if ('min' in value && 'max' in value) {
+      filterChips.push({
+        id: filter.id,
+        label: `${filter.label}: ${value.min} - ${value.max}`,
+        value: JSON.stringify(value),
+        type: filter.id
+      });
+    }
+  } else if (typeof value === 'string' || typeof value === 'number') {
+    // Select filter
+    const option = filter.options?.find(opt => opt.value === value);
+    if (option) {
+      filterChips.push({
+        id: filter.id,
+        label: `${filter.label}: ${option.label}`,
+        value: value.toString(),
+        type: filter.id
+      });
+    }
+  }
+});
+---
+
+<div class:list={["filter-bar", className]} data-filter-bar>
+  <Card>
+    <div class="p-4">
+      <div class="flex flex-col gap-4">
+        <!-- Search and Filters Button Row -->
+        <div class="flex flex-col md:flex-row gap-4 items-start">
+          <div class="w-full md:flex-1">
+            <SearchBar 
+              id="global-search" 
+              name="q" 
+              placeholder="Search companies, products, therapeutics..."
+            />
+          </div>
+          
+          {showFilterButton && (
+            <div class="flex-shrink-0">
+              <Button 
+                type="button" 
+                variant="secondary" 
+                class="flex items-center gap-2 w-full md:w-auto"
+                data-toggle-filters
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+                </svg>
+                <span>Filters</span>
+              </Button>
+            </div>
+          )}
+        </div>
+        
+        <!-- Selected filter chips -->
+        {filterChips.length > 0 && (
+          <div class="filter-chips flex flex-wrap gap-2" data-filter-chips>
+            {filterChips.map(chip => (
+              <FilterChip 
+                label={chip.label} 
+                value={chip.value} 
+                type={chip.type}
+              />
+            ))}
+            
+            {filterChips.length > 0 && (
+              <button 
+                type="button" 
+                class="text-sm text-primary-600 hover:text-primary-800 flex items-center gap-1"
+                data-clear-all-filters
+              >
+                <span>Clear all</span>
+              </button>
+            )}
+          </div>
+        )}
+        
+        <!-- Filters section (hidden by default) -->
+        <div class="filters-section border-t border-gray-200 pt-4" data-filters-section style="display: none;">
+          <div class="w-full">
+            <slot />
+          </div>
+        </div>
+      </div>
+    </div>
+  </Card>
+</div>
+
+<script is:inline>
+  // Simple, direct filter toggle functionality
+  (function() {
+    document.addEventListener('DOMContentLoaded', function() {
+      const allToggleButtons = document.querySelectorAll('[data-toggle-filters]');
+      
+      allToggleButtons.forEach(button => {
+        const filterBar = button.closest('[data-filter-bar]');
+        if (!filterBar) return;
+        
+        const filtersSection = filterBar.querySelector('[data-filters-section]');
+        if (!filtersSection) return;
+        
+        console.log('FilterBar: Successfully set up toggle button');
+        
+        // Add click handler to toggle button
+        button.addEventListener('click', function(e) {
+          e.preventDefault();
+          
+          // Simple display toggle
+          if (filtersSection.style.display === 'none') {
+            filtersSection.style.display = 'block';
+            console.log('FilterBar: Showing filters section');
+          } else {
+            filtersSection.style.display = 'none';
+            console.log('FilterBar: Hiding filters section');
+          }
+        });
+      });
+    });
+  })();
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const filterBars = document.querySelectorAll('[data-filter-bar]');
+    
+    filterBars.forEach(filterBar => {
+      const clearAllBtn = filterBar.querySelector('[data-clear-all-filters]');
+      const resetBtn = filterBar.querySelector('[data-reset-filters]');
+      const applyBtn = filterBar.querySelector('[data-apply-filters]');
+      const filterChipsContainer = filterBar.querySelector('[data-filter-chips]');
+      const filtersSection = filterBar.querySelector('[data-filters-section]');
+      
+      // Handle filter chip removal
+      filterBar.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const removeBtn = target.closest('[data-remove-filter]');
+        
+        if (removeBtn) {
+          const chip = removeBtn.closest('[data-filter-chip]');
+          if (chip) {
+            const type = chip.getAttribute('data-filter-type');
+            const value = chip.getAttribute('data-filter-value');
+            
+            // Remove the chip
+            chip.remove();
+            
+            // If no more chips, hide the container
+            if (filterChipsContainer && !filterChipsContainer.querySelector('[data-filter-chip]')) {
+              clearAllBtn?.remove();
+            }
+            
+            // Dispatch a custom event that can be listened for to update filters
+            const detail = { type, value };
+            const event = new CustomEvent('filter:removed', { detail, bubbles: true });
+            filterBar.dispatchEvent(event);
+          }
+        }
+      });
+      
+      // Clear all filters
+      clearAllBtn?.addEventListener('click', () => {
+        const chips = filterBar.querySelectorAll('[data-filter-chip]');
+        chips.forEach(chip => chip.remove());
+        clearAllBtn.remove();
+        
+        // Dispatch an event to notify that all filters were cleared
+        const event = new CustomEvent('filter:cleared', { bubbles: true });
+        filterBar.dispatchEvent(event);
+      });
+      
+      // Reset filters
+      resetBtn?.addEventListener('click', () => {
+        // Find all form elements within the filters section
+        const inputs = filtersSection?.querySelectorAll('input, select');
+        inputs?.forEach(input => {
+          if (input instanceof HTMLInputElement) {
+            if (input.type === 'checkbox' || input.type === 'radio') {
+              input.checked = false;
+            } else {
+              input.value = '';
+            }
+          } else if (input instanceof HTMLSelectElement) {
+            input.selectedIndex = 0;
+          }
+        });
+        
+        // Dispatch an event to notify that filters were reset
+        const event = new CustomEvent('filter:reset', { bubbles: true });
+        filterBar.dispatchEvent(event);
+      });
+      
+      // Apply filters (this just closes the filter section in this implementation)
+      applyBtn?.addEventListener('click', () => {
+        if (filtersSection) {
+          filtersSection.style.display = 'none';
+        }
+        
+        // Dispatch an event to notify that filters were applied
+        const event = new CustomEvent('filter:applied', { bubbles: true });
+        filterBar.dispatchEvent(event);
+      });
+    });
+  });
+</script> 
