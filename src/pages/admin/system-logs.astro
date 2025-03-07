@@ -1,0 +1,303 @@
+---
+/**
+ * System Logs
+ * 
+ * Admin page for viewing system logs, activity history, and error reports.
+ */
+import Layout from '../../layouts/Layout.astro';
+import Card from '../../components/atoms/Card.astro';
+import { systemLogs } from '../../data/admin';
+
+// Format date
+const formatDate = (dateString: string): string => {
+  if (!dateString) return '--';
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+};
+
+// Get log level color
+const getLevelColor = (level: string): string => {
+  switch (level) {
+    case 'info':
+      return 'bg-blue-100 text-blue-800';
+    case 'warning':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'error':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+// Get log category color
+const getCategoryColor = (category: string): string => {
+  switch (category) {
+    case 'crawler':
+      return 'bg-purple-100 text-purple-800';
+    case 'api':
+      return 'bg-indigo-100 text-indigo-800';
+    case 'data-feed':
+      return 'bg-green-100 text-green-800';
+    case 'system':
+      return 'bg-gray-100 text-gray-800';
+    case 'user':
+      return 'bg-blue-100 text-blue-800';
+    case 'report':
+      return 'bg-amber-100 text-amber-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+---
+
+<Layout title="System Logs | Admin | Top Pharma">
+  <div class="min-h-screen bg-gray-100">
+    <header class="bg-white shadow">
+      <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div class="flex items-center">
+          <a href="/admin" class="mr-2 text-gray-400 hover:text-gray-600">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+              <path fill-rule="evenodd" d="M11.03 3.97a.75.75 0 0 1 0 1.06l-6.22 6.22H21a.75.75 0 0 1 0 1.5H4.81l6.22 6.22a.75.75 0 1 1-1.06 1.06l-7.5-7.5a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd" />
+            </svg>
+          </a>
+          <h1 class="text-3xl font-bold tracking-tight text-gray-900">System Logs</h1>
+        </div>
+      </div>
+    </header>
+    <main class="mx-auto max-w-7xl py-6 px-4 sm:px-6 lg:px-8">
+      
+      <!-- Log Filters -->
+      <div class="mb-6">
+        <Card>
+          <div class="px-4 py-5 sm:p-6">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div>
+                <label for="filter-level" class="block text-sm font-medium text-gray-700">Log Level</label>
+                <select id="filter-level" name="filter-level" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                  <option value="all">All Levels</option>
+                  <option value="info">Info</option>
+                  <option value="warning">Warning</option>
+                  <option value="error">Error</option>
+                </select>
+              </div>
+              
+              <div>
+                <label for="filter-category" class="block text-sm font-medium text-gray-700">Category</label>
+                <select id="filter-category" name="filter-category" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                  <option value="all">All Categories</option>
+                  <option value="crawler">Crawler</option>
+                  <option value="api">API</option>
+                  <option value="data-feed">Data Feed</option>
+                  <option value="user">User</option>
+                  <option value="system">System</option>
+                  <option value="report">Report</option>
+                </select>
+              </div>
+              
+              <div>
+                <label for="filter-date" class="block text-sm font-medium text-gray-700">Date Range</label>
+                <select id="filter-date" name="filter-date" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                  <option value="today">Today</option>
+                  <option value="yesterday">Yesterday</option>
+                  <option value="week">Last 7 Days</option>
+                  <option value="month">Last 30 Days</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="mt-4 flex justify-end">
+              <button type="button" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                Reset
+              </button>
+              <button type="button" class="ml-3 inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                Apply Filters
+              </button>
+              <button type="button" class="ml-3 inline-flex items-center rounded-md border border-transparent bg-gray-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                Export Logs
+              </button>
+            </div>
+          </div>
+        </Card>
+      </div>
+      
+      <!-- System Logs -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">System Activity</h2>
+        <Card>
+          <div class="px-4 py-5 sm:p-6">
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  {systemLogs.map((log) => (
+                    <tr>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(log.timestamp)}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getLevelColor(log.level)}`}>
+                          {log.level}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getCategoryColor(log.category)}`}>
+                          {log.category}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 text-sm text-gray-900">{log.message}</td>
+                      <td class="px-6 py-4 text-sm text-gray-500">{log.details}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            <div class="mt-4 flex items-center justify-between">
+              <div class="text-sm text-gray-500">
+                Showing <span class="font-medium">10</span> of <span class="font-medium">234</span> logs
+              </div>
+              
+              <div class="flex space-x-2">
+                <button type="button" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                  Previous
+                </button>
+                <button type="button" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+      
+      <!-- Log Settings -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Log Settings</h2>
+        <Card>
+          <div class="px-4 py-5 sm:p-6">
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+              <div>
+                <label for="log-retention" class="block text-sm font-medium text-gray-700">Log Retention</label>
+                <select id="log-retention" name="log-retention" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                  <option value="7">7 days</option>
+                  <option value="14">14 days</option>
+                  <option value="30" selected>30 days</option>
+                  <option value="90">90 days</option>
+                  <option value="365">1 year</option>
+                </select>
+              </div>
+              
+              <div>
+                <label for="log-level" class="block text-sm font-medium text-gray-700">Minimum Log Level</label>
+                <select id="log-level" name="log-level" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                  <option value="debug">Debug</option>
+                  <option value="info" selected>Info</option>
+                  <option value="warning">Warning</option>
+                  <option value="error">Error</option>
+                </select>
+              </div>
+              
+              <div>
+                <label for="external-logging" class="block text-sm font-medium text-gray-700">External Logging</label>
+                <select id="external-logging" name="external-logging" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                  <option value="disabled">Disabled</option>
+                  <option value="file">File System</option>
+                  <option value="cloud" selected>Cloud Storage</option>
+                  <option value="monitoring">Monitoring Service</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="mt-6">
+              <label for="error-webhook" class="block text-sm font-medium text-gray-700">Error Notification Webhook URL</label>
+              <div class="mt-1">
+                <input type="url" name="error-webhook" id="error-webhook" value="https://hooks.slack.com/services/XXXXX/YYYYY/ZZZZZ" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+              </div>
+              <p class="mt-1 text-xs text-gray-500">Send error-level log notifications to this webhook URL (e.g., Slack)</p>
+            </div>
+            
+            <div class="mt-4 flex justify-end">
+              <button type="button" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                Reset
+              </button>
+              <button type="button" class="ml-3 inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                Save Settings
+              </button>
+              <button type="button" class="ml-3 inline-flex items-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                Clear All Logs
+              </button>
+            </div>
+          </div>
+        </Card>
+      </div>
+      
+      <!-- System Health -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">System Health</h2>
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <div class="px-4 py-5 sm:p-6">
+              <div class="flex flex-col items-center">
+                <h3 class="text-lg font-medium text-gray-900">CPU Usage</h3>
+                <div class="mt-1 h-16 w-16 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-xl">
+                  24%
+                </div>
+                <p class="mt-2 text-sm text-gray-500">Healthy</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card>
+            <div class="px-4 py-5 sm:p-6">
+              <div class="flex flex-col items-center">
+                <h3 class="text-lg font-medium text-gray-900">Memory</h3>
+                <div class="mt-1 h-16 w-16 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-xl">
+                  38%
+                </div>
+                <p class="mt-2 text-sm text-gray-500">2.1GB / 5.5GB</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card>
+            <div class="px-4 py-5 sm:p-6">
+              <div class="flex flex-col items-center">
+                <h3 class="text-lg font-medium text-gray-900">Disk Space</h3>
+                <div class="mt-1 h-16 w-16 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-600 font-bold text-xl">
+                  78%
+                </div>
+                <p class="mt-2 text-sm text-gray-500">78.3GB / 100GB</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card>
+            <div class="px-4 py-5 sm:p-6">
+              <div class="flex flex-col items-center">
+                <h3 class="text-lg font-medium text-gray-900">Database</h3>
+                <div class="mt-1 h-16 w-16 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-xl">
+                  OK
+                </div>
+                <p class="mt-2 text-sm text-gray-500">Response: 12ms</p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+      
+    </main>
+  </div>
+</Layout> 

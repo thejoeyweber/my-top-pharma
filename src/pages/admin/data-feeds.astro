@@ -1,0 +1,274 @@
+---
+/**
+ * Data Feeds Configuration
+ * 
+ * Admin page for managing external data sources like FDA, ClinicalTrials.gov, and other APIs.
+ */
+import Layout from '../../layouts/Layout.astro';
+import Card from '../../components/atoms/Card.astro';
+import { dataFeeds } from '../../data/admin';
+
+// Format date
+const formatDate = (dateString: string): string => {
+  if (!dateString) return '--';
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+};
+
+// Get status badge color
+const getStatusColor = (status: string): string => {
+  switch (status) {
+    case 'healthy':
+      return 'bg-green-100 text-green-800';
+    case 'warning':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'error':
+      return 'bg-red-100 text-red-800';
+    case 'disabled':
+      return 'bg-gray-100 text-gray-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+---
+
+<Layout title="Data Feeds | Admin | Top Pharma">
+  <div class="min-h-screen bg-gray-100">
+    <header class="bg-white shadow">
+      <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div class="flex items-center">
+          <a href="/admin" class="mr-2 text-gray-400 hover:text-gray-600">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+              <path fill-rule="evenodd" d="M11.03 3.97a.75.75 0 0 1 0 1.06l-6.22 6.22H21a.75.75 0 0 1 0 1.5H4.81l6.22 6.22a.75.75 0 1 1-1.06 1.06l-7.5-7.5a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd" />
+            </svg>
+          </a>
+          <h1 class="text-3xl font-bold tracking-tight text-gray-900">Data Feeds</h1>
+        </div>
+      </div>
+    </header>
+    <main class="mx-auto max-w-7xl py-6 px-4 sm:px-6 lg:px-8">
+      
+      <!-- Overview -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">External Data Sources</h2>
+        <Card>
+          <div class="px-4 py-5 sm:p-6">
+            <p class="text-sm text-gray-500 mb-4">
+              Configure and manage external data sources that are used to enrich our database. These sources are polled on a schedule to keep our information up-to-date.
+            </p>
+            
+            <div class="mb-4 flex justify-end">
+              <button type="button" class="inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                Add New Data Feed
+              </button>
+            </div>
+            
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Frequency</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Fetch</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Fetch</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  {dataFeeds.map((feed) => (
+                    <tr>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{feed.name}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <a href={feed.url} target="_blank" class="text-primary-600 hover:text-primary-900">
+                          {feed.url.length > 30 ? feed.url.substring(0, 30) + '...' : feed.url}
+                        </a>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusColor(feed.status)}`}>
+                          {feed.status}
+                        </span>
+                        {feed.statusDetails && (
+                          <span class="block text-xs text-gray-500 mt-1">{feed.statusDetails}</span>
+                        )}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {feed.frequency}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(feed.lastFetch)}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(feed.nextFetch)}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <button type="button" class="text-primary-600 hover:text-primary-900 mr-3">Edit</button>
+                        <button type="button" class="text-primary-600 hover:text-primary-900 mr-3">Fetch Now</button>
+                        <button type="button" class="text-red-600 hover:text-red-900">
+                          {feed.active ? 'Disable' : 'Enable'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </Card>
+      </div>
+      
+      <!-- Data Feed Details -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Add/Edit Data Feed</h2>
+        <Card>
+          <div class="px-4 py-5 sm:p-6">
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div class="sm:col-span-2">
+                <label for="feed-name" class="block text-sm font-medium text-gray-700">Feed Name</label>
+                <div class="mt-1">
+                  <input type="text" name="feed-name" id="feed-name" placeholder="e.g., FDA Drug Approvals" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                </div>
+              </div>
+              
+              <div class="sm:col-span-2">
+                <label for="feed-url" class="block text-sm font-medium text-gray-700">API URL</label>
+                <div class="mt-1">
+                  <input type="url" name="feed-url" id="feed-url" placeholder="https://api.example.com/endpoint" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                </div>
+              </div>
+              
+              <div>
+                <label for="feed-frequency" class="block text-sm font-medium text-gray-700">Frequency</label>
+                <div class="mt-1">
+                  <select id="feed-frequency" name="feed-frequency" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                    <option value="hourly">Hourly</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label for="feed-status" class="block text-sm font-medium text-gray-700">Status</label>
+                <div class="mt-1">
+                  <select id="feed-status" name="feed-status" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                    <option value="active">Active</option>
+                    <option value="disabled">Disabled</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="sm:col-span-2">
+                <label for="feed-auth" class="block text-sm font-medium text-gray-700">Authentication (Optional)</label>
+                <div class="mt-1">
+                  <textarea id="feed-auth" name="feed-auth" rows="3" placeholder="API Key or Authentication Details" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"></textarea>
+                </div>
+              </div>
+              
+              <div class="sm:col-span-2">
+                <label for="feed-mapping" class="block text-sm font-medium text-gray-700">Data Mapping</label>
+                <div class="mt-1">
+                  <textarea id="feed-mapping" name="feed-mapping" rows="5" placeholder="JSON mapping configuration" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm font-mono"></textarea>
+                </div>
+                <p class="mt-2 text-sm text-gray-500">Define how fields from the external API map to our database schema.</p>
+              </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end">
+              <button type="button" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                Cancel
+              </button>
+              <button type="button" class="ml-3 inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                Save Data Feed
+              </button>
+              <button type="button" class="ml-3 inline-flex items-center rounded-md border border-transparent bg-gray-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                Test Connection
+              </button>
+            </div>
+          </div>
+        </Card>
+      </div>
+      
+      <!-- Fetch History -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Fetch History</h2>
+        <Card>
+          <div class="px-4 py-5 sm:p-6">
+            <p class="text-sm text-gray-500 mb-4">
+              Recent data fetch operations and their status.
+            </p>
+            
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Feed</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Records Updated</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">FDA Drug Approvals</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 7, 2025 12:00 AM</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 bg-green-100 text-green-800">
+                        Success
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">42</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">3.2s</td>
+                  </tr>
+                  <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">ClinicalTrials.gov Updates</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 7, 2025 12:30 AM</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 bg-green-100 text-green-800">
+                        Success
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">187</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">12.7s</td>
+                  </tr>
+                  <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">SEC EDGAR Filings</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 6, 2025 11:45 PM</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 bg-red-100 text-red-800">
+                        Failed
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">0</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">30.0s</td>
+                  </tr>
+                  <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">WHO Essential Medicines</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 6, 2025 2:00 PM</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 bg-green-100 text-green-800">
+                        Success
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">3</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1.5s</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </Card>
+      </div>
+      
+    </main>
+  </div>
+</Layout> 
