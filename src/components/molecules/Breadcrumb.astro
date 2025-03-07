@@ -1,0 +1,44 @@
+---
+/**
+ * Breadcrumb Component
+ * 
+ * Displays a breadcrumb navigation trail showing the current page location
+ * within the site hierarchy.
+ */
+
+interface BreadcrumbItem {
+  label: string;
+  href: string;
+  isActive?: boolean;
+}
+
+interface Props {
+  items: BreadcrumbItem[];
+}
+
+const { items } = Astro.props;
+---
+
+<nav aria-label="Breadcrumb" class="py-3">
+  <ol class="flex flex-wrap text-sm text-gray-500">
+    {items.map((item, index) => (
+      <li class="flex items-center">
+        {index > 0 && (
+          <svg class="mx-2 h-4 w-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M5.555 17.776l8-16 .894.448-8 16-.894-.448z" />
+          </svg>
+        )}
+        <a 
+          href={item.href}
+          class:list={[
+            'hover:text-gray-700',
+            item.isActive ? 'font-medium text-primary-600' : ''
+          ]}
+          aria-current={item.isActive ? 'page' : undefined}
+        >
+          {item.label}
+        </a>
+      </li>
+    ))}
+  </ol>
+</nav> 

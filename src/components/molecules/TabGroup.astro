@@ -1,0 +1,107 @@
+---
+/**
+ * TabGroup Component
+ * 
+ * A responsive tab navigation component for organizing content into tabs.
+ * Includes support for active state styling and accessibility features.
+ */
+
+interface Tab {
+  id: string;
+  label: string;
+  icon?: string;
+}
+
+interface Props {
+  tabs: Tab[];
+  activeTab: string;
+  ariaLabel?: string;
+  tabPanelId?: string;
+}
+
+const { tabs, activeTab, ariaLabel = 'Content tabs', tabPanelId = 'tab-content' } = Astro.props;
+---
+
+<div class="border-b border-gray-200">
+  <nav class="flex -mb-px space-x-8 overflow-x-auto" aria-label={ariaLabel} role="tablist">
+    {tabs.map(tab => (
+      <a
+        id={`tab-${tab.id}`}
+        href={`#${tab.id}`}
+        class:list={[
+          "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-[color:var(--color-primary-500)] focus:ring-offset-2",
+          activeTab === tab.id
+            ? "border-[color:var(--color-primary-500)] text-[color:var(--color-primary-600)]"
+            : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+        ]}
+        aria-controls={`${tabPanelId}-${tab.id}`}
+        aria-selected={activeTab === tab.id ? "true" : "false"}
+        role="tab"
+        tabindex={activeTab === tab.id ? "0" : "-1"}
+      >
+        {tab.icon && <span set:html={tab.icon} />}
+        {tab.label}
+      </a>
+    ))}
+  </nav>
+</div>
+
+<script define:vars={{ tabs, tabPanelId }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    tabs.forEach(tab => {
+      const tabButton = document.getElementById(`tab-${tab.id}`);
+      const tabPanel = document.getElementById(`${tabPanelId}-${tab.id}`);
+      
+      tabButton?.addEventListener('click', (e) => {
+        e.preventDefault();
+        
+        // Update URL hash
+        window.history.pushState(null, '', `#${tab.id}`);
+        
+        // Update active states
+        document.querySelectorAll('[role="tab"]').forEach(el => {
+          el.setAttribute('aria-selected', 'false');
+          el.setAttribute('tabindex', '-1');
+          el.classList.remove('border-[color:var(--color-primary-500)]', 'text-[color:var(--color-primary-600)]');
+          el.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+        });
+        
+        tabButton.setAttribute('aria-selected', 'true');
+        tabButton.setAttribute('tabindex', '0');
+        tabButton.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+        tabButton.classList.add('border-[color:var(--color-primary-500)]', 'text-[color:var(--color-primary-600)]');
+        
+        // Hide all tab panels
+        document.querySelectorAll('[role="tabpanel"]').forEach(el => {
+          el.classList.add('hidden');
+          el.setAttribute('aria-hidden', 'true');
+        });
+        
+        // Show selected tab panel
+        if (tabPanel) {
+          tabPanel.classList.remove('hidden');
+          tabPanel.setAttribute('aria-hidden', 'false');
+        }
+      });
+    });
+    
+    // Handle initial tab based on URL hash
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      const tabToActivate = hash && tabs.find(tab => tab.id === hash) 
+        ? hash 
+        : tabs[0]?.id;
+      
+      if (tabToActivate) {
+        const tabButton = document.getElementById(`tab-${tabToActivate}`);
+        tabButton?.click();
+      }
+    };
+    
+    // Handle hash change event
+    window.addEventListener('hashchange', handleHashChange);
+    
+    // Handle initial page load
+    handleHashChange();
+  });
+</script> 

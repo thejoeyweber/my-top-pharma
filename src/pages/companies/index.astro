@@ -1,0 +1,211 @@
+---
+/**
+ * Companies Directory Page
+ * 
+ * Lists all companies in the pharmaceutical directory with filtering options.
+ */
+import DashboardLayout from '../../components/templates/DashboardLayout.astro';
+import Card from '../../components/atoms/Card.astro';
+import Button from '../../components/atoms/Button.astro';
+
+// Mock data for companies
+const companies = [
+  {
+    id: 1,
+    name: 'Pfizer',
+    description: 'A leading global pharmaceutical company with a diverse portfolio of medicines and vaccines.',
+    logo: '/images/mock/pfizer.svg',
+    headquarters: 'New York, USA',
+    marketCap: '$240B',
+    therapeuticAreas: ['Oncology', 'Vaccines', 'Immunology'],
+  },
+  {
+    id: 2,
+    name: 'Roche',
+    description: 'A pioneer in pharmaceuticals and diagnostics focused on advancing science to improve people\'s lives.',
+    logo: '/images/mock/roche.svg',
+    headquarters: 'Basel, Switzerland',
+    marketCap: '$320B',
+    therapeuticAreas: ['Oncology', 'Neuroscience', 'Rare Diseases'],
+  },
+  {
+    id: 3,
+    name: 'Novartis',
+    description: 'A global healthcare company based in Switzerland that provides solutions to address evolving needs of patients worldwide.',
+    logo: '/images/mock/novartis.svg',
+    headquarters: 'Basel, Switzerland',
+    marketCap: '$210B',
+    therapeuticAreas: ['Ophthalmology', 'Cardiovascular', 'Neuroscience'],
+  },
+  {
+    id: 4,
+    name: 'Merck',
+    description: 'A global research-driven pharmaceutical company that discovers, develops, and markets a broad range of innovative products.',
+    logo: '/images/mock/merck.svg',
+    headquarters: 'Kenilworth, USA',
+    marketCap: '$180B',
+    therapeuticAreas: ['Oncology', 'Vaccines', 'Diabetes'],
+  },
+  {
+    id: 5,
+    name: 'Johnson & Johnson',
+    description: 'A multinational corporation that develops medical devices, pharmaceutical, and consumer packaged goods.',
+    logo: '/images/mock/jnj.svg',
+    headquarters: 'New Brunswick, USA',
+    marketCap: '$420B',
+    therapeuticAreas: ['Immunology', 'Oncology', 'Neuroscience', 'Infectious Diseases'],
+  },
+  {
+    id: 6,
+    name: 'AstraZeneca',
+    description: 'A global, science-led biopharmaceutical company that focuses on the discovery, development, and commercialization of prescription medicines.',
+    logo: '/images/mock/astrazeneca.svg',
+    headquarters: 'Cambridge, UK',
+    marketCap: '$190B',
+    therapeuticAreas: ['Oncology', 'Respiratory', 'Cardiovascular'],
+  },
+];
+
+// Breadcrumbs for companies page
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Companies', href: '/companies', isActive: true },
+];
+---
+
+<DashboardLayout
+  title="Companies Directory | Top Pharma"
+  description="Browse and search pharmaceutical companies in the Top Pharma directory"
+  currentPath="/companies"
+  breadcrumbs={breadcrumbs}
+>
+  <div class="space-y-6">
+    <!-- Page header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Companies Directory</h1>
+        <p class="mt-1 text-sm text-gray-500">
+          Browse all pharmaceutical and biotech companies in our database
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <Button href="/companies/new" variant="primary">Add Company</Button>
+      </div>
+    </div>
+    
+    <!-- Filters -->
+    <Card>
+      <div class="p-4">
+        <div class="flex flex-col md:flex-row gap-4">
+          <div class="flex-1">
+            <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+            <input
+              type="text"
+              id="search"
+              placeholder="Search companies..."
+              class="w-full rounded-md border border-gray-300 py-2 px-3 text-sm placeholder-gray-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            />
+          </div>
+          <div class="w-full md:w-40">
+            <label for="region" class="block text-sm font-medium text-gray-700 mb-1">Region</label>
+            <select
+              id="region"
+              class="w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            >
+              <option value="">All Regions</option>
+              <option value="north-america">North America</option>
+              <option value="europe">Europe</option>
+              <option value="asia-pacific">Asia Pacific</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="w-full md:w-60">
+            <label for="therapeutic-area" class="block text-sm font-medium text-gray-700 mb-1">Therapeutic Area</label>
+            <select
+              id="therapeutic-area"
+              class="w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            >
+              <option value="">All Therapeutic Areas</option>
+              <option value="oncology">Oncology</option>
+              <option value="immunology">Immunology</option>
+              <option value="neuroscience">Neuroscience</option>
+              <option value="cardiovascular">Cardiovascular</option>
+              <option value="rare-diseases">Rare Diseases</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </Card>
+    
+    <!-- Company cards -->
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {companies.map(company => (
+        <Card>
+          <div class="p-6">
+            <div class="flex justify-between items-start mb-4">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">{company.name}</h3>
+                <p class="text-sm text-gray-500">{company.headquarters}</p>
+              </div>
+              <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                {company.marketCap}
+              </span>
+            </div>
+            <p class="text-gray-600 mb-4 line-clamp-2">{company.description}</p>
+            <div class="flex flex-wrap gap-2 mt-3">
+              {company.therapeuticAreas.slice(0, 3).map(area => (
+                <span class="bg-primary-50 text-primary-700 text-xs px-2 py-1 rounded">
+                  {area}
+                </span>
+              ))}
+              {company.therapeuticAreas.length > 3 && (
+                <span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
+                  +{company.therapeuticAreas.length - 3} more
+                </span>
+              )}
+            </div>
+            <div class="mt-5">
+              <Button href={`/companies/${company.id}`} variant="outline" size="sm">View Profile</Button>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+    
+    <!-- Pagination -->
+    <div class="flex items-center justify-between border-t border-gray-200 pt-4">
+      <div class="flex flex-1 justify-between sm:hidden">
+        <a href="#" class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Previous</a>
+        <a href="#" class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Next</a>
+      </div>
+      <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+        <div>
+          <p class="text-sm text-gray-700">
+            Showing <span class="font-medium">1</span> to <span class="font-medium">6</span> of <span class="font-medium">48</span> results
+          </p>
+        </div>
+        <div>
+          <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+            <a href="#" class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+              <span class="sr-only">Previous</span>
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
+              </svg>
+            </a>
+            <a href="#" aria-current="page" class="relative z-10 inline-flex items-center bg-primary-600 px-4 py-2 text-sm font-semibold text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600">1</a>
+            <a href="#" class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">2</a>
+            <a href="#" class="relative hidden items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 md:inline-flex">3</a>
+            <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 focus:outline-offset-0">...</span>
+            <a href="#" class="relative hidden items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 md:inline-flex">8</a>
+            <a href="#" class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+              <span class="sr-only">Next</span>
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+              </svg>
+            </a>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </div>
+</DashboardLayout> 

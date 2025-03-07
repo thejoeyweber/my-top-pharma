@@ -1,11 +1,314 @@
 ---
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
+import BaseLayout from '../components/templates/BaseLayout.astro';
+import Button from '../components/atoms/Button.astro';
+import Card from '../components/atoms/Card.astro';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+// Mock data for featured companies
+const featuredCompanies = [
+  {
+    id: 1,
+    name: 'Pfizer',
+    description: 'A leading global pharmaceutical company with a diverse portfolio of medicines and vaccines.',
+    logo: '/images/mock/pfizer.svg',
+    headquarters: 'New York, USA',
+    marketCap: '$240B',
+    therapeuticAreas: ['Oncology', 'Vaccines', 'Immunology'],
+  },
+  {
+    id: 2,
+    name: 'Roche',
+    description: 'A pioneer in pharmaceuticals and diagnostics focused on advancing science to improve people\'s lives.',
+    logo: '/images/mock/roche.svg',
+    headquarters: 'Basel, Switzerland',
+    marketCap: '$320B',
+    therapeuticAreas: ['Oncology', 'Neuroscience', 'Rare Diseases'],
+  },
+  {
+    id: 3,
+    name: 'Novartis',
+    description: 'A global healthcare company based in Switzerland that provides solutions to address evolving needs of patients worldwide.',
+    logo: '/images/mock/novartis.svg',
+    headquarters: 'Basel, Switzerland',
+    marketCap: '$210B',
+    therapeuticAreas: ['Ophthalmology', 'Cardiovascular', 'Neuroscience'],
+  },
+];
+
+// Mock data for trending products
+const trendingProducts = [
+  {
+    id: 1,
+    name: 'Comirnaty',
+    company: 'Pfizer/BioNTech',
+    description: 'COVID-19 mRNA vaccine.',
+    status: 'Approved',
+    year: '2020',
+  },
+  {
+    id: 2,
+    name: 'Keytruda',
+    company: 'Merck',
+    description: 'Immunotherapy for various cancer types.',
+    status: 'Approved',
+    year: '2014',
+  },
+  {
+    id: 3,
+    name: 'Humira',
+    company: 'AbbVie',
+    description: 'Treatment for various autoimmune diseases.',
+    status: 'Approved',
+    year: '2002',
+  },
+];
+
+// Mock data for therapeutic areas
+const therapeuticAreas = [
+  { id: 1, name: 'Oncology', count: 245 },
+  { id: 2, name: 'Immunology', count: 187 },
+  { id: 3, name: 'Neuroscience', count: 156 },
+  { id: 4, name: 'Rare Diseases', count: 132 },
+  { id: 5, name: 'Cardiovascular', count: 118 },
+  { id: 6, name: 'Infectious Diseases', count: 103 },
+];
+
+// Breadcrumbs for home page
+const breadcrumbs = [
+  { label: 'Home', href: '/', isActive: true },
+];
 ---
 
-<Layout>
-	<Welcome />
-</Layout>
+<BaseLayout 
+  title="Top Pharma - Pharmaceutical Industry Directory"
+  description="Discover and explore pharmaceutical companies, products, and websites in one comprehensive directory."
+  currentPath="/"
+  breadcrumbs={breadcrumbs}
+>
+  <!-- Hero Section -->
+  <div class="bg-gradient-to-r from-primary-600 to-primary-800 text-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+      <div class="md:flex md:items-center md:justify-between">
+        <div class="md:w-1/2 md:pr-8">
+          <h1 class="text-4xl md:text-5xl font-display font-bold tracking-tight">
+            The Pharmaceutical Industry at Your Fingertips
+          </h1>
+          <p class="mt-4 text-lg md:text-xl text-primary-100">
+            Discover, track, and analyze pharmaceutical companies, their products, and digital presence in one comprehensive directory.
+          </p>
+          <div class="mt-8 flex flex-wrap gap-4">
+            <Button href="/companies" size="lg">
+              Explore Companies
+            </Button>
+            <Button href="/products" variant="outline" size="lg" class="bg-white/10 border-white/20 text-white hover:bg-white/20">
+              Browse Products
+            </Button>
+          </div>
+        </div>
+        <div class="mt-10 md:mt-0 md:w-1/2">
+          <div class="bg-white/10 backdrop-blur-sm rounded-lg p-6 shadow-lg">
+            <div class="relative">
+              <label for="hero-search" class="sr-only">Search</label>
+              <div class="flex rounded-md shadow-sm">
+                <input
+                  type="text"
+                  name="search"
+                  id="hero-search"
+                  class="block w-full rounded-md border-0 py-3 px-4 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-primary-500"
+                  placeholder="Search companies, products, or therapeutic areas..."
+                />
+                <button
+                  type="button"
+                  class="relative -ml-px inline-flex items-center gap-x-1.5 rounded-r-md px-4 py-2 text-sm font-medium bg-primary-500 text-white hover:bg-primary-600"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  Search
+                </button>
+              </div>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <span class="text-sm text-primary-100">Popular:</span>
+              <a href="/search?q=oncology" class="text-sm text-white hover:text-primary-200">Oncology</a>
+              <a href="/search?q=pfizer" class="text-sm text-white hover:text-primary-200">Pfizer</a>
+              <a href="/search?q=vaccines" class="text-sm text-white hover:text-primary-200">Vaccines</a>
+              <a href="/search?q=rare+diseases" class="text-sm text-white hover:text-primary-200">Rare Diseases</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Section -->
+  <div class="bg-white py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-2 gap-5 sm:grid-cols-4">
+        <div class="text-center">
+          <p class="text-4xl font-bold text-primary-600">2,800+</p>
+          <p class="mt-2 text-sm font-medium text-gray-500">Companies</p>
+        </div>
+        <div class="text-center">
+          <p class="text-4xl font-bold text-primary-600">14,000+</p>
+          <p class="mt-2 text-sm font-medium text-gray-500">Products</p>
+        </div>
+        <div class="text-center">
+          <p class="text-4xl font-bold text-primary-600">9,200+</p>
+          <p class="mt-2 text-sm font-medium text-gray-500">Websites</p>
+        </div>
+        <div class="text-center">
+          <p class="text-4xl font-bold text-primary-600">120+</p>
+          <p class="mt-2 text-sm font-medium text-gray-500">Therapeutic Areas</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Featured Companies Section -->
+  <div class="bg-gray-50 py-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center">
+        <h2 class="text-3xl font-bold text-gray-900">Featured Companies</h2>
+        <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+          Explore some of the leading pharmaceutical companies in our directory.
+        </p>
+      </div>
+
+      <div class="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        {featuredCompanies.map((company) => (
+          <Card>
+            <div class="flex items-center mb-4">
+              <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mr-4">
+                <span class="text-xl font-bold text-primary-600">{company.name.charAt(0)}</span>
+              </div>
+              <h3 class="text-xl font-semibold text-gray-900">{company.name}</h3>
+            </div>
+            <p class="text-gray-600 mb-4 flex-grow">{company.description}</p>
+            <div class="border-t border-gray-200 pt-4 mt-auto">
+              <dl class="grid grid-cols-2 gap-x-4 gap-y-2">
+                <dt class="text-sm font-medium text-gray-500">Headquarters</dt>
+                <dd class="text-sm text-gray-900">{company.headquarters}</dd>
+                <dt class="text-sm font-medium text-gray-500">Market Cap</dt>
+                <dd class="text-sm text-gray-900">{company.marketCap}</dd>
+              </dl>
+              <div class="mt-4 flex flex-wrap gap-2">
+                {company.therapeuticAreas.map((area) => (
+                  <span class="inline-flex items-center rounded-full bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700">
+                    {area}
+                  </span>
+                ))}
+              </div>
+              <div class="mt-6">
+                <Button href={`/companies/${company.id}`} variant="outline" size="sm" class="w-full">
+                  View Profile
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <div class="mt-12 text-center">
+        <Button href="/companies" variant="secondary">
+          View All Companies
+        </Button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trending Products Section -->
+  <div class="bg-white py-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center">
+        <h2 class="text-3xl font-bold text-gray-900">Trending Products</h2>
+        <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+          Popular pharmaceutical products making an impact in the industry.
+        </p>
+      </div>
+
+      <div class="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        {trendingProducts.map((product) => (
+          <Card>
+            <div class="p-6">
+              <div class="flex justify-between mb-2">
+                <h3 class="text-lg font-semibold text-gray-900">{product.name}</h3>
+                <span class:list={[
+                  "text-xs px-2.5 py-0.5 rounded-full",
+                  product.status === "Approved" 
+                    ? "bg-green-100 text-green-800" 
+                    : "bg-yellow-100 text-yellow-800"
+                ]}>
+                  {product.status}
+                </span>
+              </div>
+              <p class="text-sm text-gray-500 mb-3">{product.company} • {product.year}</p>
+              <p class="text-gray-600">{product.description}</p>
+              <div class="mt-4">
+                <Button href={`/products/${product.id}`} variant="outline" size="sm">View Details</Button>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      <div class="mt-12 text-center">
+        <Button href="/products" variant="secondary">
+          View All Products
+        </Button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Therapeutic Areas Section -->
+  <div class="bg-gray-50 py-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center">
+        <h2 class="text-3xl font-bold text-gray-900">Therapeutic Areas</h2>
+        <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+          Browse pharmaceutical companies and products by therapeutic area.
+        </p>
+      </div>
+
+      <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {therapeuticAreas.map((area) => (
+          <a href={`/therapeutic-areas/${area.id}`} class="group">
+            <Card>
+              <div class="flex justify-between items-center p-6">
+                <h3 class="text-lg font-medium text-gray-900 group-hover:text-primary-600">{area.name}</h3>
+                <span class="bg-primary-50 text-primary-700 text-sm font-medium px-2.5 py-0.5 rounded-full">
+                  {area.count}
+                </span>
+              </div>
+            </Card>
+          </a>
+        ))}
+      </div>
+
+      <div class="mt-12 text-center">
+        <Button href="/therapeutic-areas" variant="secondary">
+          View All Therapeutic Areas
+        </Button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA Section -->
+  <div class="bg-primary-700 py-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center">
+        <h2 class="text-3xl font-bold text-white">Ready to explore the pharmaceutical landscape?</h2>
+        <p class="mt-4 text-lg text-primary-100 max-w-2xl mx-auto">
+          Create an account to save your searches, follow companies, and receive updates on the latest developments.
+        </p>
+        <div class="mt-8 flex justify-center gap-4">
+          <Button href="/register" size="lg">
+            Sign Up for Free
+          </Button>
+          <Button href="/about" variant="outline" size="lg" class="bg-white/10 border-white/20 text-white hover:bg-white/20">
+            Learn More
+          </Button>
+        </div>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

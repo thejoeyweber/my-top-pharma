@@ -1,0 +1,147 @@
+---
+/**
+ * CompanyCard Component
+ * 
+ * A responsive card component for displaying company information in both 
+ * grid and list views. Includes company logo, name, location, market cap,
+ * description, and therapeutic areas.
+ */
+
+import type { Company } from '../../data/companies';
+import { therapeuticAreas } from '../../data/companies';
+
+interface Props {
+  company: Company;
+  view?: 'grid' | 'list';
+  isCompact?: boolean;
+}
+
+const { 
+  company,
+  view = 'grid',
+  isCompact = false
+} = Astro.props;
+
+// Function to format market cap in billions or millions
+const formatMarketCap = (marketCap: number) => {
+  if (marketCap >= 1) {
+    return `$${marketCap}B`;
+  } else {
+    return `$${(marketCap * 1000).toFixed(0)}M`;
+  }
+};
+
+// Get therapeutic area names from IDs
+const getTherapeuticAreaNames = (areaIds: string[]) => {
+  return areaIds.map(id => {
+    const area = therapeuticAreas.find(a => a.id === id);
+    return area ? area.name : id;
+  });
+};
+
+const areas = getTherapeuticAreaNames(company.therapeuticAreas);
+---
+
+{view === 'grid' ? (
+  <div class="bg-white rounded-lg shadow border border-gray-200 hover:shadow-md transition-shadow duration-300 overflow-hidden h-full flex flex-col">
+    <div class="p-4">
+      <div class="flex justify-between items-start mb-3">
+        <div class="flex items-center">
+          {company.logoUrl ? (
+            <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden mr-3">
+              <img src={company.logoUrl} alt={`${company.name} logo`} class="w-7 h-7 object-contain" />
+            </div>
+          ) : (
+            <div class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-3">
+              <span class="text-lg font-bold text-[color:var(--color-primary-600)]">{company.name.charAt(0)}</span>
+            </div>
+          )}
+          <div>
+            <h3 class="text-base font-semibold text-gray-900 hover:text-[color:var(--color-primary-600)]">{company.name}</h3>
+            <p class="text-xs text-gray-500">{company.headquarters}</p>
+          </div>
+        </div>
+        <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2 py-0.5 rounded-full">
+          {formatMarketCap(company.marketCap)}
+        </span>
+      </div>
+
+      {!isCompact && (
+        <p class="text-sm text-gray-600 mb-3 line-clamp-2">{company.description}</p>
+      )}
+
+      <div class="flex flex-wrap gap-1 mt-2">
+        {areas.slice(0, isCompact ? 2 : 3).map(area => (
+          <span class="bg-[color:var(--color-primary-50)] text-[color:var(--color-primary-700)] text-xs px-1.5 py-0.5 rounded">
+            {area}
+          </span>
+        ))}
+        {areas.length > (isCompact ? 2 : 3) && (
+          <span class="bg-gray-100 text-gray-700 text-xs px-1.5 py-0.5 rounded">
+            +{areas.length - (isCompact ? 2 : 3)} more
+          </span>
+        )}
+      </div>
+
+      <div class="mt-3">
+        <a 
+          href={`/companies/${company.id}`} 
+          class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+        >
+          View Profile
+        </a>
+      </div>
+    </div>
+  </div>
+) : (
+  <div class="bg-white rounded-lg shadow border border-gray-200 hover:shadow-md transition-shadow duration-300 overflow-hidden">
+    <div class="p-6">
+      <div class="flex flex-col md:flex-row md:items-center">
+        <div class="flex items-center mb-4 md:mb-0 md:mr-6">
+          {company.logoUrl ? (
+            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden mr-3">
+              <img src={company.logoUrl} alt={`${company.name} logo`} class="w-8 h-8 object-contain" />
+            </div>
+          ) : (
+            <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mr-3">
+              <span class="text-xl font-bold text-[color:var(--color-primary-600)]">{company.name.charAt(0)}</span>
+            </div>
+          )}
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900 hover:text-[color:var(--color-primary-600)]">{company.name}</h3>
+            <p class="text-sm text-gray-500">{company.headquarters}</p>
+          </div>
+        </div>
+
+        <div class="md:flex-1 md:mx-6">
+          <p class="text-gray-600 line-clamp-2">{company.description}</p>
+          
+          <div class="mt-3 flex flex-wrap gap-2">
+            {areas.slice(0, 4).map(area => (
+              <span class="bg-[color:var(--color-primary-50)] text-[color:var(--color-primary-700)] text-xs px-2 py-1 rounded">
+                {area}
+              </span>
+            ))}
+            {areas.length > 4 && (
+              <span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
+                +{areas.length - 4} more
+              </span>
+            )}
+          </div>
+        </div>
+        
+        <div class="flex items-center mt-4 md:mt-0">
+          <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-full mr-3">
+            {formatMarketCap(company.marketCap)}
+          </span>
+          <a 
+            href={`/companies/${company.id}`} 
+            class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors whitespace-nowrap"
+          >
+            View Profile
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+)} 

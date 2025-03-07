@@ -1,0 +1,461 @@
+---
+/**
+ * Company Detail Page
+ * 
+ * Displays detailed information about a pharmaceutical company,
+ * organized in tabbed sections for overview, products, financials, etc.
+ */
+import DashboardLayout from '../../components/templates/DashboardLayout.astro';
+import Card from '../../components/atoms/Card.astro';
+import Button from '../../components/atoms/Button.astro';
+import TabGroup from '../../components/molecules/TabGroup.astro';
+import KeyMetric from '../../components/molecules/KeyMetric.astro';
+import CompanyCard from '../../components/molecules/CompanyCard.astro';
+import { companies, getCompanyById, getRelatedCompanies, therapeuticAreas } from '../../data/companies';
+
+// Get company ID from URL parameters
+const { id } = Astro.params;
+const company = getCompanyById(id as string);
+
+// Handle case when company is not found
+if (!company) {
+  return Astro.redirect('/companies');
+}
+
+// Get related companies
+const relatedCompanies = getRelatedCompanies(company.id);
+
+// Default tab is "overview"
+const activeTab = "overview";
+
+// Define tabs
+const tabs = [
+  { id: "overview", label: "Overview", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>' },
+  { id: "products", label: "Products", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>' },
+  { id: "pipeline", label: "Pipeline", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>' },
+  { id: "financials", label: "Financials", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>' },
+  { id: "news", label: "News", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>' },
+];
+
+// Get therapeutic area names
+const getTherapeuticAreaNames = (areaIds: string[]) => {
+  return areaIds.map(id => {
+    const area = therapeuticAreas.find(a => a.id === id);
+    return area ? area.name : id;
+  });
+};
+
+const companyTherapeuticAreas = getTherapeuticAreaNames(company.therapeuticAreas);
+
+// Format market cap for display
+const formatMarketCap = (marketCap: number) => {
+  if (marketCap >= 1) {
+    return `$${marketCap.toFixed(1)}B`;
+  } else {
+    return `$${(marketCap * 1000).toFixed(0)}M`;
+  }
+};
+
+// Breadcrumbs for company detail page
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Companies', href: '/companies' },
+  { label: company.name, href: `/companies/${company.id}`, isActive: true },
+];
+---
+
+<DashboardLayout
+  title={`${company.name} | Top Pharma`}
+  description={`Company profile for ${company.name} - View detailed information, products, financials, and news.`}
+  currentPath={`/companies/${company.id}`}
+  breadcrumbs={breadcrumbs}
+>
+  <div class="space-y-6">
+    <!-- Company Header with cover image, logo, name, headline -->
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+      <div class="h-48 bg-gradient-to-r from-[color:var(--color-primary-600)] to-[color:var(--color-primary-400)] relative">
+        {company.headerImageUrl && (
+          <img
+            src={company.headerImageUrl}
+            alt={`${company.name} header`}
+            class="w-full h-full object-cover absolute inset-0 mix-blend-overlay"
+          />
+        )}
+        <div class="absolute inset-0 bg-black/20"></div>
+      </div>
+      
+      <div class="px-6 sm:px-8 relative">
+        <!-- Logo -->
+        <div class="flex flex-col sm:flex-row">
+          <div class="-mt-12 mb-6 sm:mb-0 flex items-start">
+            <div class="w-24 h-24 bg-white rounded-lg border-4 border-white shadow-md flex items-center justify-center relative">
+              {company.logoUrl ? (
+                <img src={company.logoUrl} alt={`${company.name} logo`} class="w-16 h-16 object-contain" />
+              ) : (
+                <span class="text-3xl font-bold text-[color:var(--color-primary-600)]">{company.name.charAt(0)}</span>
+              )}
+            </div>
+          </div>
+          
+          <div class="sm:ml-6 flex-1">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+              <div>
+                <h1 class="text-2xl font-bold text-gray-900">{company.name}</h1>
+                <div class="flex items-center text-gray-500 mt-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span>{company.headquarters}</span>
+                
+                  {company.stockSymbol && (
+                    <>
+                      <span class="mx-2">•</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      <span>{company.stockSymbol} ({company.stockExchange})</span>
+                    </>
+                  )}
+                  
+                  <span class="mx-2">•</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m0 18c1.657 0 3-4.03 3-9s-1.343-9-3-9" />
+                  </svg>
+                  <a href={company.website} target="_blank" rel="noopener noreferrer" class="text-[color:var(--color-primary-600)] hover:underline">
+                    Website
+                  </a>
+                </div>
+              </div>
+              
+              <div class="flex gap-2 mt-4 sm:mt-0">
+                <Button variant="secondary" size="sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="-ml-0.5 mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                  </svg>
+                  Follow
+                </Button>
+                <Button variant="outline" size="sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="-ml-0.5 mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Share
+                </Button>
+              </div>
+            </div>
+            
+            <!-- Key Metrics -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              <KeyMetric 
+                label="Market Cap" 
+                value={formatMarketCap(company.marketCap)}
+                size="sm"
+              />
+              <KeyMetric 
+                label="Employees" 
+                value={company.employees.toLocaleString()}
+                size="sm"
+              />
+              <KeyMetric 
+                label="Products" 
+                value={company.products.length}
+                size="sm"
+              />
+              <KeyMetric 
+                label="Founded" 
+                value={company.founded}
+                size="sm"
+              />
+            </div>
+          </div>
+        </div>
+        
+        <!-- Tab Navigation -->
+        <TabGroup tabs={tabs} activeTab={activeTab} ariaLabel="Company information" />
+      </div>
+    </div>
+    
+    <!-- Tab Content -->
+    <div>
+      <!-- Overview Tab -->
+      <div id="tab-content-overview" role="tabpanel" aria-labelledby="tab-overview">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Main Column -->
+          <div class="lg:col-span-2 space-y-6">
+            <!-- Company Description -->
+            <Card>
+              <div class="p-6">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">About {company.name}</h2>
+                <div class="prose max-w-none">
+                  <p>{company.description}</p>
+                </div>
+              </div>
+            </Card>
+            
+            <!-- Key Milestones -->
+            <Card>
+              <div class="p-6">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Key Milestones</h2>
+                <div class="relative">
+                  {/* Timeline line */}
+                  <div class="absolute top-0 left-4 h-full w-0.5 bg-gray-200"></div>
+                  
+                  <div class="space-y-6">
+                    {company.milestones.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(milestone => (
+                      <div class="relative pl-10">
+                        <div class="absolute left-0 top-1.5 h-8 w-8 rounded-full border-2 border-[color:var(--color-primary-500)] bg-white flex items-center justify-center">
+                          {milestone.type === 'acquisition' && (
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[color:var(--color-primary-500)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                          )}
+                          {milestone.type === 'regulatory' && (
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[color:var(--color-primary-500)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          )}
+                          {milestone.type === 'corporate' && (
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[color:var(--color-primary-500)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                          )}
+                          {milestone.type === 'product' && (
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[color:var(--color-primary-500)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                            </svg>
+                          )}
+                        </div>
+                        <div>
+                          <div class="flex items-center text-sm">
+                            <span class="font-medium text-gray-900">{milestone.title}</span>
+                            <span class="ml-2 text-gray-500">
+                              {new Date(milestone.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                            </span>
+                          </div>
+                          <p class="mt-1 text-sm text-gray-600">{milestone.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+          
+          <!-- Sidebar -->
+          <div class="space-y-6">
+            <!-- Therapeutic Areas -->
+            <Card>
+              <div class="p-6">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Therapeutic Areas</h2>
+                <div class="space-y-2">
+                  {companyTherapeuticAreas.map(area => (
+                    <div class="flex items-center">
+                      <div class="w-2 h-2 rounded-full bg-[color:var(--color-primary-500)] mr-2"></div>
+                      <span>{area}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+            
+            <!-- Related Companies -->
+            <Card>
+              <div class="p-6">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Related Companies</h2>
+                <div class="space-y-4">
+                  {relatedCompanies.map(related => (
+                    related.company && (
+                      <div class="flex items-center">
+                        <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mr-3">
+                          {related.company.logoUrl ? (
+                            <img src={related.company.logoUrl} alt={`${related.company.name} logo`} class="w-6 h-6 object-contain" />
+                          ) : (
+                            <span class="text-xs font-bold text-primary-600">{related.company.name.charAt(0)}</span>
+                          )}
+                        </div>
+                        <div class="flex-1">
+                          <a href={`/companies/${related.company.id}`} class="text-sm font-medium text-gray-900 hover:text-primary-600">
+                            {related.company.name}
+                          </a>
+                          <p class="text-xs text-gray-500 capitalize">{related.relationship}</p>
+                        </div>
+                      </div>
+                    )
+                  ))}
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Products Tab -->
+      <div id="tab-content-products" role="tabpanel" aria-labelledby="tab-products" class="hidden">
+        <div class="grid gap-6">
+          <Card>
+            <div class="p-6">
+              <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-medium text-gray-900">Products & Medicines</h2>
+                <div class="flex gap-2">
+                  <div class="relative">
+                    <input
+                      type="text"
+                      placeholder="Search products..."
+                      class="rounded-md border border-gray-300 py-2 pl-10 pr-4 text-sm placeholder-gray-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <select
+                    class="rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="approved">Approved</option>
+                    <option value="phase3">Phase 3</option>
+                    <option value="phase2">Phase 2</option>
+                    <option value="phase1">Phase 1</option>
+                  </select>
+                </div>
+              </div>
+              
+              <!-- Products Table -->
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">Name</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Therapeutic Areas</th>
+                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Approval Date</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200 bg-white">
+                    {company.products.map(product => (
+                      <tr>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">{product.name}</td>
+                        <td class="px-3 py-4 text-sm text-gray-500">{product.description}</td>
+                        <td class="px-3 py-4 text-sm">
+                          <span class:list={[
+                            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+                            product.status === "Approved" 
+                              ? "bg-green-100 text-green-800" 
+                              : product.status === "Phase 3"
+                                ? "bg-blue-100 text-blue-800"
+                                : product.status === "Phase 2"
+                                  ? "bg-purple-100 text-purple-800"
+                                  : "bg-yellow-100 text-yellow-800"
+                          ]}>
+                            {product.status}
+                          </span>
+                        </td>
+                        <td class="px-3 py-4 text-sm text-gray-500">
+                          <div class="flex flex-wrap gap-1">
+                            {getTherapeuticAreaNames(product.therapeuticAreas).map(area => (
+                              <span class="inline-flex items-center rounded-full bg-[color:var(--color-primary-50)] px-2 py-0.5 text-xs font-medium text-[color:var(--color-primary-700)]">
+                                {area}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td class="px-3 py-4 text-sm text-gray-500">
+                          {product.approvalDate 
+                            ? new Date(product.approvalDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                            : '-'
+                          }
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+      
+      <!-- Pipeline Tab (Placeholder) -->
+      <div id="tab-content-pipeline" role="tabpanel" aria-labelledby="tab-pipeline" class="hidden">
+        <Card>
+          <div class="p-6">
+            <h2 class="text-lg font-medium text-gray-900 mb-4">Drug Pipeline</h2>
+            <p class="text-gray-600">Pipeline information will be available soon.</p>
+          </div>
+        </Card>
+      </div>
+      
+      <!-- Financials Tab -->
+      <div id="tab-content-financials" role="tabpanel" aria-labelledby="tab-financials" class="hidden">
+        <Card>
+          <div class="p-6">
+            <h2 class="text-lg font-medium text-gray-900 mb-4">Financial Performance</h2>
+            
+            <!-- Financial Metrics -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <KeyMetric 
+                label="Current Market Cap" 
+                value={formatMarketCap(company.marketCap)}
+                trend="up"
+                change="3.2% (1 month)"
+              />
+              <KeyMetric 
+                label="Revenue (Latest)" 
+                value={`$${company.financials[0].revenue.toFixed(1)}B`}
+                trend={company.financials[0].revenue > company.financials[1].revenue ? "up" : "down"}
+                change={`${Math.abs(((company.financials[0].revenue / company.financials[1].revenue) - 1) * 100).toFixed(1)}% (YoY)`}
+              />
+              <KeyMetric 
+                label="R&D Spending (Latest)" 
+                value={`$${company.financials[0].rAndDSpending.toFixed(1)}B`}
+                trend={company.financials[0].rAndDSpending > company.financials[1].rAndDSpending ? "up" : "down"}
+                change={`${Math.abs(((company.financials[0].rAndDSpending / company.financials[1].rAndDSpending) - 1) * 100).toFixed(1)}% (YoY)`}
+              />
+            </div>
+            
+            <!-- Financial Table -->
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">Year</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Revenue</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">R&D Spending</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Net Income</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">R&D as % of Revenue</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                  {company.financials.map(finance => (
+                    <tr>
+                      <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">{finance.year}</td>
+                      <td class="px-3 py-4 text-sm text-gray-500">${finance.revenue.toFixed(1)}B</td>
+                      <td class="px-3 py-4 text-sm text-gray-500">${finance.rAndDSpending.toFixed(1)}B</td>
+                      <td class="px-3 py-4 text-sm text-gray-500">${finance.netIncome.toFixed(1)}B</td>
+                      <td class="px-3 py-4 text-sm text-gray-500">
+                        {((finance.rAndDSpending / finance.revenue) * 100).toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </Card>
+      </div>
+      
+      <!-- News Tab (Placeholder) -->
+      <div id="tab-content-news" role="tabpanel" aria-labelledby="tab-news" class="hidden">
+        <Card>
+          <div class="p-6">
+            <h2 class="text-lg font-medium text-gray-900 mb-4">Latest News</h2>
+            <p class="text-gray-600">News and press releases will be available soon.</p>
+          </div>
+        </Card>
+      </div>
+    </div>
+  </div>
+</DashboardLayout> 
