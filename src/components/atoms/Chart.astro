@@ -1,0 +1,85 @@
+---
+/**
+ * Base Chart Component
+ * 
+ * A wrapper component for Chart.js that handles canvas setup and chart initialization.
+ * This component is meant to be extended by specific chart type components.
+ */
+
+interface Props {
+  id: string;
+  width?: number;
+  height?: number;
+  className?: string;
+}
+
+const { 
+  id, 
+  width = 400, 
+  height = 300, 
+  className = '' 
+} = Astro.props;
+---
+
+<div class={`chart-container ${className}`}>
+  <canvas 
+    id={id} 
+    width={width} 
+    height={height}
+  ></canvas>
+</div>
+
+<style>
+  .chart-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  
+  canvas {
+    max-width: 100%;
+    height: auto;
+  }
+</style>
+
+<script>
+  // Register required Chart.js components - Import using URL format for client-side scripts
+  import 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+
+  // Set default Chart.js options globally
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.Chart) {
+      // Default configuration to match chartjs.org examples
+      Chart.defaults.font.family = "'Helvetica Neue', 'Helvetica', 'Arial', sans-serif";
+      Chart.defaults.font.size = 12;
+      Chart.defaults.color = "#666";
+      
+      // Disable animations
+      Chart.defaults.animation = false;
+      
+      // Set default colors to pastel palette similar to chartjs.org examples
+      Chart.defaults.backgroundColor = [
+        'rgba(255, 99, 132, 0.2)',
+        'rgba(255, 159, 64, 0.2)',
+        'rgba(255, 205, 86, 0.2)',
+        'rgba(75, 192, 192, 0.2)',
+        'rgba(54, 162, 235, 0.2)',
+        'rgba(153, 102, 255, 0.2)',
+        'rgba(201, 203, 207, 0.2)'
+      ];
+      
+      Chart.defaults.borderColor = [
+        'rgb(255, 99, 132)',
+        'rgb(255, 159, 64)',
+        'rgb(255, 205, 86)',
+        'rgb(75, 192, 192)',
+        'rgb(54, 162, 235)',
+        'rgb(153, 102, 255)',
+        'rgb(201, 203, 207)'
+      ];
+      
+      Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      Chart.defaults.plugins.legend.labels.usePointStyle = true;
+    }
+  });
+</script> 
