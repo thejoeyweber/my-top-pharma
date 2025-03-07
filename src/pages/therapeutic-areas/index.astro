@@ -1,0 +1,95 @@
+---
+/**
+ * Therapeutic Areas Index Page
+ * 
+ * Displays a list of all therapeutic areas available in the system,
+ * with stats for each area.
+ */
+import DashboardLayout from '../../components/templates/DashboardLayout.astro';
+import Card from '../../components/atoms/Card.astro';
+import { therapeuticAreas } from '../../data/companies';
+import { getCompaniesByTherapeuticArea } from '../../data/companies';
+import { getProductsByTherapeuticArea, getWebsitesByTherapeuticArea } from '../../utils/crossReferenceUtils';
+
+// Get stats for each therapeutic area
+const areasWithStats = therapeuticAreas.map(area => {
+  const companies = getCompaniesByTherapeuticArea(area.id);
+  const products = getProductsByTherapeuticArea(area.id);
+  const websites = getWebsitesByTherapeuticArea(area.id);
+  
+  return {
+    ...area,
+    companyCount: companies.length,
+    productCount: products.length,
+    websiteCount: websites.length,
+    total: companies.length + products.length + websites.length
+  };
+});
+
+// Sort areas by total count
+const sortedAreas = [...areasWithStats].sort((a, b) => b.total - a.total);
+
+// Breadcrumbs for navigation
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Therapeutic Areas', href: '/therapeutic-areas', isActive: true },
+];
+---
+
+<DashboardLayout 
+  title="Therapeutic Areas | Top Pharma"
+  description="Browse all therapeutic areas in the pharmaceutical industry"
+  currentPath="/therapeutic-areas"
+  breadcrumbs={breadcrumbs}
+>
+  <div class="space-y-6">
+    <!-- Page header -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Therapeutic Areas</h1>
+        <p class="mt-1 text-lg text-gray-500">Browse all therapeutic areas in the pharmaceutical industry</p>
+      </div>
+    </div>
+    
+    <!-- Therapeutic Areas Grid -->
+    <Card>
+      <div class="p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {sortedAreas.map(area => (
+            <a href={`/therapeutic-areas/${area.id}`} class="group">
+              <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden hover:border-blue-300 hover:shadow-md transition-all duration-200">
+                <div class="p-6">
+                  <h2 class="text-xl font-medium text-gray-900 group-hover:text-blue-600">{area.name}</h2>
+                  
+                  <div class="mt-4 grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <div class="text-2xl font-semibold text-gray-800">{area.companyCount}</div>
+                      <div class="text-xs text-gray-500">Companies</div>
+                    </div>
+                    <div>
+                      <div class="text-2xl font-semibold text-gray-800">{area.productCount}</div>
+                      <div class="text-xs text-gray-500">Products</div>
+                    </div>
+                    <div>
+                      <div class="text-2xl font-semibold text-gray-800">{area.websiteCount}</div>
+                      <div class="text-xs text-gray-500">Websites</div>
+                    </div>
+                  </div>
+                  
+                  <div class="mt-4 text-right">
+                    <span class="inline-flex items-center text-sm font-medium text-blue-600 group-hover:text-blue-800">
+                      View details
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    </Card>
+  </div>
+</DashboardLayout> 

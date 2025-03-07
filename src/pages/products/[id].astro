@@ -14,6 +14,8 @@ import ProductCard from '../../components/molecules/ProductCard.astro';
 import Timeline from '../../components/molecules/Timeline.astro';
 import { products, getProductById, getRelatedProducts, getStageName } from '../../data/products';
 import { getCompanyById } from '../../data/companies';
+import { websiteCategories } from '../../data/websites';
+import { getWebsitesByProduct } from '../../utils/crossReferenceUtils';
 
 // Generate static paths for all products
 export function getStaticPaths() {
@@ -42,12 +44,32 @@ const company = getCompanyById(product.companyId);
 // Get related products
 const relatedProducts = getRelatedProducts(product.id);
 
+// Get websites associated with this product
+const productWebsites = getWebsitesByProduct(product.id);
+
+// Function to get category label
+const getCategoryLabel = (categoryId: string) => {
+  const category = websiteCategories.find(c => c.value === categoryId);
+  return category ? category.label : categoryId;
+};
+
+// Group websites by category for display
+const websitesByCategory = productWebsites.reduce((acc, website) => {
+  const category = website.category || 'other';
+  if (!acc[category]) {
+    acc[category] = [];
+  }
+  acc[category].push(website);
+  return acc;
+}, {} as Record<string, any[]>);
+
 // Default tab is "overview"
 const activeTab = "overview";
 
 // Define tabs
 const tabs = [
   { id: "overview", label: "Overview", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>' },
+  { id: "websites", label: "Official Websites", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>' },
   { id: "regulatory", label: "Regulatory", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>' },
   { id: "timeline", label: "Development Timeline", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>' },
   { id: "patents", label: "Patents", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>' },
@@ -134,124 +156,268 @@ const formatDate = (dateString: string) => {
     <TabGroup tabs={tabs} activeTab={activeTab} tabPanelId="product-tab-content" />
     
     <!-- Tab Content -->
-    <div>
+    <div id="tab-content">
       <!-- Overview Tab -->
       <div id="product-tab-content-overview" role="tabpanel" aria-labelledby="tab-overview">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <!-- Product Overview -->
-          <div class="md:col-span-2 space-y-6">
+        <div class="space-y-6">
+          <!-- Basic product information card -->
+          <Card>
+            <div class="p-6">
+              <h2 class="text-lg font-medium text-gray-900 mb-4">Product Description</h2>
+              <p class="text-gray-600">{product.description}</p>
+              
+              <div class="mt-6">
+                <h3 class="text-sm font-medium text-gray-900 mb-2">Therapeutic Areas</h3>
+                <div class="flex flex-wrap gap-2">
+                  {product.therapeuticAreas.map(area => (
+                    <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-[color:var(--color-primary-50)] text-[color:var(--color-primary-700)]">
+                      {area}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              
+              <div class="mt-6">
+                <h3 class="text-sm font-medium text-gray-900 mb-2">Indications</h3>
+                <ul class="list-disc pl-5 text-gray-600">
+                  {product.indications.map(indication => (
+                    <li>{indication}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </Card>
+          
+          <!-- Official Websites Section -->
+          <Card>
+            <div class="p-6">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-medium text-gray-900">Official Websites</h2>
+                <a href="#tab-websites" class="text-sm text-blue-600 hover:text-blue-800" onclick="switchTab('websites')">
+                  View all
+                </a>
+              </div>
+              
+              {productWebsites.length === 0 ? (
+                <p class="text-gray-500">No official websites found for this product.</p>
+              ) : (
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {productWebsites.slice(0, 3).map(website => (
+                    <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                      <div class="p-4">
+                        <div class="flex justify-between items-start">
+                          <h4 class="font-medium text-gray-900 mb-1">{website.domain}</h4>
+                          <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                            {getCategoryLabel(website.category)}
+                          </span>
+                        </div>
+                        
+                        <div class="flex justify-between items-center mt-3">
+                          <a 
+                            href={`/websites/${website.domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase()}`} 
+                            class="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            View details
+                          </a>
+                          
+                          <a 
+                            href={`https://${website.domain}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                            Visit site
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {productWebsites.length > 3 && (
+                    <div class="bg-gray-50 rounded-lg border border-gray-200 shadow-sm overflow-hidden flex items-center justify-center">
+                      <a href="#tab-websites" class="p-4 text-blue-600 hover:text-blue-800 font-medium text-center" onclick="switchTab('websites')">
+                        View {productWebsites.length - 3} more websites
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </Card>
+          
+          <!-- Websites Tab Content -->
+          <div id="tab-content-websites" role="tabpanel" aria-labelledby="tab-websites" class="space-y-6 hidden">
             <Card>
               <div class="p-6">
-                <h2 class="text-lg font-medium text-gray-900 mb-4">Product Description</h2>
-                <p class="text-gray-600">{product.description}</p>
+                <h2 class="text-xl font-medium text-gray-900 mb-4">Product Websites</h2>
                 
-                <div class="mt-6">
-                  <h3 class="text-sm font-medium text-gray-900 mb-2">Therapeutic Areas</h3>
-                  <div class="flex flex-wrap gap-2">
-                    {product.therapeuticAreas.map(area => (
-                      <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-[color:var(--color-primary-50)] text-[color:var(--color-primary-700)]">
-                        {area}
-                      </span>
+                {productWebsites.length === 0 ? (
+                  <div class="bg-gray-50 rounded-lg p-6 text-center">
+                    <p class="text-gray-500">No official websites found for this product.</p>
+                    <p class="text-sm text-gray-400 mt-1">This product may be featured on the company's main website.</p>
+                  </div>
+                ) : (
+                  <div class="space-y-6">
+                    {Object.entries(websitesByCategory).map(([category, websites]) => (
+                      <div class="space-y-3">
+                        <h3 class="text-lg font-medium text-gray-900">{getCategoryLabel(category)}</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {websites.map(website => (
+                            <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                              <div class="flex flex-col md:flex-row">
+                                {website.screenshotUrl && (
+                                  <div class="md:w-1/3 relative h-40 md:h-auto">
+                                    <img 
+                                      src={website.screenshotUrl} 
+                                      alt={`Screenshot of ${website.domain}`}
+                                      class="absolute inset-0 w-full h-full object-cover"
+                                    />
+                                  </div>
+                                )}
+                                <div class={`p-4 ${website.screenshotUrl ? 'md:w-2/3' : 'w-full'}`}>
+                                  <div class="flex justify-between items-start">
+                                    <h4 class="font-medium text-gray-900 mb-1">{website.domain}</h4>
+                                    <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                                      {getCategoryLabel(website.category)}
+                                    </span>
+                                  </div>
+                                  
+                                  {website.siteName && (
+                                    <p class="text-sm text-gray-500 mb-2">{website.siteName}</p>
+                                  )}
+                                  
+                                  <p class="text-sm text-gray-700 line-clamp-2 mb-3">
+                                    {website.description || 'No description available.'}
+                                  </p>
+                                  
+                                  <div class="flex justify-between items-center mt-auto">
+                                    <a 
+                                      href={`/websites/${website.domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase()}`} 
+                                      class="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                                    >
+                                      View details
+                                    </a>
+                                    
+                                    <a 
+                                      href={`https://${website.domain}`} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                      </svg>
+                                      Visit site
+                                    </a>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </div>
-                
-                <div class="mt-6">
-                  <h3 class="text-sm font-medium text-gray-900 mb-2">Indications</h3>
-                  <ul class="list-disc pl-5 text-gray-600">
-                    {product.indications.map(indication => (
-                      <li>{indication}</li>
-                    ))}
-                  </ul>
-                </div>
+                )}
               </div>
             </Card>
             
-            {/* Quick Regulatory Summary */}
-            {product.approvals.length > 0 && (
+            <!-- Company Website Information -->
+            {company && (
               <Card>
                 <div class="p-6">
-                  <h2 class="text-lg font-medium text-gray-900 mb-4">Regulatory Status</h2>
-                  <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                    <table class="min-w-full divide-y divide-gray-300">
-                      <thead class="bg-gray-50">
-                        <tr>
-                          <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Region</th>
-                          <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Indication</th>
-                          <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Agency</th>
-                          <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Date</th>
-                          <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody class="divide-y divide-gray-200 bg-white">
-                        {product.approvals.map(approval => (
-                          <tr>
-                            <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">{approval.region}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{approval.indication}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{approval.agency}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{formatDate(approval.date)}</td>
-                            <td class="whitespace-nowrap px-3 py-4 text-sm">
-                              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={
-                                approval.status === 'approved' 
-                                  ? 'background-color:var(--color-green-100, #dcfce7); color:var(--color-green-800, #166534)' 
-                                  : approval.status === 'rejected'
-                                  ? 'background-color:var(--color-red-100, #fee2e2); color:var(--color-red-800, #991b1b)'
-                                  : 'background-color:var(--color-yellow-100, #fef9c3); color:var(--color-yellow-800, #854d0e)'
-                              }>
-                                {approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <h2 class="text-xl font-medium text-gray-900 mb-4">Company Website</h2>
+                  <div class="flex items-center mb-4">
+                    {company.logoUrl && (
+                      <img src={company.logoUrl} alt={`${company.name} logo`} class="h-8 mr-3" />
+                    )}
+                    <h3 class="text-lg font-medium text-gray-900">{company.name}</h3>
+                  </div>
+                  
+                  <p class="text-gray-700 mb-4">
+                    This product may also be featured on the company's main website or other corporate sites.
+                  </p>
+                  
+                  <div class="flex flex-wrap gap-3">
+                    <a 
+                      href={`/companies/${company.id}`} 
+                      class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="-ml-0.5 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      View company details
+                    </a>
+                    
+                    {company.website && (
+                      <a 
+                        href={`https://${company.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="-ml-0.5 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        Visit company website
+                      </a>
+                    )}
                   </div>
                 </div>
               </Card>
             )}
           </div>
           
-          <!-- Sidebar -->
-          <div class="space-y-6">
+          <!-- Quick Regulatory Summary -->
+          {product.approvals.length > 0 && (
             <Card>
               <div class="p-6">
-                <h2 class="text-lg font-medium text-gray-900 mb-4">Key Information</h2>
-                <dl>
-                  <div class="py-2 sm:grid sm:grid-cols-3 sm:gap-4">
-                    <dt class="text-sm font-medium text-gray-500">Current Stage</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{getStageName(product.stage)}</dd>
-                  </div>
-                  <div class="py-2 sm:grid sm:grid-cols-3 sm:gap-4">
-                    <dt class="text-sm font-medium text-gray-500">Molecule Type</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{product.moleculeType}</dd>
-                  </div>
-                  {company && (
-                    <div class="py-2 sm:grid sm:grid-cols-3 sm:gap-4">
-                      <dt class="text-sm font-medium text-gray-500">Manufacturer</dt>
-                      <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{company.name}</dd>
-                    </div>
-                  )}
-                  <div class="py-2 sm:grid sm:grid-cols-3 sm:gap-4">
-                    <dt class="text-sm font-medium text-gray-500">Program Started</dt>
-                    <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
-                      {formatDate(product.timeline[0]?.startDate || '')}
-                    </dd>
-                  </div>
-                  {product.patents && product.patents.length > 0 && (
-                    <div class="py-2 sm:grid sm:grid-cols-3 sm:gap-4">
-                      <dt class="text-sm font-medium text-gray-500">Key Patent Expiry</dt>
-                      <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
-                        {formatDate(product.patents[0].expiryDate)}
-                      </dd>
-                    </div>
-                  )}
-                </dl>
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Regulatory Status</h2>
+                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                  <table class="min-w-full divide-y divide-gray-300">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Region</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Indication</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Agency</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Date</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 bg-white">
+                      {product.approvals.map(approval => (
+                        <tr>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">{approval.region}</td>
+                          <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{approval.indication}</td>
+                          <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{approval.agency}</td>
+                          <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{formatDate(approval.date)}</td>
+                          <td class="whitespace-nowrap px-3 py-4 text-sm">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={
+                              approval.status === 'approved' 
+                                ? 'background-color:var(--color-green-100, #dcfce7); color:var(--color-green-800, #166534)' 
+                                : approval.status === 'rejected'
+                                ? 'background-color:var(--color-red-100, #fee2e2); color:var(--color-red-800, #991b1b)'
+                                : 'background-color:var(--color-yellow-100, #fef9c3); color:var(--color-yellow-800, #854d0e)'
+                            }>
+                              {approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </Card>
-            
-            <!-- Related Products -->
-            {relatedProducts.length > 0 && (
-              <div>
+          )}
+          
+          <!-- Related Products -->
+          {relatedProducts.length > 0 && (
+            <Card>
+              <div class="p-6">
                 <h2 class="text-lg font-medium text-gray-900 mb-3">Related Products</h2>
                 <div class="space-y-3">
                   {relatedProducts.map(relatedProduct => (
@@ -259,8 +425,8 @@ const formatDate = (dateString: string) => {
                   ))}
                 </div>
               </div>
-            )}
-          </div>
+            </Card>
+          )}
         </div>
       </div>
       
@@ -454,4 +620,20 @@ const formatDate = (dateString: string) => {
       </div>
     </div>
   </div>
-</DashboardLayout> 
+</DashboardLayout>
+
+<script>
+// Add tab switching function
+function switchTab(tabId) {
+  // Find the tab link and simulate a click
+  const tabLink = document.querySelector(`[href="#${tabId}"]`);
+  if (tabLink) {
+    tabLink.click();
+  }
+}
+
+// Add this function to the global scope
+document.addEventListener('DOMContentLoaded', () => {
+  window.switchTab = switchTab;
+});
+</script> 
