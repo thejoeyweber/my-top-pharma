@@ -1,0 +1,152 @@
+---
+/**
+ * Admin Dashboard
+ * 
+ * Main administrator dashboard page showing system statistics, 
+ * recent crawler activity, and admin shortcut cards.
+ */
+import Layout from '../../layouts/Layout.astro';
+import Card from '../../components/atoms/Card.astro';
+import { systemStats, recentCrawlerJobs, adminShortcuts } from '../../data/admin';
+
+// Format number with commas
+const formatNumber = (num: number): string => {
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+};
+
+// Format date
+const formatDate = (dateString: string): string => {
+  if (!dateString) return '--';
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+};
+---
+
+<Layout title="Admin Dashboard | Top Pharma">
+  <div class="min-h-screen bg-gray-100">
+    <header class="bg-white shadow">
+      <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <h1 class="text-3xl font-bold tracking-tight text-gray-900">Admin Dashboard</h1>
+      </div>
+    </header>
+    <main class="mx-auto max-w-7xl py-6 px-4 sm:px-6 lg:px-8">
+      
+      <!-- Welcome Panel -->
+      <div class="bg-white p-6 rounded-lg shadow-sm mb-6">
+        <h2 class="text-lg font-semibold text-gray-900">Welcome, Admin</h2>
+        <p class="mt-1 text-gray-500">
+          Last login: Today at 9:12 AM | System status: Operational
+        </p>
+      </div>
+      
+      <!-- System Stats -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">System Statistics</h2>
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {systemStats.map((stat) => (
+            <Card>
+              <div class="px-4 py-5 sm:p-6">
+                <div class="flex items-center">
+                  <div class="flex-shrink-0 rounded-md bg-primary-50 p-3">
+                    <span set:html={stat.icon} />
+                  </div>
+                  <div class="ml-5 w-0 flex-1">
+                    <dt class="text-sm font-medium text-gray-500 truncate">{stat.label}</dt>
+                    <dd class="flex items-baseline">
+                      <div class="text-2xl font-semibold text-gray-900">
+                        {formatNumber(stat.value)}
+                      </div>
+                      <div class={`ml-2 flex items-baseline text-sm font-semibold ${
+                        stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {stat.change}
+                      </div>
+                    </dd>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+      
+      <!-- Recent Crawler Activity -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Recent Crawler Activity</h2>
+        <Card>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead>
+                <tr>
+                  <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job ID</th>
+                  <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Time</th>
+                  <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
+                  <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
+                  <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Added</th>
+                  <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Errors</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                {recentCrawlerJobs.map((job) => (
+                  <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{job.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(job.startTime)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(job.endTime)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                      <span class={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                        job.status === 'complete' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {job.status}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{job.websitesUpdated}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{job.websitesAdded}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <span class={job.errors > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                        {job.errors}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+      
+      <!-- Admin Shortcuts -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Admin Tools</h2>
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {adminShortcuts.map((shortcut) => (
+            <a href={shortcut.link} class="block">
+              <Card hover={true}>
+                <div class="px-4 py-5 sm:p-6">
+                  <div class="flex items-start">
+                    <div class={`flex-shrink-0 rounded-md p-3 ${shortcut.color}`}>
+                      <span set:html={shortcut.icon} />
+                    </div>
+                    <div class="ml-4">
+                      <h3 class="text-lg font-medium text-gray-900">{shortcut.title}</h3>
+                      <p class="mt-1 text-sm text-gray-500">{shortcut.description}</p>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </a>
+          ))}
+        </div>
+      </div>
+      
+    </main>
+  </div>
+</Layout> 

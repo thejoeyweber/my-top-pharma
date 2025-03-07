@@ -1,0 +1,339 @@
+---
+/**
+ * API Configuration
+ * 
+ * Admin page for managing API settings, keys, and usage limits.
+ */
+import Layout from '../../layouts/Layout.astro';
+import Card from '../../components/atoms/Card.astro';
+import { apiConfig } from '../../data/admin';
+
+// Format date
+const formatDate = (dateString: string): string => {
+  if (!dateString) return '--';
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+};
+
+// Format large numbers
+const formatNumber = (num: number): string => {
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+};
+---
+
+<Layout title="API Configuration | Admin | Top Pharma">
+  <div class="min-h-screen bg-gray-100">
+    <header class="bg-white shadow">
+      <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div class="flex items-center">
+          <a href="/admin" class="mr-2 text-gray-400 hover:text-gray-600">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+              <path fill-rule="evenodd" d="M11.03 3.97a.75.75 0 0 1 0 1.06l-6.22 6.22H21a.75.75 0 0 1 0 1.5H4.81l6.22 6.22a.75.75 0 1 1-1.06 1.06l-7.5-7.5a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd" />
+            </svg>
+          </a>
+          <h1 class="text-3xl font-bold tracking-tight text-gray-900">API Configuration</h1>
+        </div>
+      </div>
+    </header>
+    <main class="mx-auto max-w-7xl py-6 px-4 sm:px-6 lg:px-8">
+      
+      <!-- General Settings -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">General Settings</h2>
+        <Card>
+          <div class="px-4 py-5 sm:p-6">
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div>
+                <label for="api-status" class="block text-sm font-medium text-gray-700">API Status</label>
+                <div class="mt-2">
+                  <select id="api-status" name="api-status" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                    <option value="enabled" selected={apiConfig.general.enabled}>Enabled</option>
+                    <option value="disabled" selected={!apiConfig.general.enabled}>Disabled</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label for="base-url" class="block text-sm font-medium text-gray-700">Base URL</label>
+                <div class="mt-2">
+                  <input type="text" name="base-url" id="base-url" value={apiConfig.general.baseUrl} class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                </div>
+              </div>
+              
+              <div>
+                <label for="default-rate" class="block text-sm font-medium text-gray-700">Default Rate Limit (requests/day)</label>
+                <div class="mt-2">
+                  <input type="number" name="default-rate" id="default-rate" value={apiConfig.general.defaultRateLimit} class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                </div>
+              </div>
+              
+              <div>
+                <label for="require-auth" class="block text-sm font-medium text-gray-700">Require Authentication</label>
+                <div class="mt-2">
+                  <select id="require-auth" name="require-auth" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                    <option value="true" selected={apiConfig.general.requireAuthentication}>Yes</option>
+                    <option value="false" selected={!apiConfig.general.requireAuthentication}>No</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end">
+              <button type="button" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                Reset
+              </button>
+              <button type="button" class="ml-3 inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </Card>
+      </div>
+      
+      <!-- API Keys -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">API Keys</h2>
+        <Card>
+          <div class="px-4 py-5 sm:p-6">
+            <div class="mb-4 flex justify-end">
+              <button type="button" class="inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                Create New API Key
+              </button>
+            </div>
+            
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">API Key</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate Limit</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Used</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                  {apiConfig.apiKeys.map((key) => (
+                    <tr>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{key.name}</td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                        {key.key.substring(0, 8) + '...'}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <span class={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                          key.status === 'active' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {key.status}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatNumber(key.rateLimit)} / day
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(key.created)}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(key.lastUsed)}
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <button type="button" class="text-primary-600 hover:text-primary-900 mr-3">View</button>
+                        <button type="button" class="text-primary-600 hover:text-primary-900 mr-3">Edit</button>
+                        <button type="button" class="text-red-600 hover:text-red-900">
+                          {key.status === 'active' ? 'Revoke' : 'Activate'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </Card>
+      </div>
+      
+      <!-- API Key Details Form -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Create/Edit API Key</h2>
+        <Card>
+          <div class="px-4 py-5 sm:p-6">
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div class="sm:col-span-2">
+                <label for="key-name" class="block text-sm font-medium text-gray-700">Partner Name</label>
+                <div class="mt-1">
+                  <input type="text" name="key-name" id="key-name" placeholder="e.g., Research Partner A" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                </div>
+              </div>
+              
+              <div>
+                <label for="key-rate" class="block text-sm font-medium text-gray-700">Rate Limit (requests/day)</label>
+                <div class="mt-1">
+                  <input type="number" name="key-rate" id="key-rate" placeholder="5000" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                </div>
+              </div>
+              
+              <div>
+                <label for="key-status" class="block text-sm font-medium text-gray-700">Status</label>
+                <div class="mt-1">
+                  <select id="key-status" name="key-status" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                    <option value="active">Active</option>
+                    <option value="revoked">Revoked</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="sm:col-span-2">
+                <label class="block text-sm font-medium text-gray-700">Allowed Endpoints</label>
+                <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {['companies', 'products', 'websites', 'therapeutic-areas', 'reports'].map((endpoint) => (
+                    <div class="flex items-center">
+                      <input 
+                        id={`endpoint-${endpoint}`} 
+                        name={`endpoint-${endpoint}`} 
+                        type="checkbox" 
+                        class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      >
+                      <label for={`endpoint-${endpoint}`} class="ml-2 text-sm text-gray-700">{endpoint}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div class="sm:col-span-2">
+                <label for="key-notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                <div class="mt-1">
+                  <textarea id="key-notes" name="key-notes" rows="3" placeholder="Additional notes about this API key or partner..." class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"></textarea>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end">
+              <button type="button" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                Cancel
+              </button>
+              <button type="button" class="ml-3 inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                Save API Key
+              </button>
+            </div>
+          </div>
+        </Card>
+      </div>
+      
+      <!-- API Usage Stats -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">API Usage Statistics</h2>
+        <Card>
+          <div class="px-4 py-5 sm:p-6">
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
+              <div class="bg-gray-50 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-gray-500">Today</h3>
+                <p class="mt-1 text-2xl font-semibold text-gray-900">{formatNumber(apiConfig.usage.today)}</p>
+                <p class="mt-1 text-sm text-gray-500">API requests</p>
+              </div>
+              
+              <div class="bg-gray-50 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-gray-500">This Week</h3>
+                <p class="mt-1 text-2xl font-semibold text-gray-900">{formatNumber(apiConfig.usage.thisWeek)}</p>
+                <p class="mt-1 text-sm text-gray-500">API requests</p>
+              </div>
+              
+              <div class="bg-gray-50 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-gray-500">This Month</h3>
+                <p class="mt-1 text-2xl font-semibold text-gray-900">{formatNumber(apiConfig.usage.thisMonth)}</p>
+                <p class="mt-1 text-sm text-gray-500">API requests</p>
+              </div>
+            </div>
+            
+            <div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <div>
+                <h3 class="text-sm font-medium text-gray-500">Most Used Endpoint</h3>
+                <p class="mt-1 text-lg font-medium text-gray-900">{apiConfig.usage.topEndpoint}</p>
+              </div>
+              
+              <div>
+                <h3 class="text-sm font-medium text-gray-500">Peak Usage Time</h3>
+                <p class="mt-1 text-lg font-medium text-gray-900">{apiConfig.usage.peakTime} UTC</p>
+              </div>
+            </div>
+            
+            <div class="mt-6">
+              <h3 class="text-sm font-medium text-gray-500 mb-2">Daily Usage Trend (Placeholder)</h3>
+              <div class="bg-gray-100 border border-gray-200 rounded-lg h-64 flex items-center justify-center">
+                <p class="text-gray-500">API usage chart would appear here</p>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+      
+      <!-- Webhook Configuration -->
+      <div class="mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Webhook Configuration</h2>
+        <Card>
+          <div class="px-4 py-5 sm:p-6">
+            <p class="text-sm text-gray-500 mb-4">
+              Configure webhooks to notify external services about API events.
+            </p>
+            
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div class="sm:col-span-2">
+                <label for="webhook-url" class="block text-sm font-medium text-gray-700">Webhook URL</label>
+                <div class="mt-1">
+                  <input type="url" name="webhook-url" id="webhook-url" placeholder="https://example.com/webhook" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                </div>
+              </div>
+              
+              <div class="sm:col-span-2">
+                <label class="block text-sm font-medium text-gray-700">Webhook Events</label>
+                <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <div class="flex items-center">
+                    <input id="event-rate-limit" name="event-rate-limit" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                    <label for="event-rate-limit" class="ml-2 text-sm text-gray-700">Rate Limit Approaching</label>
+                  </div>
+                  <div class="flex items-center">
+                    <input id="event-key-created" name="event-key-created" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                    <label for="event-key-created" class="ml-2 text-sm text-gray-700">API Key Created</label>
+                  </div>
+                  <div class="flex items-center">
+                    <input id="event-key-revoked" name="event-key-revoked" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                    <label for="event-key-revoked" class="ml-2 text-sm text-gray-700">API Key Revoked</label>
+                  </div>
+                  <div class="flex items-center">
+                    <input id="event-high-traffic" name="event-high-traffic" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                    <label for="event-high-traffic" class="ml-2 text-sm text-gray-700">High Traffic Alert</label>
+                  </div>
+                  <div class="flex items-center">
+                    <input id="event-error-spike" name="event-error-spike" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                    <label for="event-error-spike" class="ml-2 text-sm text-gray-700">Error Rate Spike</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mt-6 flex justify-end">
+              <button type="button" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                Cancel
+              </button>
+              <button type="button" class="ml-3 inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                Save Webhook
+              </button>
+              <button type="button" class="ml-3 inline-flex items-center rounded-md border border-transparent bg-gray-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                Test Webhook
+              </button>
+            </div>
+          </div>
+        </Card>
+      </div>
+      
+    </main>
+  </div>
+</Layout> 
