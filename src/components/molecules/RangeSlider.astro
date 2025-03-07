@@ -1,0 +1,224 @@
+---
+/**
+ * RangeSlider Component
+ * 
+ * A dual-handle slider for selecting a range of numeric values.
+ * Includes input fields for manually entering precise values.
+ */
+
+interface Props {
+  label: string;
+  name: string;
+  min: number;
+  max: number;
+  step?: number;
+  initialMin?: number;
+  initialMax?: number;
+  formatValue?: (value: number) => string;
+  class?: string;
+}
+
+const {
+  label,
+  name,
+  min,
+  max,
+  step = 1,
+  initialMin = min,
+  initialMax = max,
+  class: className = "",
+} = Astro.props;
+
+// Generate a unique ID for this slider to avoid conflicts
+const sliderId = `range-slider-${Math.random().toString(36).substring(2, 9)}`;
+---
+
+<div class:list={["range-slider", className]} data-range-slider id={sliderId}>
+  <label class="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+  
+  <div class="mt-2 space-y-6">
+    <!-- Slider track and handles -->
+    <div class="relative">
+      <div class="h-2 w-full rounded-md bg-gray-200 absolute pointer-events-none" data-slider-track>
+        <div 
+          class="absolute h-full rounded-md bg-primary-500" 
+          data-slider-range
+          style={{ 
+            left: `${((initialMin - min) / (max - min)) * 100}%`, 
+            width: `${((initialMax - initialMin) / (max - min)) * 100}%` 
+          }}
+        ></div>
+      </div>
+      
+      <input 
+        type="range" 
+        class="absolute w-full h-2 opacity-0 cursor-pointer"
+        min={min} 
+        max={max} 
+        step={step} 
+        value={initialMin}
+        data-slider-min-input
+      />
+      
+      <input 
+        type="range" 
+        class="absolute w-full h-2 opacity-0 cursor-pointer"
+        min={min} 
+        max={max} 
+        step={step} 
+        value={initialMax}
+        data-slider-max-input
+      />
+      
+      <!-- Slider thumbs -->
+      <div 
+        class="absolute -top-1.5 w-5 h-5 rounded-full border-2 border-primary-500 bg-white shadow transform -translate-x-1/2 cursor-grab"
+        data-slider-min-thumb
+        style={{ left: `${((initialMin - min) / (max - min)) * 100}%` }}
+      ></div>
+      
+      <div 
+        class="absolute -top-1.5 w-5 h-5 rounded-full border-2 border-primary-500 bg-white shadow transform -translate-x-1/2 cursor-grab"
+        data-slider-max-thumb
+        style={{ left: `${((initialMax - min) / (max - min)) * 100}%` }}
+      ></div>
+    </div>
+    
+    <!-- Value inputs -->
+    <div class="flex items-center space-x-4">
+      <div class="w-full">
+        <label for={`${name}-min`} class="sr-only">Minimum value</label>
+        <input
+          type="number"
+          id={`${name}-min`}
+          class="w-full rounded-md border border-gray-300 py-1.5 px-3 text-sm text-gray-900 placeholder-gray-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          min={min}
+          max={max}
+          step={step}
+          value={initialMin}
+          data-min-value-input
+        />
+        <input type="hidden" name={`${name}[min]`} value={initialMin} data-min-value-hidden />
+      </div>
+      
+      <span class="text-gray-500">to</span>
+      
+      <div class="w-full">
+        <label for={`${name}-max`} class="sr-only">Maximum value</label>
+        <input
+          type="number"
+          id={`${name}-max`}
+          class="w-full rounded-md border border-gray-300 py-1.5 px-3 text-sm text-gray-900 placeholder-gray-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          min={min}
+          max={max}
+          step={step}
+          value={initialMax}
+          data-max-value-input
+        />
+        <input type="hidden" name={`${name}[max]`} value={initialMax} data-max-value-hidden />
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Initialize range sliders
+  document.addEventListener('DOMContentLoaded', () => {
+    const rangeSliders = document.querySelectorAll('[data-range-slider]');
+    
+    rangeSliders.forEach(slider => {
+      // Slider elements
+      const minInput = slider.querySelector('[data-slider-min-input]') as HTMLInputElement;
+      const maxInput = slider.querySelector('[data-slider-max-input]') as HTMLInputElement;
+      const minThumb = slider.querySelector('[data-slider-min-thumb]') as HTMLElement;
+      const maxThumb = slider.querySelector('[data-slider-max-thumb]') as HTMLElement;
+      const range = slider.querySelector('[data-slider-range]') as HTMLElement;
+      const track = slider.querySelector('[data-slider-track]') as HTMLElement;
+      
+      // Value inputs
+      const minValueInput = slider.querySelector('[data-min-value-input]') as HTMLInputElement;
+      const maxValueInput = slider.querySelector('[data-max-value-input]') as HTMLInputElement;
+      const minValueHidden = slider.querySelector('[data-min-value-hidden]') as HTMLInputElement;
+      const maxValueHidden = slider.querySelector('[data-max-value-hidden]') as HTMLInputElement;
+      
+      // Constants
+      const min = parseFloat(minInput.min);
+      const max = parseFloat(minInput.max);
+      const step = parseFloat(minInput.step || '1');
+      
+      // Update slider function
+      function updateSlider() {
+        const minPercent = ((parseFloat(minInput.value) - min) / (max - min)) * 100;
+        const maxPercent = ((parseFloat(maxInput.value) - min) / (max - min)) * 100;
+        
+        if (range) {
+          range.style.left = `${minPercent}%`;
+          range.style.width = `${maxPercent - minPercent}%`;
+        }
+        
+        if (minThumb) {
+          minThumb.style.left = `${minPercent}%`;
+        }
+        
+        if (maxThumb) {
+          maxThumb.style.left = `${maxPercent}%`;
+        }
+        
+        // Update value inputs
+        if (minValueInput) {
+          minValueInput.value = minInput.value;
+          minValueHidden.value = minInput.value;
+        }
+        
+        if (maxValueInput) {
+          maxValueInput.value = maxInput.value;
+          maxValueHidden.value = maxInput.value;
+        }
+      }
+      
+      // Handle minimum input changes
+      minInput?.addEventListener('input', () => {
+        // Ensure min isn't greater than max
+        const minValue = parseFloat(minInput.value);
+        const maxValue = parseFloat(maxInput.value);
+        
+        if (minValue > maxValue) {
+          minInput.value = maxInput.value;
+        }
+        
+        updateSlider();
+      });
+      
+      // Handle maximum input changes
+      maxInput?.addEventListener('input', () => {
+        // Ensure max isn't less than min
+        const minValue = parseFloat(minInput.value);
+        const maxValue = parseFloat(maxInput.value);
+        
+        if (maxValue < minValue) {
+          maxInput.value = minInput.value;
+        }
+        
+        updateSlider();
+      });
+      
+      // Handle value input changes
+      minValueInput?.addEventListener('input', () => {
+        const value = Math.max(min, Math.min(max, parseFloat(minValueInput.value) || min));
+        minValueInput.value = value.toString();
+        minInput.value = value.toString();
+        updateSlider();
+      });
+      
+      maxValueInput?.addEventListener('input', () => {
+        const value = Math.max(min, Math.min(max, parseFloat(maxValueInput.value) || max));
+        maxValueInput.value = value.toString();
+        maxInput.value = value.toString();
+        updateSlider();
+      });
+      
+      // Initialize the slider
+      updateSlider();
+    });
+  });
+</script> 

@@ -1,0 +1,113 @@
+---
+/**
+ * ViewToggle Component
+ * 
+ * A toggle button group for switching between different view modes (grid/list).
+ */
+
+interface ViewOption {
+  value: string;
+  label: string;
+  icon: string;
+}
+
+interface Props {
+  options?: ViewOption[];
+  initialValue?: string;
+  name?: string;
+  class?: string;
+}
+
+// Default view options if none provided
+const defaultOptions: ViewOption[] = [
+  {
+    value: 'grid',
+    label: 'Grid view',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+    </svg>`
+  },
+  {
+    value: 'list',
+    label: 'List view',
+    icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
+    </svg>`
+  }
+];
+
+const {
+  options = defaultOptions,
+  initialValue = 'grid',
+  name = 'view',
+  class: className = "",
+} = Astro.props;
+---
+
+<div class:list={["view-toggle", className]} data-view-toggle>
+  <span class="sr-only">View options</span>
+  <div class="inline-flex rounded-md shadow-sm" role="group">
+    {options.map((option, index) => (
+      <button
+        type="button"
+        class:list={[
+          "view-toggle-btn py-1.5 px-3 text-sm font-medium focus:z-10 focus:ring-2 focus:ring-primary-500 focus:outline-none",
+          index === 0 ? "rounded-l-md" : "",
+          index === options.length - 1 ? "rounded-r-md" : "",
+          option.value === initialValue
+            ? "bg-primary-600 text-white hover:bg-primary-700"
+            : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-300",
+          index > 0 && option.value !== initialValue ? "-ml-px" : "",
+        ]}
+        aria-label={option.label}
+        title={option.label}
+        data-view-value={option.value}
+      >
+        <span set:html={option.icon} />
+      </button>
+    ))}
+  </div>
+  <input type="hidden" name={name} value={initialValue} data-view-input />
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const viewToggles = document.querySelectorAll('[data-view-toggle]');
+    
+    viewToggles.forEach(toggle => {
+      const buttons = toggle.querySelectorAll('.view-toggle-btn');
+      const input = toggle.querySelector('[data-view-input]') as HTMLInputElement;
+      
+      buttons.forEach(button => {
+        button.addEventListener('click', () => {
+          const value = button.getAttribute('data-view-value');
+          if (!value) return;
+          
+          // Update the hidden input value
+          if (input) {
+            input.value = value;
+          }
+          
+          // Update button styles
+          buttons.forEach(btn => {
+            const btnValue = btn.getAttribute('data-view-value');
+            if (btnValue === value) {
+              btn.classList.remove('bg-white', 'text-gray-700', 'hover:bg-gray-50', 'border', 'border-gray-300');
+              btn.classList.add('bg-primary-600', 'text-white', 'hover:bg-primary-700');
+            } else {
+              btn.classList.remove('bg-primary-600', 'text-white', 'hover:bg-primary-700');
+              btn.classList.add('bg-white', 'text-gray-700', 'hover:bg-gray-50', 'border', 'border-gray-300');
+            }
+          });
+          
+          // Dispatch a custom event that can be listened for to update the view
+          const event = new CustomEvent('view:changed', { 
+            detail: { value },
+            bubbles: true 
+          });
+          toggle.dispatchEvent(event);
+        });
+      });
+    });
+  });
+</script> 
