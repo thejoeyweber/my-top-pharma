@@ -125,6 +125,11 @@ const filteredWebsites = filterAndSortItems(
     sortDirection
   }
 );
+
+// Get URL-safe domain for routing
+const getDomainId = (domain: string) => {
+  return domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+};
 ---
 
 <DashboardLayout
@@ -331,7 +336,7 @@ const filteredWebsites = filterAndSortItems(
                           {website.lastCrawl ? new Date(website.lastCrawl).toLocaleDateString() : 'N/A'}
                         </td>
                         <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                          <a href={`/websites/${website.id}`} class="text-blue-600 hover:text-blue-900 mr-4">View</a>
+                          <a href={`/websites/${getDomainId(website.domain)}`} class="text-blue-600 hover:text-blue-900 mr-4">View</a>
                           <a href={`https://${website.domain}`} target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 inline-flex items-center">
                             Visit
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 ml-1">
