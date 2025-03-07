@@ -1,0 +1,338 @@
+---
+/**
+ * Data Table Component
+ * 
+ * A reusable table component with sorting, pagination, and export functionality.
+ * Supports custom column rendering and data formatting.
+ */
+
+interface Column {
+  key: string;
+  label: string;
+  sortable?: boolean;
+  render?: (value: any, row: any) => string;
+  align?: 'left' | 'center' | 'right';
+}
+
+interface Props {
+  id: string;
+  columns: Column[];
+  data: any[];
+  pageSize?: number;
+  exportable?: boolean;
+  className?: string;
+}
+
+const {
+  id,
+  columns,
+  data,
+  pageSize = 10,
+  exportable = true,
+  className = ''
+} = Astro.props;
+
+// Generate unique table ID if not provided
+const tableId = id || `table-${Math.random().toString(36).substr(2, 9)}`;
+---
+
+<div class={`data-table-container ${className}`}>
+  {exportable && (
+    <div class="flex justify-end mb-4">
+      <button
+        type="button"
+        class="inline-flex items-center px-3 py-2 border border-[color:var(--color-gray-300)] shadow-sm text-sm leading-4 font-medium rounded-md text-[color:var(--color-gray-700)] bg-[color:var(--color-white)] hover:bg-[color:var(--color-gray-50)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[color:var(--color-primary-500)]"
+        data-export-button
+      >
+        <svg class="-ml-0.5 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        Export to CSV
+      </button>
+    </div>
+  )}
+
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-[color:var(--color-gray-200)]" id={tableId}>
+      <thead class="bg-[color:var(--color-gray-50)]">
+        <tr>
+          {columns.map(column => (
+            <th 
+              scope="col" 
+              class:list={[
+                "px-6 py-3 text-xs font-medium text-[color:var(--color-gray-500)] uppercase tracking-wider",
+                column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left',
+                column.sortable ? 'cursor-pointer hover:bg-[color:var(--color-gray-100)]' : ''
+              ]}
+              data-sort-key={column.sortable ? column.key : null}
+            >
+              <div class="flex items-center space-x-1">
+                <span>{column.label}</span>
+                {column.sortable && (
+                  <svg class="h-4 w-4 text-[color:var(--color-gray-400)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                  </svg>
+                )}
+              </div>
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody class="bg-[color:var(--color-white)] divide-y divide-[color:var(--color-gray-200)]" data-table-body>
+        {data.slice(0, pageSize).map(row => (
+          <tr>
+            {columns.map(column => (
+              <td 
+                class:list={[
+                  "px-6 py-4 whitespace-nowrap text-sm text-[color:var(--color-gray-500)]",
+                  column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left'
+                ]}
+              >
+                {column.render 
+                  ? column.render(row[column.key], row)
+                  : row[column.key]?.toString() || ''}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  {data.length > pageSize && (
+    <div class="flex items-center justify-between px-4 py-3 bg-[color:var(--color-white)] border-t border-[color:var(--color-gray-200)] sm:px-6">
+      <div class="flex justify-between flex-1 sm:hidden">
+        <button
+          type="button"
+          class="relative inline-flex items-center px-4 py-2 border border-[color:var(--color-gray-300)] text-sm font-medium rounded-md text-[color:var(--color-gray-700)] bg-[color:var(--color-white)] hover:bg-[color:var(--color-gray-50)]"
+          data-prev-page
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          class="ml-3 relative inline-flex items-center px-4 py-2 border border-[color:var(--color-gray-300)] text-sm font-medium rounded-md text-[color:var(--color-gray-700)] bg-[color:var(--color-white)] hover:bg-[color:var(--color-gray-50)]"
+          data-next-page
+        >
+          Next
+        </button>
+      </div>
+      <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+        <div>
+          <p class="text-sm text-[color:var(--color-gray-700)]">
+            Showing <span class="font-medium" data-showing-start>1</span> to <span class="font-medium" data-showing-end>{Math.min(pageSize, data.length)}</span> of{' '}
+            <span class="font-medium">{data.length}</span> results
+          </p>
+        </div>
+        <div>
+          <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination" data-pagination>
+            <!-- Pagination will be inserted here by JavaScript -->
+          </nav>
+        </div>
+      </div>
+    </div>
+  )}
+</div>
+
+<script define:vars={{ tableId, columns, data, pageSize }}>
+  // Table functionality
+  document.addEventListener('DOMContentLoaded', () => {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+
+    let currentPage = 1;
+    let currentSort = { key: null, direction: 'asc' };
+    let filteredData = [...data];
+
+    // Sorting function
+    const sortData = (key, direction) => {
+      return [...filteredData].sort((a, b) => {
+        const aVal = a[key];
+        const bVal = b[key];
+        
+        if (aVal === bVal) return 0;
+        if (aVal === null || aVal === undefined) return 1;
+        if (bVal === null || bVal === undefined) return -1;
+        
+        const modifier = direction === 'asc' ? 1 : -1;
+        return aVal > bVal ? modifier : -modifier;
+      });
+    };
+
+    // Update table content
+    const updateTable = () => {
+      const tbody = table.querySelector('[data-table-body]');
+      if (!tbody) return;
+
+      const start = (currentPage - 1) * pageSize;
+      const end = start + pageSize;
+      const pageData = filteredData.slice(start, end);
+
+      tbody.innerHTML = pageData.map(row => `
+        <tr>
+          ${columns.map(column => `
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-[color:var(--color-gray-500)] ${
+              column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left'
+            }">
+              ${column.render 
+                ? column.render(row[column.key], row)
+                : (row[column.key]?.toString() || '')}
+            </td>
+          `).join('')}
+        </tr>
+      `).join('');
+
+      // Update pagination info
+      const showingStart = document.querySelector('[data-showing-start]');
+      const showingEnd = document.querySelector('[data-showing-end]');
+      if (showingStart) showingStart.textContent = start + 1;
+      if (showingEnd) showingEnd.textContent = Math.min(end, filteredData.length);
+
+      updatePagination();
+    };
+
+    // Update pagination controls
+    const updatePagination = () => {
+      const pagination = table.querySelector('[data-pagination]');
+      if (!pagination) return;
+
+      const totalPages = Math.ceil(filteredData.length / pageSize);
+      let paginationHTML = '';
+
+      // Previous button
+      paginationHTML += `
+        <button type="button" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-[color:var(--color-gray-300)] bg-[color:var(--color-white)] text-sm font-medium text-[color:var(--color-gray-500)] hover:bg-[color:var(--color-gray-50)]" ${currentPage === 1 ? 'disabled' : ''} data-prev-page>
+          <span class="sr-only">Previous</span>
+          <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      `;
+
+      // Page numbers
+      for (let i = 1; i <= totalPages; i++) {
+        if (
+          i === 1 || 
+          i === totalPages || 
+          (i >= currentPage - 1 && i <= currentPage + 1)
+        ) {
+          paginationHTML += `
+            <button type="button" class="relative inline-flex items-center px-4 py-2 border border-[color:var(--color-gray-300)] bg-[color:var(--color-white)] text-sm font-medium ${
+              i === currentPage 
+                ? 'z-10 bg-[color:var(--color-primary-50)] border-[color:var(--color-primary-500)] text-[color:var(--color-primary-600)]'
+                : 'text-[color:var(--color-gray-500)] hover:bg-[color:var(--color-gray-50)]'
+            }" data-page="${i}">
+              ${i}
+            </button>
+          `;
+        } else if (
+          i === currentPage - 2 ||
+          i === currentPage + 2
+        ) {
+          paginationHTML += `
+            <span class="relative inline-flex items-center px-4 py-2 border border-[color:var(--color-gray-300)] bg-[color:var(--color-white)] text-sm font-medium text-[color:var(--color-gray-700)]">
+              ...
+            </span>
+          `;
+        }
+      }
+
+      // Next button
+      paginationHTML += `
+        <button type="button" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-[color:var(--color-gray-300)] bg-[color:var(--color-white)] text-sm font-medium text-[color:var(--color-gray-500)] hover:bg-[color:var(--color-gray-50)]" ${currentPage === totalPages ? 'disabled' : ''} data-next-page>
+          <span class="sr-only">Next</span>
+          <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      `;
+
+      pagination.innerHTML = paginationHTML;
+
+      // Add event listeners to pagination buttons
+      pagination.querySelectorAll('button[data-page]').forEach(button => {
+        button.addEventListener('click', () => {
+          currentPage = parseInt(button.dataset.page);
+          updateTable();
+        });
+      });
+    };
+
+    // Sort column click handlers
+    table.querySelectorAll('th[data-sort-key]').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.sortKey;
+        if (!key) return;
+
+        const direction = 
+          currentSort.key === key && currentSort.direction === 'asc' 
+            ? 'desc' 
+            : 'asc';
+
+        currentSort = { key, direction };
+        filteredData = sortData(key, direction);
+        currentPage = 1;
+        updateTable();
+      });
+    });
+
+    // Pagination button handlers
+    table.addEventListener('click', (e) => {
+      const target = e.target.closest('button');
+      if (!target) return;
+
+      if (target.hasAttribute('data-prev-page') && currentPage > 1) {
+        currentPage--;
+        updateTable();
+      } else if (target.hasAttribute('data-next-page') && currentPage < Math.ceil(filteredData.length / pageSize)) {
+        currentPage++;
+        updateTable();
+      }
+    });
+
+    // Export to CSV functionality
+    const exportButton = table.parentElement?.querySelector('[data-export-button]');
+    if (exportButton) {
+      exportButton.addEventListener('click', () => {
+        // Convert data to CSV
+        const headers = columns.map(col => col.label).join(',');
+        const rows = filteredData.map(row => 
+          columns.map(col => {
+            let value = col.render 
+              ? col.render(row[col.key], row)
+              : row[col.key]?.toString() || '';
+            // Escape quotes and wrap in quotes if contains comma
+            value = value.replace(/"/g, '""');
+            if (value.includes(',')) value = `"${value}"`;
+            return value;
+          }).join(',')
+        ).join('\n');
+        const csv = `${headers}\n${rows}`;
+
+        // Create and trigger download
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        if (navigator.msSaveBlob) {
+          navigator.msSaveBlob(blob, 'export.csv');
+        } else {
+          link.href = URL.createObjectURL(blob);
+          link.setAttribute('download', 'export.csv');
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      });
+    }
+
+    // Initialize table
+    updateTable();
+  });
+</script>
+
+<style>
+  .data-table-container {
+    background-color: var(--color-white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+  }
+</style> 

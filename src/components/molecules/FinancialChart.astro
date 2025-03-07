@@ -1,0 +1,157 @@
+---
+/**
+ * Financial Chart Component
+ * 
+ * A component for displaying financial metrics like revenue, R&D spending, and net income.
+ * Uses Chart.js for rendering and supports multiple data series.
+ */
+import Chart from '../atoms/Chart.astro';
+
+interface DataPoint {
+  year: number;
+  value: number;
+}
+
+interface Props {
+  id: string;
+  title: string;
+  data: {
+    revenue?: DataPoint[];
+    rAndDSpending?: DataPoint[];
+    netIncome?: DataPoint[];
+  };
+  width?: number;
+  height?: number;
+  className?: string;
+}
+
+const { 
+  id, 
+  title,
+  data,
+  width = 600,
+  height = 400,
+  className = ''
+} = Astro.props;
+
+// Format data for Chart.js
+const years = [...new Set([
+  ...(data.revenue?.map(d => d.year) || []),
+  ...(data.rAndDSpending?.map(d => d.year) || []),
+  ...(data.netIncome?.map(d => d.year) || [])
+])].sort();
+---
+
+<Chart id={id} width={width} height={height} className={className} />
+
+<script define:vars={{ id, title, data, years }}>
+  // Chart.js will be imported from the CDN via the base Chart component
+  document.addEventListener('DOMContentLoaded', () => {
+    const ctx = document.getElementById(id)?.getContext('2d');
+    if (!ctx) return;
+
+    const datasets = [];
+    
+    // Use colors from Chart.js defaults
+    if (data.revenue) {
+      datasets.push({
+        label: 'Revenue',
+        data: years.map(year => {
+          const point = data.revenue.find(d => d.year === year);
+          return point ? point.value : null;
+        }),
+        borderColor: 'rgb(255, 99, 132)',
+        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+        borderWidth: 2,
+        fill: true
+      });
+    }
+    
+    if (data.rAndDSpending) {
+      datasets.push({
+        label: 'R&D Spending',
+        data: years.map(year => {
+          const point = data.rAndDSpending.find(d => d.year === year);
+          return point ? point.value : null;
+        }),
+        borderColor: 'rgb(54, 162, 235)',
+        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+        borderWidth: 2,
+        fill: true
+      });
+    }
+    
+    if (data.netIncome) {
+      datasets.push({
+        label: 'Net Income',
+        data: years.map(year => {
+          const point = data.netIncome.find(d => d.year === year);
+          return point ? point.value : null;
+        }),
+        borderColor: 'rgb(255, 205, 86)',
+        backgroundColor: 'rgba(255, 205, 86, 0.2)',
+        borderWidth: 2,
+        fill: true
+      });
+    }
+
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: years,
+        datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          title: {
+            display: true,
+            text: title,
+            font: {
+              size: 16,
+              weight: 'bold'
+            }
+          },
+          legend: {
+            position: 'bottom'
+          },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+              label: (context) => {
+                const value = context.parsed.y;
+                return `${context.dataset.label}: $${value.toFixed(1)}B`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Year'
+            },
+            grid: {
+              display: true
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'Billions USD'
+            },
+            ticks: {
+              callback: (value) => `$${value}B`
+            },
+            grid: {
+              display: true
+            }
+          }
+        }
+      }
+    });
+  });
+</script> 

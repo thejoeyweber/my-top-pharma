@@ -1,0 +1,128 @@
+---
+/**
+ * Pipeline Chart Component
+ * 
+ * A component for visualizing drug development pipeline stages.
+ * Shows distribution of products across different development phases.
+ */
+import Chart from '../atoms/Chart.astro';
+
+interface PipelineData {
+  stage: string;
+  count: number;
+}
+
+interface Props {
+  id: string;
+  title: string;
+  data: PipelineData[];
+  width?: number;
+  height?: number;
+  className?: string;
+}
+
+const { 
+  id, 
+  title,
+  data,
+  width = 600,
+  height = 400,
+  className = ''
+} = Astro.props;
+
+// Stage order for consistent display
+const stageOrder = [
+  'discovery',
+  'preclinical',
+  'phase1',
+  'phase2',
+  'phase3',
+  'submitted',
+  'approved',
+  'marketed'
+];
+
+// Stage display names
+const stageNames = {
+  discovery: 'Discovery',
+  preclinical: 'Preclinical',
+  phase1: 'Phase 1',
+  phase2: 'Phase 2',
+  phase3: 'Phase 3',
+  submitted: 'Submitted',
+  approved: 'Approved',
+  marketed: 'Marketed'
+};
+
+// Sort data by stage order
+const sortedData = [...data].sort((a, b) => 
+  stageOrder.indexOf(a.stage) - stageOrder.indexOf(b.stage)
+);
+---
+
+<Chart id={id} width={width} height={height} className={className} />
+
+<script define:vars={{ id, title, sortedData, stageNames }}>
+  // Chart.js will be imported from the CDN via the base Chart component
+  document.addEventListener('DOMContentLoaded', () => {
+    const ctx = document.getElementById(id)?.getContext('2d');
+    if (!ctx) return;
+
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: sortedData.map(d => stageNames[d.stage] || d.stage),
+        datasets: [{
+          label: 'Number of Products',
+          data: sortedData.map(d => d.count),
+          // Use default Chart.js colors from global config
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          title: {
+            display: true,
+            text: title,
+            font: {
+              size: 16,
+              weight: 'bold'
+            }
+          },
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const value = context.parsed.y;
+                return `${value} product${value === 1 ? '' : 's'}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Development Stage'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'Number of Products'
+            },
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1
+            }
+          }
+        }
+      }
+    });
+  });
+</script> 
