@@ -1,0 +1,288 @@
+---
+/**
+ * User Preferences Page
+ * 
+ * Allows users to configure notification settings, display preferences, and privacy options.
+ * This is a UI mockup with no actual backend functionality.
+ */
+import DashboardLayout from '../components/templates/DashboardLayout.astro';
+import Card from '../components/atoms/Card.astro';
+import Button from '../components/atoms/Button.astro';
+import { userPreferences } from '../data/user';
+
+// Breadcrumbs for the preferences page
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Dashboard', href: '/dashboard' },
+  { label: 'Preferences', href: '/preferences', isActive: true },
+];
+---
+
+<DashboardLayout 
+  title="Preferences | Top Pharma"
+  description="Manage your Top Pharma account preferences and notification settings"
+  currentPath="/preferences"
+  breadcrumbs={breadcrumbs}
+>
+  <div class="space-y-6">
+    <!-- Page header -->
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Preferences</h1>
+      <p class="mt-1 text-sm text-gray-500">
+        Manage your notification settings, display preferences, and privacy options
+      </p>
+    </div>
+    
+    <!-- Notification preferences -->
+    <Card>
+      <div class="px-4 py-5 sm:p-6">
+        <div class="md:grid md:grid-cols-3 md:gap-6">
+          <div class="md:col-span-1">
+            <h3 class="text-lg font-medium leading-6 text-gray-900">Notification Settings</h3>
+            <p class="mt-1 text-sm text-gray-500">
+              Choose how and when you want to be notified about updates.
+            </p>
+          </div>
+          <div class="mt-5 md:col-span-2 md:mt-0">
+            <form>
+              <div class="space-y-6">
+                <fieldset>
+                  <legend class="text-base font-medium text-gray-900">Notification Methods</legend>
+                  <div class="mt-4 space-y-4">
+                    <div class="flex items-start">
+                      <div class="flex h-5 items-center">
+                        <input id="email-notifications" name="email-notifications" type="checkbox" 
+                          checked={userPreferences.notifications.email}
+                          class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      </div>
+                      <div class="ml-3 text-sm">
+                        <label for="email-notifications" class="font-medium text-gray-700">Email notifications</label>
+                        <p class="text-gray-500">Get notified via email about important updates.</p>
+                      </div>
+                    </div>
+                    <div class="flex items-start">
+                      <div class="flex h-5 items-center">
+                        <input id="push-notifications" name="push-notifications" type="checkbox" 
+                          checked={userPreferences.notifications.push}
+                          class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      </div>
+                      <div class="ml-3 text-sm">
+                        <label for="push-notifications" class="font-medium text-gray-700">Push notifications</label>
+                        <p class="text-gray-500">Receive push notifications in your browser.</p>
+                      </div>
+                    </div>
+                  </div>
+                </fieldset>
+                
+                <fieldset>
+                  <legend class="text-base font-medium text-gray-900">Notification Types</legend>
+                  <div class="mt-4 space-y-4">
+                    <div class="flex items-start">
+                      <div class="flex h-5 items-center">
+                        <input id="marketing-emails" name="marketing-emails" type="checkbox" 
+                          checked={userPreferences.notifications.marketingEmails}
+                          class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      </div>
+                      <div class="ml-3 text-sm">
+                        <label for="marketing-emails" class="font-medium text-gray-700">Marketing emails</label>
+                        <p class="text-gray-500">Receive marketing and promotional emails.</p>
+                      </div>
+                    </div>
+                    <div class="flex items-start">
+                      <div class="flex h-5 items-center">
+                        <input id="company-alerts" name="company-alerts" type="checkbox" 
+                          checked={userPreferences.notifications.newCompanyAlerts}
+                          class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      </div>
+                      <div class="ml-3 text-sm">
+                        <label for="company-alerts" class="font-medium text-gray-700">Company alerts</label>
+                        <p class="text-gray-500">Get notified about updates to companies you follow.</p>
+                      </div>
+                    </div>
+                    <div class="flex items-start">
+                      <div class="flex h-5 items-center">
+                        <input id="product-approvals" name="product-approvals" type="checkbox" 
+                          checked={userPreferences.notifications.productApprovals}
+                          class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      </div>
+                      <div class="ml-3 text-sm">
+                        <label for="product-approvals" class="font-medium text-gray-700">Product approvals</label>
+                        <p class="text-gray-500">Get notified about new product approvals.</p>
+                      </div>
+                    </div>
+                    <div class="flex items-start">
+                      <div class="flex h-5 items-center">
+                        <input id="website-launches" name="website-launches" type="checkbox" 
+                          checked={userPreferences.notifications.websiteLaunches}
+                          class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      </div>
+                      <div class="ml-3 text-sm">
+                        <label for="website-launches" class="font-medium text-gray-700">Website launches</label>
+                        <p class="text-gray-500">Get notified about new website launches.</p>
+                      </div>
+                    </div>
+                  </div>
+                </fieldset>
+              </div>
+              
+              <div class="mt-6 flex justify-end">
+                <Button type="submit" variant="primary">
+                  Save Notification Preferences
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </Card>
+    
+    <!-- Display preferences -->
+    <Card>
+      <div class="px-4 py-5 sm:p-6">
+        <div class="md:grid md:grid-cols-3 md:gap-6">
+          <div class="md:col-span-1">
+            <h3 class="text-lg font-medium leading-6 text-gray-900">Display Preferences</h3>
+            <p class="mt-1 text-sm text-gray-500">
+              Customize how the platform looks and behaves for you.
+            </p>
+          </div>
+          <div class="mt-5 md:col-span-2 md:mt-0">
+            <form>
+              <div class="space-y-6">
+                <fieldset>
+                  <legend class="text-base font-medium text-gray-900">Theme</legend>
+                  <div class="mt-4 space-y-4">
+                    <div class="flex items-center">
+                      <input id="theme-light" name="theme" type="radio" value="light"
+                        checked={userPreferences.display.theme === 'light'}
+                        class="h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      <label for="theme-light" class="ml-3 block text-sm font-medium text-gray-700">
+                        Light
+                      </label>
+                    </div>
+                    <div class="flex items-center">
+                      <input id="theme-dark" name="theme" type="radio" value="dark"
+                        checked={userPreferences.display.theme === 'dark'}
+                        class="h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      <label for="theme-dark" class="ml-3 block text-sm font-medium text-gray-700">
+                        Dark
+                      </label>
+                    </div>
+                    <div class="flex items-center">
+                      <input id="theme-system" name="theme" type="radio" value="system"
+                        checked={userPreferences.display.theme === 'system'}
+                        class="h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      <label for="theme-system" class="ml-3 block text-sm font-medium text-gray-700">
+                        System
+                      </label>
+                    </div>
+                  </div>
+                </fieldset>
+                
+                <fieldset>
+                  <legend class="text-base font-medium text-gray-900">Layout</legend>
+                  <div class="mt-4 space-y-4">
+                    <div class="flex items-start">
+                      <div class="flex h-5 items-center">
+                        <input id="compact-mode" name="compact-mode" type="checkbox" 
+                          checked={userPreferences.display.compactMode}
+                          class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      </div>
+                      <div class="ml-3 text-sm">
+                        <label for="compact-mode" class="font-medium text-gray-700">Compact mode</label>
+                        <p class="text-gray-500">Use a more compact layout to fit more content on screen.</p>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label for="dashboard-layout" class="block text-sm font-medium text-gray-700">Dashboard layout</label>
+                      <select id="dashboard-layout" name="dashboard-layout" 
+                        class="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-primary-500 focus:outline-none focus:ring-primary-500 sm:text-sm">
+                        <option value="grid" selected={userPreferences.display.dashboardLayout === 'grid'}>Grid</option>
+                        <option value="list" selected={userPreferences.display.dashboardLayout === 'list'}>List</option>
+                        <option value="compact" selected={userPreferences.display.dashboardLayout === 'compact'}>Compact</option>
+                      </select>
+                    </div>
+                  </div>
+                </fieldset>
+              </div>
+              
+              <div class="mt-6 flex justify-end">
+                <Button type="submit" variant="primary">
+                  Save Display Preferences
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </Card>
+    
+    <!-- Privacy settings -->
+    <Card>
+      <div class="px-4 py-5 sm:p-6">
+        <div class="md:grid md:grid-cols-3 md:gap-6">
+          <div class="md:col-span-1">
+            <h3 class="text-lg font-medium leading-6 text-gray-900">Privacy Settings</h3>
+            <p class="mt-1 text-sm text-gray-500">
+              Control who can see your profile and activity.
+            </p>
+          </div>
+          <div class="mt-5 md:col-span-2 md:mt-0">
+            <form>
+              <div class="space-y-6">
+                <fieldset>
+                  <div class="space-y-4">
+                    <div class="flex items-start">
+                      <div class="flex h-5 items-center">
+                        <input id="public-profile" name="public-profile" type="checkbox" 
+                          checked={userPreferences.privacy.showProfilePublicly}
+                          class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      </div>
+                      <div class="ml-3 text-sm">
+                        <label for="public-profile" class="font-medium text-gray-700">Public profile</label>
+                        <p class="text-gray-500">Make your profile visible to other users.</p>
+                      </div>
+                    </div>
+                    <div class="flex items-start">
+                      <div class="flex h-5 items-center">
+                        <input id="share-activity" name="share-activity" type="checkbox" 
+                          checked={userPreferences.privacy.shareActivityWithinOrg}
+                          class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      </div>
+                      <div class="ml-3 text-sm">
+                        <label for="share-activity" class="font-medium text-gray-700">Share activity</label>
+                        <p class="text-gray-500">Share your activity with others in your organization.</p>
+                      </div>
+                    </div>
+                  </div>
+                </fieldset>
+              </div>
+              
+              <div class="mt-6 flex justify-end">
+                <Button type="submit" variant="primary">
+                  Save Privacy Settings
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </Card>
+  </div>
+</DashboardLayout>
+
+<script>
+  // Client-side script for handling form submission
+  document.addEventListener('DOMContentLoaded', () => {
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        // In a real app, this would make an API call
+        // For the mockup, we just show an alert
+        alert('Preferences saved successfully!');
+      });
+    });
+  });
+</script> 
