@@ -833,10 +833,10 @@ export const websites: Website[] = [
  */
 
 export function getWebsiteById(id: string): Website | undefined {
-  // First try to find by exact ID match
+  // First try to find by direct ID
   let website = websites.find(w => w.id === id);
   
-  // If not found, try by domain-based ID
+  // If not found, try to match by URL-safe version of domain
   if (!website) {
     website = websites.find(w => 
       w.domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase() === id

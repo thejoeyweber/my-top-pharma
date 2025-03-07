@@ -13,6 +13,7 @@ import KeyMetric from '../../components/molecules/KeyMetric.astro';
 import { websites, getWebsiteById, websiteCategories } from '../../data/websites';
 import { getCompanyById, therapeuticAreas } from '../../data/companies';
 import { getProductById } from '../../data/products';
+import { getCompanyLogoUrl, getWebsiteScreenshotUrl } from '../../utils/assetUtils';
 
 // Generate static paths for all websites
 export function getStaticPaths() {
@@ -45,6 +46,9 @@ const company = getCompanyById(website.companyId);
 const associatedProducts = website.products ? website.products.map(productId => {
   return getProductById(productId);
 }).filter(product => product !== undefined) : [];
+
+// Get screenshot URL
+const screenshotUrl = website.screenshotUrl || getWebsiteScreenshotUrl(website.domain);
 
 // Default tab is "overview"
 const activeTab = "overview";
@@ -196,7 +200,7 @@ const breadcrumbs = [
           <div class="lg:w-1/3 mobile-tab-content hidden lg:block" id="screenshot-content">
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-xl font-medium text-gray-900">Website Preview</h2>
-              {website.screenshotUrl && (
+              {screenshotUrl && (
                 <button 
                   type="button" 
                   class="text-gray-500 hover:text-gray-700 view-screenshot"
@@ -209,10 +213,10 @@ const breadcrumbs = [
                 </button>
               )}
             </div>
-            {website.screenshotUrl ? (
+            {screenshotUrl ? (
               <div class="relative rounded-lg overflow-hidden border border-gray-200 aspect-[4/3]">
                 <img 
-                  src={website.screenshotUrl} 
+                  src={screenshotUrl} 
                   alt={`Screenshot of ${website.domain}`}
                   class="object-cover w-full h-full cursor-pointer view-screenshot"
                 />
@@ -243,9 +247,9 @@ const breadcrumbs = [
           </button>
         </div>
         <div class="flex-1 overflow-auto">
-          {website.screenshotUrl ? (
+          {screenshotUrl ? (
             <img 
-              src={website.screenshotUrl} 
+              src={screenshotUrl} 
               alt={`Full screenshot of ${website.domain}`}
               class="max-w-full mx-auto"
             />
@@ -483,7 +487,7 @@ const breadcrumbs = [
               <div class="flex flex-col md:flex-row gap-6">
                 <div class="md:w-1/3">
                   {company.logoUrl && (
-                    <img src={company.logoUrl} alt={`${company.name} logo`} class="h-16 mb-4" />
+                    <img src={getCompanyLogoUrl(company.id)} alt={`${company.name} logo`} class="h-16 mb-4" />
                   )}
                   <h3 class="text-lg font-medium text-gray-900">{company.name}</h3>
                   <p class="text-sm text-gray-500 mt-1">{company.headquarters}</p>

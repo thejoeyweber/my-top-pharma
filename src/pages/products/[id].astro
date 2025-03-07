@@ -16,6 +16,7 @@ import { products, getProductById, getRelatedProducts, getStageName } from '../.
 import { getCompanyById } from '../../data/companies';
 import { websiteCategories } from '../../data/websites';
 import { getWebsitesByProduct } from '../../utils/crossReferenceUtils';
+import { getCompanyLogoUrl, getProductImageUrl, getWebsiteScreenshotUrl } from '../../utils/assetUtils';
 
 // Generate static paths for all products
 export function getStaticPaths() {
@@ -271,7 +272,7 @@ const formatDate = (dateString: string) => {
                                 {website.screenshotUrl && (
                                   <div class="md:w-1/3 relative h-40 md:h-auto">
                                     <img 
-                                      src={website.screenshotUrl} 
+                                      src={getWebsiteScreenshotUrl(website.domain)} 
                                       alt={`Screenshot of ${website.domain}`}
                                       class="absolute inset-0 w-full h-full object-cover"
                                     />
@@ -332,7 +333,7 @@ const formatDate = (dateString: string) => {
                   <h2 class="text-xl font-medium text-gray-900 mb-4">Company Website</h2>
                   <div class="flex items-center mb-4">
                     {company.logoUrl && (
-                      <img src={company.logoUrl} alt={`${company.name} logo`} class="h-8 mr-3" />
+                      <img src={getCompanyLogoUrl(company.id)} alt={`${company.name} logo`} class="h-8 mr-3" />
                     )}
                     <h3 class="text-lg font-medium text-gray-900">{company.name}</h3>
                   </div>
