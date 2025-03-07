@@ -1,0 +1,175 @@
+---
+/**
+ * ProductCard Component
+ * 
+ * A responsive card component for displaying pharmaceutical product information
+ * in both grid and list views. Includes product name, company, development stage,
+ * indications, and therapeutic areas.
+ */
+
+import type { Product } from '../../data/products';
+import { getStageName, getStageColor } from '../../data/products';
+import { getCompanyById } from '../../data/companies';
+import Badge from '../atoms/Badge.astro';
+
+interface Props {
+  product: Product;
+  view?: 'grid' | 'list';
+  isCompact?: boolean;
+}
+
+const { 
+  product,
+  view = 'grid',
+  isCompact = false
+} = Astro.props;
+
+// Get company information
+const company = getCompanyById(product.companyId);
+
+// Get stage information
+const stageName = getStageName(product.stage);
+const stageColor = getStageColor(product.stage);
+
+// Format stage badge color based on stage
+const getStageBadgeColor = () => {
+  const colorMap = {
+    'gray': 'background-color:var(--color-gray-100); color:var(--color-gray-800)',
+    'blue': 'background-color:var(--color-blue-100, #dbeafe); color:var(--color-blue-800, #1e40af)',
+    'indigo': 'background-color:var(--color-indigo-100, #e0e7ff); color:var(--color-indigo-800, #3730a3)',
+    'purple': 'background-color:var(--color-purple-100, #f3e8ff); color:var(--color-purple-800, #6b21a8)',
+    'yellow': 'background-color:var(--color-yellow-100, #fef9c3); color:var(--color-yellow-800, #854d0e)',
+    'green': 'background-color:var(--color-green-100, #dcfce7); color:var(--color-green-800, #166534)',
+    'emerald': 'background-color:var(--color-emerald-100, #d1fae5); color:var(--color-emerald-800, #065f46)'
+  };
+  return colorMap[stageColor] || 'background-color:var(--color-gray-100); color:var(--color-gray-800)';
+};
+---
+
+{view === 'grid' ? (
+  <div class="bg-white rounded-lg shadow border border-gray-200 hover:shadow-md transition-shadow duration-300 overflow-hidden h-full flex flex-col">
+    <div class="p-4">
+      <div class="flex justify-between items-start mb-3">
+        <div>
+          <h3 class="text-base font-semibold text-gray-900 hover:text-[color:var(--color-primary-600)]">{product.name}</h3>
+          {product.genericName && (
+            <p class="text-xs text-gray-500 italic">{product.genericName}</p>
+          )}
+        </div>
+        <span class="text-xs font-medium px-2 py-0.5 rounded-full" style={getStageBadgeColor()}>
+          {stageName}
+        </span>
+      </div>
+      
+      {company && (
+        <div class="flex items-center mb-3">
+          <div class="flex items-center text-sm text-gray-600">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            <a href={`/companies/${company.id}`} class="hover:text-[color:var(--color-primary-600)] hover:underline">
+              {company.name}
+            </a>
+          </div>
+        </div>
+      )}
+
+      {!isCompact && (
+        <p class="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
+      )}
+      
+      <div class="flex flex-wrap gap-1.5 mb-3">
+        {product.indications.slice(0, isCompact ? 1 : 2).map(indication => (
+          <span class="bg-gray-100 text-gray-700 text-xs px-1.5 py-0.5 rounded">
+            {indication}
+          </span>
+        ))}
+        {product.indications.length > (isCompact ? 1 : 2) && (
+          <span class="bg-gray-100 text-gray-700 text-xs px-1.5 py-0.5 rounded">
+            +{product.indications.length - (isCompact ? 1 : 2)} more
+          </span>
+        )}
+      </div>
+
+      <div class="flex flex-wrap gap-1.5 mb-3">
+        {product.therapeuticAreas.slice(0, isCompact ? 1 : 2).map(area => (
+          <span class="bg-[color:var(--color-primary-50)] text-[color:var(--color-primary-700)] text-xs px-1.5 py-0.5 rounded">
+            {area}
+          </span>
+        ))}
+      </div>
+
+      <div class="mt-auto pt-2">
+        <a 
+          href={`/products/${product.id}`} 
+          class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+        >
+          View Details
+        </a>
+      </div>
+    </div>
+  </div>
+) : (
+  <div class="bg-white rounded-lg shadow border border-gray-200 hover:shadow-md transition-shadow duration-300 overflow-hidden">
+    <div class="p-6">
+      <div class="flex flex-col md:flex-row md:items-center">
+        <div class="flex-1 mb-4 md:mb-0 md:mr-6">
+          <div class="flex justify-between items-start mb-2">
+            <div>
+              <h3 class="text-lg font-semibold text-gray-900 hover:text-[color:var(--color-primary-600)]">{product.name}</h3>
+              {product.genericName && (
+                <p class="text-sm text-gray-500 italic">{product.genericName}</p>
+              )}
+            </div>
+            <span class="text-xs font-medium px-2 py-0.5 rounded-full" style={getStageBadgeColor()}>
+              {stageName}
+            </span>
+          </div>
+          
+          {company && (
+            <div class="flex items-center mb-3">
+              <div class="flex items-center text-sm text-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <a href={`/companies/${company.id}`} class="hover:text-[color:var(--color-primary-600)] hover:underline">
+                  {company.name}
+                </a>
+              </div>
+            </div>
+          )}
+
+          <p class="text-gray-600 mb-3 line-clamp-2">{product.description}</p>
+          
+          <div class="flex flex-wrap gap-2">
+            {product.indications.map(indication => (
+              <span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
+                {indication}
+              </span>
+            ))}
+          </div>
+          
+          <div class="flex flex-wrap gap-2 mt-2">
+            {product.therapeuticAreas.map(area => (
+              <span class="bg-[color:var(--color-primary-50)] text-[color:var(--color-primary-700)] text-xs px-2 py-1 rounded">
+                {area}
+              </span>
+            ))}
+          </div>
+        </div>
+        
+        <div class="flex items-center">
+          <span class="text-sm text-gray-500 mr-3">
+            {product.moleculeType}
+          </span>
+          <a 
+            href={`/products/${product.id}`} 
+            class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors whitespace-nowrap"
+          >
+            View Details
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+)} 
