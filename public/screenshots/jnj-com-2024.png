@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#fafafa"/>
+  <rect width="800" height="80" fill="#D31145"/>
+  <text x="30" y="50" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="white">JNJ.com</text>
+  <rect x="50" y="120" width="700" height="300" fill="#ffffff" stroke="#e0e0e0" stroke-width="1"/>
+  <text x="400" y="270" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#555">Johnson & Johnson Corporate Website</text>
+  <text x="400" y="310" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#777">Captured: March 2024</text>
+</svg> 

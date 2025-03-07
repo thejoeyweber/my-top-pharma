@@ -1,0 +1,440 @@
+---
+/**
+ * Websites Directory Page
+ * 
+ * Lists all pharmaceutical websites in the directory with filtering options.
+ */
+import DashboardLayout from '../../components/templates/DashboardLayout.astro';
+import Card from '../../components/atoms/Card.astro';
+import Button from '../../components/atoms/Button.astro';
+import FilterBar from '../../components/organisms/FilterBar.astro';
+import MultiSelect from '../../components/molecules/MultiSelect.astro';
+import SearchBar from '../../components/molecules/SearchBar.astro';
+import SortSelect from '../../components/molecules/SortSelect.astro';
+import ViewToggle from '../../components/molecules/ViewToggle.astro';
+import WebsiteCard from '../../components/molecules/WebsiteCard.astro';
+import { filterAndSortItems } from '../../utils/filterUtils';
+
+// Import website data
+import { websites, websiteCategories, regions } from '../../data/websites';
+import { companies } from '../../data/companies';
+import { products } from '../../data/products';
+
+// Define company options for filtering (first 20 for performance)
+const companyOptions = companies.slice(0, 20).map(company => {
+  return { value: company.id, label: company.name };
+});
+
+// Define product options for filtering (first 20 for performance)
+const productOptions = products.slice(0, 20).map(product => {
+  return { value: product.id, label: product.name };
+});
+
+// Define therapeutic areas for filtering
+const therapeuticAreas = [
+  { value: 'oncology', label: 'Oncology' },
+  { value: 'immunology', label: 'Immunology' },
+  { value: 'neuroscience', label: 'Neuroscience' },
+  { value: 'cardiovascular', label: 'Cardiovascular' },
+  { value: 'rare-diseases', label: 'Rare Diseases' },
+  { value: 'vaccines', label: 'Vaccines' },
+  { value: 'diabetes', label: 'Diabetes' },
+  { value: 'infectious-diseases', label: 'Infectious Diseases' },
+  { value: 'respiratory', label: 'Respiratory' },
+  { value: 'ophthalmology', label: 'Ophthalmology' },
+];
+
+// Define sort options
+const sortOptions = [
+  { value: 'domain', label: 'Domain Name (A-Z)' },
+  { value: 'lastCrawl', label: 'Last Updated' },
+  { value: 'category', label: 'Category' },
+  { value: 'region', label: 'Region' }
+];
+
+// Define filter configuration
+const filters = [
+  {
+    id: 'category',
+    label: 'Category',
+    type: 'multi-select',
+    options: websiteCategories,
+    isPrimary: true,
+  },
+  {
+    id: 'region',
+    label: 'Region',
+    type: 'multi-select',
+    options: regions,
+    isPrimary: true,
+  },
+  {
+    id: 'companyId',
+    label: 'Company',
+    type: 'multi-select',
+    options: companyOptions,
+    isPrimary: true,
+  },
+  {
+    id: 'products',
+    label: 'Associated Products',
+    type: 'multi-select',
+    options: productOptions,
+    isPrimary: false,
+  },
+  {
+    id: 'therapeuticAreas',
+    label: 'Therapeutic Areas',
+    type: 'multi-select',
+    options: therapeuticAreas,
+    isPrimary: false,
+  },
+  {
+    id: 'hasDisclaimers',
+    label: 'Has Disclaimer Text',
+    type: 'checkbox',
+    isPrimary: false,
+  }
+];
+
+// Split filters into primary and advanced
+const primaryFilters = filters.filter(filter => filter.isPrimary);
+const advancedFilters = filters.filter(filter => !filter.isPrimary);
+
+// Breadcrumbs for websites page
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Websites', href: '/websites', isActive: true },
+];
+
+// Client-side filtering/sorting/view state
+const searchQuery = '';
+const selectedFilters = {};
+const sortField = 'domain';
+const sortDirection = 'asc';
+const view = 'grid';
+
+// Process websites with filters
+const filteredWebsites = filterAndSortItems(
+  websites,
+  {
+    searchQuery,
+    searchFields: ['domain', 'siteName', 'description'],
+    filters: selectedFilters,
+    sortField,
+    sortDirection
+  }
+);
+
+// Get URL-safe domain for routing
+const getDomainId = (domain: string) => {
+  return domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+};
+---
+
+<DashboardLayout
+  title="Websites Directory | Top Pharma"
+  description="Explore pharmaceutical-owned websites"
+  currentPath="/websites"
+  breadcrumbs={breadcrumbs}
+>
+  <div class="space-y-6">
+    <!-- Page header -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Websites Directory</h1>
+        <p class="mt-1 text-sm text-gray-500">
+          Explore pharmaceutical-owned websites
+        </p>
+      </div>
+      <div class="flex items-center gap-4">
+        <ViewToggle client:load defaultView={view} />
+        <SortSelect 
+          options={sortOptions} 
+          defaultValue={sortField} 
+          defaultDirection={sortDirection} 
+        />
+      </div>
+    </div>
+    
+    <!-- Filters -->
+    <FilterBar filters={filters}>
+      <!-- Primary Filters Section -->
+      <div class="mb-6 border-b border-gray-200 pb-6">
+        <h3 class="text-base font-medium text-gray-900 mb-4">Quick Filters</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <MultiSelect
+            label="Category"
+            name="category"
+            options={websiteCategories}
+            placeholder="Select categories..."
+          />
+          
+          <MultiSelect
+            label="Region"
+            name="region"
+            options={regions}
+            placeholder="Select regions..."
+          />
+          
+          <MultiSelect
+            label="Company"
+            name="companyId"
+            options={companyOptions}
+            placeholder="Select companies..."
+          />
+        </div>
+      </div>
+      
+      <!-- Advanced Filters Section -->
+      <div class="mb-2">
+        <div class="flex justify-end items-center mb-4">
+          <h3 class="text-base font-medium text-gray-900 advanced-filter-heading hidden mr-auto">Advanced Filters</h3>
+          <button 
+            type="button" 
+            class="text-sm text-primary-600 font-medium hover:text-primary-800 flex items-center gap-1"
+            data-toggle-advanced
+          >
+            <span class="show-text flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+              <span>Advanced Filters</span>
+            </span>
+            <span class="hide-text hidden flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+              </svg>
+              <span>Hide Advanced Filters</span>
+            </span>
+          </button>
+        </div>
+        
+        <div class="hidden rounded-lg bg-gray-50 p-6 border border-gray-200 w-full mt-2" data-advanced-filters>
+          <div class="space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <MultiSelect
+                label="Associated Products"
+                name="products"
+                options={productOptions}
+                placeholder="Select products..."
+              />
+              
+              <MultiSelect
+                label="Therapeutic Areas"
+                name="therapeuticAreas"
+                options={therapeuticAreas}
+                placeholder="Select therapeutic areas..."
+              />
+            </div>
+            
+            <div class="space-y-4 bg-white p-4 rounded-md border border-gray-200">
+              <h4 class="text-sm font-medium text-gray-900">Additional Criteria</h4>
+              <div class="flex items-center">
+                <input
+                  type="checkbox"
+                  id="hasDisclaimers"
+                  name="hasDisclaimers"
+                  value="true"
+                  class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <label for="hasDisclaimers" class="ml-2 block text-sm text-gray-700">
+                  Has Disclaimer Text
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="flex items-center justify-between border-t border-gray-200 pt-4 mt-6">
+        <div class="max-w-md">
+          <SearchBar 
+            placeholder="Search by domain, name, or description..."
+            defaultValue={searchQuery}
+          />
+        </div>
+        <div>
+          <Button variant="outline" size="sm" class="mr-2">Reset</Button>
+          <Button variant="solid" size="sm">Apply Filters</Button>
+        </div>
+      </div>
+    </FilterBar>
+    
+    <!-- Results count -->
+    <div class="flex justify-between items-center">
+      <h2 class="font-medium text-lg text-gray-900">
+        <span>{filteredWebsites.length}</span> websites found
+      </h2>
+    </div>
+    
+    <!-- Website grid/list display -->
+    <div>
+      <Card>
+        <div class="p-6">
+          {filteredWebsites.length === 0 ? (
+            <div class="text-center py-12">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-12 h-12 mx-auto text-gray-400">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+              <h3 class="mt-2 text-sm font-medium text-gray-900">No websites found</h3>
+              <p class="mt-1 text-sm text-gray-500">Try adjusting your search or filter criteria.</p>
+              <div class="mt-6">
+                <Button variant="outline" size="sm">
+                  Reset filters
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div id="grid-view" class={view === 'list' ? 'hidden' : ''}>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredWebsites.map((website) => (
+                  <WebsiteCard website={website} view="grid" />
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <div id="list-view" class={view === 'grid' ? 'hidden' : ''}>
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-300">
+                <thead>
+                  <tr>
+                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Domain</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Company</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Category</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Region</th>
+                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Last Updated</th>
+                    <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                      <span class="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                  {filteredWebsites.map((website) => {
+                    const company = companies.find(c => c.id === website.companyId);
+                    const companyName = company ? company.name : website.companyId;
+                    const categoryLabel = websiteCategories.find(c => c.value === website.category)?.label || website.category;
+                    return (
+                      <tr>
+                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+                          <div class="flex items-center">
+                            <div>
+                              <div class="font-medium text-gray-900">{website.domain}</div>
+                              {website.siteName && (
+                                <div class="text-gray-500">{website.siteName}</div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <a href={`/companies/${website.companyId}`} class="text-blue-600 hover:underline">{companyName}</a>
+                        </td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{categoryLabel}</td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{website.region || 'N/A'}</td>
+                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {website.lastCrawl ? new Date(website.lastCrawl).toLocaleDateString() : 'N/A'}
+                        </td>
+                        <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                          <a href={`/websites/${getDomainId(website.domain)}`} class="text-blue-600 hover:text-blue-900 mr-4">View</a>
+                          <a href={`https://${website.domain}`} target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 inline-flex items-center">
+                            Visit
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 ml-1">
+                              <path fill-rule="evenodd" d="M4.25 5.5a.75.75 0 0 0-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-4a.75.75 0 0 1 1.5 0v4A2.25 2.25 0 0 1 12.75 17h-8.5A2.25 2.25 0 0 1 2 14.75v-8.5A2.25 2.25 0 0 1 4.25 4h5a.75.75 0 0 1 0 1.5h-5Z" clip-rule="evenodd" />
+                              <path fill-rule="evenodd" d="M6.194 12.753a.75.75 0 0 0 1.06.053L16.5 4.44v2.81a.75.75 0 0 0 1.5 0v-4.5a.75.75 0 0 0-.75-.75h-4.5a.75.75 0 0 0 0 1.5h2.553l-9.056 8.194a.75.75 0 0 0-.053 1.06Z" clip-rule="evenodd" />
+                            </svg>
+                          </a>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          {filteredWebsites.length > 0 && (
+            <div class="mt-8 flex items-center justify-center">
+              <Button variant="outline" size="sm">
+                Load More
+              </Button>
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+    
+    <!-- Pagination -->
+    <div class="flex items-center justify-between border-t border-gray-200 pt-4">
+      <div class="flex flex-1 justify-between sm:hidden">
+        <a href="#" class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Previous</a>
+        <a href="#" class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Next</a>
+      </div>
+      <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+        <div>
+          <p class="text-sm text-gray-700">
+            Showing <span class="font-medium">1</span> to <span class="font-medium">{Math.min(websites.length, 20)}</span> of <span class="font-medium">{websites.length}</span> results
+          </p>
+        </div>
+        <div>
+          <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+            <a href="#" class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+              <span class="sr-only">Previous</span>
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
+              </svg>
+            </a>
+            <a href="#" aria-current="page" class="relative z-10 inline-flex items-center bg-primary-600 px-4 py-2 text-sm font-semibold text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600">1</a>
+            <a href="#" class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">2</a>
+            <a href="#" class="relative hidden items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 md:inline-flex">3</a>
+            <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 focus:outline-offset-0">...</span>
+            <a href="#" class="relative hidden items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 md:inline-flex">8</a>
+            <a href="#" class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
+              <span class="sr-only">Next</span>
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+              </svg>
+            </a>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // View toggle functionality
+    const gridView = document.getElementById('grid-view');
+    const listView = document.getElementById('list-view');
+    
+    document.addEventListener('view-toggle', (e) => {
+      const customEvent = e as CustomEvent;
+      const viewMode = customEvent.detail.value;
+      
+      if (viewMode === 'grid') {
+        gridView?.classList.remove('hidden');
+        listView?.classList.add('hidden');
+      } else if (viewMode === 'list') {
+        gridView?.classList.add('hidden');
+        listView?.classList.remove('hidden');
+      }
+    });
+    
+    // Advanced filters toggle
+    const advancedToggleBtn = document.querySelector('[data-toggle-advanced]');
+    const advancedFilters = document.querySelector('[data-advanced-filters]');
+    const showText = advancedToggleBtn?.querySelector('.show-text');
+    const hideText = advancedToggleBtn?.querySelector('.hide-text');
+    const filterHeading = document.querySelector('.advanced-filter-heading');
+    
+    advancedToggleBtn?.addEventListener('click', () => {
+      advancedFilters?.classList.toggle('hidden');
+      showText?.classList.toggle('hidden');
+      hideText?.classList.toggle('hidden');
+      filterHeading?.classList.toggle('hidden');
+    });
+    
+    console.log('View toggle and advanced filters functionality ready');
+  });
+</script> 
