@@ -1,0 +1,9 @@
+{
+  "id": "user-001",
+  "name": "Jane Doe",
+  "email": "jane.doe@example.com",
+  "jobTitle": "Pharmaceutical Research Analyst",
+  "company": "BioHealth Partners",
+  "avatarUrl": "/images/avatars/female-1.jpg",
+  "createdAt": "2023-09-12T14:30:00Z"
+}

@@ -1,0 +1,19 @@
+{
+  "notifications": {
+    "email": true,
+    "push": false,
+    "marketingEmails": false,
+    "newCompanyAlerts": true,
+    "productApprovals": true,
+    "websiteLaunches": false
+  },
+  "display": {
+    "theme": "light",
+    "compactMode": false,
+    "dashboardLayout": "grid"
+  },
+  "privacy": {
+    "showProfilePublicly": true,
+    "shareActivityWithinOrg": true
+  }
+}

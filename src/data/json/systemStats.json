@@ -1,0 +1,18 @@
+[
+  {
+    "id": "companies-stat",
+    "label": "Companies",
+    "value": 2847,
+    "change": "+12%",
+    "trend": "up",
+    "icon": "/src/data/assets/icons/stat-companies-stat.svg"
+  },
+  {
+    "id": "products-stat",
+    "label": "Products",
+    "value": 14382,
+    "change": "+8%",
+    "trend": "up",
+    "icon": "/src/data/assets/icons/stat-products-stat.svg"
+  }
+]

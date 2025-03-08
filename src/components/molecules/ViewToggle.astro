@@ -70,8 +70,9 @@ const {
   <input type="hidden" name={name} value={initialValue} data-view-input />
 </div>
 
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
+<script is:inline>
+  // Function to initialize the view toggle functionality
+  function initViewToggle() {
     const viewToggles = document.querySelectorAll('[data-view-toggle]');
     
     viewToggles.forEach(toggle => {
@@ -109,5 +110,12 @@ const {
         });
       });
     });
-  });
+  }
+
+  // Initialize immediately if the DOM is already loaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initViewToggle);
+  } else {
+    initViewToggle();
+  }
 </script> 

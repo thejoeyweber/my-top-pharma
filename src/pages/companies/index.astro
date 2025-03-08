@@ -427,12 +427,14 @@ const breadcrumbs = [
           selectedValue="name-asc"
         />
         
-        <ViewToggle initialValue="grid" />
+        <div class="flex items-center gap-4">
+          <ViewToggle initialValue="grid" />
+        </div>
       </div>
     </div>
     
     <!-- Company cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-view="grid">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-view="grid" data-view-container="grid">
       {companies.map(company => (
         <Card>
           <div class="p-6">
@@ -467,7 +469,7 @@ const breadcrumbs = [
     </div>
     
     <!-- List view (hidden by default) -->
-    <div class="hidden" data-view="list">
+    <div class="hidden" data-view="list" data-view-container="list">
       <Card>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
@@ -755,5 +757,25 @@ const breadcrumbs = [
     });
     
     console.log('View toggle and advanced filters functionality ready');
+  });
+
+  // Listen for view:changed events from the ViewToggle component
+  document.addEventListener('view:changed', (event) => {
+    const viewValue = event.detail?.value;
+    if (!viewValue) return;
+    
+    // Get containers that should respond to view changes
+    const gridContainer = document.querySelector('[data-view-container="grid"]');
+    const listContainer = document.querySelector('[data-view-container="list"]');
+    
+    if (gridContainer && listContainer) {
+      if (viewValue === 'grid') {
+        gridContainer.classList.remove('hidden');
+        listContainer.classList.add('hidden');
+      } else {
+        gridContainer.classList.add('hidden');
+        listContainer.classList.remove('hidden');
+      }
+    }
   });
 </script> 

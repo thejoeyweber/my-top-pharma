@@ -6,13 +6,24 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "convert-companies": "node scripts/convertCompanies.js",
+    "convert-products": "node scripts/convertProducts.js",
+    "convert-websites": "node scripts/convertWebsites.js",
+    "convert-admin": "node scripts/convertAdmin.js",
+    "convert-user": "node scripts/convertUser.js",
+    "convert-all": "npm run convert-companies ; npm run convert-products ; npm run convert-websites ; npm run convert-admin ; npm run convert-user",
+    "convert-data": "node scripts/convertData.js"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.0.11",
     "@types/chart.js": "^2.9.41",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
     "astro": "^5.4.2",
     "chart.js": "^4.4.8",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "tailwindcss": "^4.0.11"
   }
 }
