@@ -2,21 +2,26 @@
 /**
  * Product Detail Page
  * 
- * Displays detailed information about a pharmaceutical product,
- * organized in tabbed sections for overview, regulatory info, development timeline, etc.
+ * Displays detailed information about a specific pharmaceutical product.
  */
 import DashboardLayout from '../../components/templates/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
 import Button from '../../components/atoms/Button.astro';
+import FollowButton from '../../components/molecules/FollowButton.astro';
 import TabGroup from '../../components/molecules/TabGroup.astro';
-import KeyMetric from '../../components/molecules/KeyMetric.astro';
-import ProductCard from '../../components/molecules/ProductCard.astro';
 import Timeline from '../../components/molecules/Timeline.astro';
-import { products, getProductById, getRelatedProducts, getStageName } from '../../data/products';
-import { getCompanyById } from '../../data/companies';
-import { websiteCategories } from '../../data/websites';
+import DataTable from '../../components/molecules/DataTable.astro';
+import ProductCard from '../../components/molecules/ProductCard.astro';
+import { 
+  products, 
+  getProductById, 
+  getRelatedProducts, 
+  getStageName,
+  getCompanyById,
+  websiteCategories 
+} from '../../utils/dataUtils';
 import { getWebsitesByProduct } from '../../utils/crossReferenceUtils';
-import { getCompanyLogoUrl, getProductImageUrl, getWebsiteScreenshotUrl } from '../../utils/assetUtils';
+import { getProductImageUrl } from '../../utils/assetUtils';
 
 // Generate static paths for all products
 export function getStaticPaths() {
@@ -31,12 +36,7 @@ const product = getProductById(id as string);
 
 // Handle case when product is not found
 if (!product) {
-  return new Response(null, {
-    status: 302,
-    headers: {
-      'Location': '/products'
-    }
-  });
+  return Astro.redirect('/products');
 }
 
 // Get company that manufactures the product
@@ -272,7 +272,7 @@ const formatDate = (dateString: string) => {
                                 {website.screenshotUrl && (
                                   <div class="md:w-1/3 relative h-40 md:h-auto">
                                     <img 
-                                      src={getWebsiteScreenshotUrl(website.domain)} 
+                                      src={getProductImageUrl(website.domain)} 
                                       alt={`Screenshot of ${website.domain}`}
                                       class="absolute inset-0 w-full h-full object-cover"
                                     />
@@ -333,7 +333,7 @@ const formatDate = (dateString: string) => {
                   <h2 class="text-xl font-medium text-gray-900 mb-4">Company Website</h2>
                   <div class="flex items-center mb-4">
                     {company.logoUrl && (
-                      <img src={getCompanyLogoUrl(company.id)} alt={`${company.name} logo`} class="h-8 mr-3" />
+                      <img src={company.logoUrl} alt={`${company.name} logo`} class="h-8 mr-3" />
                     )}
                     <h3 class="text-lg font-medium text-gray-900">{company.name}</h3>
                   </div>

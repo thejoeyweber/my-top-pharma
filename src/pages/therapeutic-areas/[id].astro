@@ -2,8 +2,7 @@
 /**
  * Therapeutic Area Detail Page
  * 
- * Displays all content related to a specific therapeutic area,
- * including companies, products, and websites.
+ * Displays detailed information about a specific therapeutic area.
  */
 import DashboardLayout from '../../components/templates/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
@@ -12,10 +11,14 @@ import TabGroup from '../../components/molecules/TabGroup.astro';
 import KeyMetric from '../../components/molecules/KeyMetric.astro';
 import CompanyCard from '../../components/molecules/CompanyCard.astro';
 import ProductCard from '../../components/molecules/ProductCard.astro';
-import { therapeuticAreas } from '../../data/companies';
-import { getCompaniesByTherapeuticArea } from '../../data/companies';
+import WebsiteCard from '../../components/molecules/WebsiteCard.astro';
+import { 
+  therapeuticAreas, 
+  getCompaniesByTherapeuticArea, 
+  websiteCategories,
+  getTherapeuticAreaById
+} from '../../utils/dataUtils';
 import { getProductsByTherapeuticArea, getWebsitesByTherapeuticArea } from '../../utils/crossReferenceUtils';
-import { websiteCategories } from '../../data/websites';
 import { getCompanyLogoUrl, getWebsiteScreenshotUrl } from '../../utils/assetUtils';
 
 // Generate static paths for all therapeutic areas
@@ -28,14 +31,15 @@ export function getStaticPaths() {
 
 // Get therapeutic area ID from URL parameters
 const { id } = Astro.params;
-const { areaName } = Astro.props;
+const therapeuticArea = getTherapeuticAreaById(id as string);
+
+// If therapeutic area not found, redirect to listing page
+if (!therapeuticArea) {
+  return Astro.redirect('/therapeutic-areas');
+}
 
 // Get display name for the therapeutic area
-const getAreaName = () => {
-  if (areaName) return areaName;
-  const area = therapeuticAreas.find(a => a.id === id);
-  return area ? area.name : id?.replace(/-/g, ' ');
-};
+const areaName = therapeuticArea.name;
 
 // Get all companies that work in this therapeutic area
 const relatedCompanies = getCompaniesByTherapeuticArea(id as string);
@@ -67,30 +71,37 @@ const tabs = [
 const breadcrumbs = [
   { label: 'Home', href: '/' },
   { label: 'Therapeutic Areas', href: '/therapeutic-areas' },
-  { label: getAreaName(), href: `/therapeutic-areas/${id}`, isActive: true },
+  { label: areaName, href: `/therapeutic-areas/${id}`, isActive: true },
 ];
 ---
 
 <DashboardLayout 
-  title={`${getAreaName()} | Therapeutic Area | Top Pharma`}
-  description={`Information about ${getAreaName()} therapeutic area including companies, products, and websites`}
+  title={`${areaName} | Therapeutic Area | Top Pharma`}
+  description={`Information about ${areaName} therapeutic area including companies, products, and websites`}
   currentPath={`/therapeutic-areas/${id}`}
   breadcrumbs={breadcrumbs}
 >
   <div class="space-y-6">
-    <!-- Page header -->
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900">{getAreaName()}</h1>
-        <p class="mt-1 text-lg text-gray-500">Therapeutic Area</p>
-      </div>
-      <div class="flex gap-3">
-        <Button>
-          <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-          </svg>
-          Follow
-        </Button>
+    <div class="bg-white shadow rounded-lg overflow-hidden border border-gray-200">
+      <div class="p-6">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">{areaName}</h1>
+            <p class="mt-1 text-lg text-gray-500">Therapeutic Area</p>
+          </div>
+          <div class="flex gap-3">
+            <Button>
+              <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Follow
+            </Button>
+          </div>
+        </div>
+        
+        <div class="mt-4">
+          <p class="text-gray-700">{therapeuticArea.description || `${areaName} is a therapeutic area focusing on the diagnosis, treatment, and prevention of various diseases and conditions.`}</p>
+        </div>
       </div>
     </div>
     
@@ -247,7 +258,7 @@ const breadcrumbs = [
         ) : (
           <Card>
             <div class="p-6">
-              <h2 class="text-xl font-medium text-gray-900 mb-4">Companies in {getAreaName()}</h2>
+              <h2 class="text-xl font-medium text-gray-900 mb-4">Companies in {areaName}</h2>
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {relatedCompanies.map(company => (
                   <CompanyCard company={company} />
@@ -269,7 +280,7 @@ const breadcrumbs = [
         ) : (
           <Card>
             <div class="p-6">
-              <h2 class="text-xl font-medium text-gray-900 mb-4">Products in {getAreaName()}</h2>
+              <h2 class="text-xl font-medium text-gray-900 mb-4">Products in {areaName}</h2>
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {relatedProducts.map(product => (
                   <ProductCard product={product} />
@@ -291,7 +302,7 @@ const breadcrumbs = [
         ) : (
           <Card>
             <div class="p-6">
-              <h2 class="text-xl font-medium text-gray-900 mb-4">Websites in {getAreaName()}</h2>
+              <h2 class="text-xl font-medium text-gray-900 mb-4">Websites in {areaName}</h2>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {relatedWebsites.map(website => (
                   <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">

@@ -1,15 +1,14 @@
 ---
 /**
- * WebsiteCard Component
+ * Website Card Component
  * 
- * A responsive card component for displaying website information in both 
- * grid and list views. Includes domain, company name, category, description,
- * and region information.
+ * Displays a website's basic information in a card format,
+ * with grid and list view options.
  */
-
-import type { Website } from '../../data/websites';
-import { websiteCategories } from '../../data/websites';
-import { companies } from '../../data/companies';
+import Button from '../atoms/Button.astro';
+import type { Website } from '../../types/websites';
+import { websiteCategories, companies } from '../../utils/dataUtils';
+import { getWebsiteScreenshotUrl } from '../../utils/assetUtils';
 
 interface Props {
   website: Website;
@@ -23,35 +22,26 @@ const {
   isCompact = false
 } = Astro.props;
 
-// Generate URL-safe domain for routing
+// Find website category label
+const categoryObj = websiteCategories.find(cat => cat.value === website.category);
+const categoryLabel = categoryObj ? categoryObj.label : website.category;
+
+// Find company info
+const company = companies.find(c => c.id === website.companyId);
+const companyName = company ? company.name : website.companyId;
+
+// Get domain ID for routing
 const getDomainId = (domain: string) => {
   return domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
 };
 
-// Get company name from ID
-const getCompanyName = (companyId: string) => {
-  const company = companies.find(c => c.id === companyId);
-  return company ? company.name : companyId;
-};
-
-// Get category label
-const getCategoryLabel = (categoryId: string) => {
-  const category = websiteCategories.find(c => c.value === categoryId);
-  return category ? category.label : categoryId;
-};
-
-// Format date to readable format
-const formatDate = (dateString?: string) => {
-  if (!dateString) return 'Not available';
+// Format date for display (MM/DD/YYYY)
+const formatDate = (dateString: string) => {
   const date = new Date(dateString);
-  return new Intl.DateTimeFormat('en-US', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric' 
-  }).format(date);
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
-// Get icon for website category
+// Get category icon
 const getCategoryIcon = (category: string) => {
   switch (category) {
     case 'corporate':
@@ -75,8 +65,6 @@ const getCategoryIcon = (category: string) => {
   }
 };
 
-const companyName = getCompanyName(website.companyId);
-const categoryLabel = getCategoryLabel(website.category);
 const categoryIcon = getCategoryIcon(website.category);
 const domainId = getDomainId(website.domain);
 ---

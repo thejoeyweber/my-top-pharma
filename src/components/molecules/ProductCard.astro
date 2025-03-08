@@ -1,15 +1,13 @@
 ---
 /**
- * ProductCard Component
+ * Product Card Component
  * 
- * A responsive card component for displaying pharmaceutical product information
- * in both grid and list views. Includes product name, company, development stage,
- * indications, and therapeutic areas.
+ * Displays a product's basic information in a card format, 
+ * with grid and list view options.
  */
-
-import type { Product } from '../../data/products';
-import { getStageName, getStageColor } from '../../data/products';
-import { getCompanyById } from '../../data/companies';
+import Button from '../atoms/Button.astro';
+import type { Product } from '../../types/products';
+import { getStageName, getStageColor, getCompanyById } from '../../utils/dataUtils';
 import Badge from '../atoms/Badge.astro';
 
 interface Props {
@@ -24,8 +22,8 @@ const {
   isCompact = false
 } = Astro.props;
 
-// Get company information
-const company = getCompanyById(product.companyId);
+const company = product.companyId ? getCompanyById(product.companyId) : null;
+const companyName = company ? company.name : '';
 
 // Get stage information
 const stageName = getStageName(product.stage);

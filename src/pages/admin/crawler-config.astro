@@ -1,12 +1,19 @@
 ---
 /**
- * Crawler Configuration
+ * Crawler Configuration Page
  * 
- * Admin page for configuring website crawler rules, patterns, and scheduling.
+ * Configure and manage web crawler settings, schedules, and rules.
  */
-import Layout from '../../layouts/Layout.astro';
+import DashboardLayout from '../../components/templates/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
-import { crawlerConfig } from '../../data/admin';
+import { crawlerConfig } from '../../utils/dataUtils';
+
+// Breadcrumbs for navigation
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Admin', href: '/admin' },
+  { label: 'Crawler Configuration', href: '/admin/crawler-config', isActive: true },
+];
 
 // Format date
 const formatDate = (dateString: string): string => {
@@ -22,7 +29,7 @@ const formatDate = (dateString: string): string => {
 };
 ---
 
-<Layout title="Crawler Configuration | Admin | Top Pharma">
+<DashboardLayout title="Crawler Configuration | Admin | Top Pharma">
   <div class="min-h-screen bg-gray-100">
     <header class="bg-white shadow">
       <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
@@ -264,4 +271,4 @@ const formatDate = (dateString: string): string => {
       </div>
     </main>
   </div>
-</Layout> 
+</DashboardLayout> 

@@ -16,9 +16,7 @@ import WebsiteCard from '../../components/molecules/WebsiteCard.astro';
 import { filterAndSortItems } from '../../utils/filterUtils';
 
 // Import website data
-import { websites, websiteCategories, regions } from '../../data/websites';
-import { companies } from '../../data/companies';
-import { products } from '../../data/products';
+import { websites, websiteCategories, regions, companies, products } from '../../utils/dataUtils';
 
 // Define company options for filtering (first 20 for performance)
 const companyOptions = companies.slice(0, 20).map(company => {

@@ -13,7 +13,8 @@
     "convert-admin": "node scripts/convertAdmin.js",
     "convert-user": "node scripts/convertUser.js",
     "convert-all": "npm run convert-companies ; npm run convert-products ; npm run convert-websites ; npm run convert-admin ; npm run convert-user",
-    "convert-data": "node scripts/convertData.js"
+    "convert-data": "node scripts/convertData.js",
+    "cleanup-ts-data": "node scripts/cleanupTsData.js"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.0.11",

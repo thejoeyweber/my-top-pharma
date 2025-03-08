@@ -1,12 +1,19 @@
 ---
 /**
- * User Management
+ * User Management Page
  * 
- * Admin page for managing user accounts, roles, and permissions.
+ * Manage users, roles, and permissions.
  */
-import Layout from '../../layouts/Layout.astro';
+import DashboardLayout from '../../components/templates/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
-import { userManagement } from '../../data/admin';
+import { userManagement } from '../../utils/dataUtils';
+
+// Breadcrumbs for navigation
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Admin', href: '/admin' },
+  { label: 'User Management', href: '/admin/user-management', isActive: true },
+];
 
 // Format date
 const formatDate = (dateString: string): string => {

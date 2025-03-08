@@ -1,35 +1,33 @@
 /**
  * Company Types
  * 
- * Type definitions for pharmaceutical company data.
+ * Type definitions for company data.
  */
 
-export interface TherapeuticArea {
-  id: string;
-  name: string;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  description: string;
-  status: 'Approved' | 'Phase 3' | 'Phase 2' | 'Phase 1' | 'Preclinical';
-  approvalDate?: string;
-  therapeuticAreas: string[];
-}
+export type CompanyRelationType = 'competitor' | 'partner' | 'subsidiary' | 'parent';
 
 export interface Milestone {
   date: string;
   title: string;
   description: string;
-  type: 'acquisition' | 'product' | 'regulatory' | 'corporate';
+  type: 'acquisition' | 'merger' | 'spinoff' | 'regulatory' | 'partnership';
 }
 
 export interface FinancialMetric {
   year: number;
-  revenue: number; // in billions USD
-  rAndDSpending: number; // in billions USD
-  netIncome: number; // in billions USD
+  revenue: number;
+  rAndDSpending: number;
+  netIncome: number;
+}
+
+// Define a simplified product type to avoid circular dependency
+export interface CompanyProduct {
+  id: string;
+  name: string;
+  description: string;
+  status: string;
+  approvalDate?: string;
+  therapeuticAreas: string[];
 }
 
 export interface Company {
@@ -46,11 +44,17 @@ export interface Company {
   stockSymbol?: string;
   stockExchange?: string;
   therapeuticAreas: string[];
-  products: Product[];
+  products: CompanyProduct[];
   relatedCompanies: {
     id: string;
-    relationship: 'competitor' | 'partner' | 'subsidiary' | 'parent';
+    relationship: CompanyRelationType;
   }[];
   milestones: Milestone[];
   financials: FinancialMetric[];
+}
+
+export interface TherapeuticArea {
+  id: string;
+  name: string;
+  description: string;
 } 

@@ -1,12 +1,19 @@
 ---
 /**
- * Data Feeds Configuration
+ * Data Feeds Page
  * 
- * Admin page for managing external data sources like FDA, ClinicalTrials.gov, and other APIs.
+ * Manage external data feeds and synchronization settings.
  */
-import Layout from '../../layouts/Layout.astro';
+import DashboardLayout from '../../components/templates/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
-import { dataFeeds } from '../../data/admin';
+import { dataFeeds } from '../../utils/dataUtils';
+
+// Breadcrumbs for navigation
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Admin', href: '/admin' },
+  { label: 'Data Feeds', href: '/admin/data-feeds', isActive: true },
+];
 
 // Format date
 const formatDate = (dateString: string): string => {
@@ -38,7 +45,7 @@ const getStatusColor = (status: string): string => {
 };
 ---
 
-<Layout title="Data Feeds | Admin | Top Pharma">
+<DashboardLayout title="Data Feeds | Admin | Top Pharma">
   <div class="min-h-screen bg-gray-100">
     <header class="bg-white shadow">
       <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
@@ -271,4 +278,4 @@ const getStatusColor = (status: string): string => {
       
     </main>
   </div>
-</Layout> 
+</DashboardLayout> 

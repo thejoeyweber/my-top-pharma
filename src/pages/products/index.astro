@@ -12,8 +12,7 @@ import FilterBar from '../../components/organisms/FilterBar.astro';
 import SortSelect from '../../components/molecules/SortSelect.astro';
 import ViewToggle from '../../components/molecules/ViewToggle.astro';
 import ProductCard from '../../components/molecules/ProductCard.astro';
-import { products, getStageName } from '../../data/products';
-import { therapeuticAreas, getCompanyById } from '../../data/companies';
+import { products, getStageName, therapeuticAreas, getCompanyById } from '../../utils/dataUtils';
 
 // Define breadcrumbs for navigation
 const breadcrumbs = [
@@ -31,9 +30,9 @@ const filters = [
       { value: 'phase1', label: 'Phase 1' },
       { value: 'phase2', label: 'Phase 2' },
       { value: 'phase3', label: 'Phase 3' },
-      { value: 'submitted', label: 'Submitted' },
       { value: 'approved', label: 'Approved' },
-      { value: 'marketed', label: 'Marketed' },
+      { value: 'market', label: 'Marketed' },
+      { value: 'discontinued', label: 'Discontinued' },
     ]
   },
   {

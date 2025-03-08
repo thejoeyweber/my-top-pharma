@@ -4,9 +4,14 @@
  * Helper functions for managing relationships between entities (companies, products, websites, therapeutic areas).
  */
 
-import { companies, getCompanyById } from '../data/companies';
-import { products, getProductById } from '../data/products';
-import { websites, getWebsiteById } from '../data/websites';
+import { 
+  companies, 
+  products, 
+  websites, 
+  getCompanyById, 
+  getProductById, 
+  getWebsiteById 
+} from './dataUtils';
 import { filterAndSortItems } from './filterUtils';
 
 /**

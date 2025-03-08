@@ -1,14 +1,12 @@
 ---
 /**
- * CompanyCard Component
+ * Company Card Component
  * 
- * A responsive card component for displaying company information in both 
- * grid and list views. Includes company logo, name, location, market cap,
- * description, and therapeutic areas.
+ * Displays a company's basic information in a card format.
  */
-
-import type { Company } from '../../data/companies';
-import { therapeuticAreas } from '../../data/companies';
+import Button from '../atoms/Button.astro';
+import type { Company } from '../../types/companies';
+import { therapeuticAreas } from '../../utils/dataUtils';
 
 interface Props {
   company: Company;
@@ -16,30 +14,26 @@ interface Props {
   isCompact?: boolean;
 }
 
-const { 
-  company,
-  view = 'grid',
-  isCompact = false
-} = Astro.props;
+const { company, view = 'grid', isCompact = false } = Astro.props;
 
-// Function to format market cap in billions or millions
-const formatMarketCap = (marketCap: number) => {
-  if (marketCap >= 1) {
-    return `$${marketCap}B`;
+// Format market cap to readable format
+const formatMarketCap = (marketCap: number): string => {
+  if (marketCap >= 1000) {
+    return `$${(marketCap / 1000).toFixed(1)}T`;
   } else {
-    return `$${(marketCap * 1000).toFixed(0)}M`;
+    return `$${marketCap.toFixed(1)}B`;
   }
 };
 
-// Get therapeutic area names from IDs
-const getTherapeuticAreaNames = (areaIds: string[]) => {
-  return areaIds.map(id => {
+// Get therapeutic area names
+const getTherapeuticAreaNames = (ids: string[]): string[] => {
+  return ids.map(id => {
     const area = therapeuticAreas.find(a => a.id === id);
     return area ? area.name : id;
   });
 };
 
-const areas = getTherapeuticAreaNames(company.therapeuticAreas);
+const areaNames = getTherapeuticAreaNames(company.therapeuticAreas);
 ---
 
 {view === 'grid' ? (
@@ -71,14 +65,14 @@ const areas = getTherapeuticAreaNames(company.therapeuticAreas);
       )}
 
       <div class="flex flex-wrap gap-1 mt-2">
-        {areas.slice(0, isCompact ? 2 : 3).map(area => (
+        {areaNames.slice(0, isCompact ? 2 : 3).map(area => (
           <span class="bg-[color:var(--color-primary-50)] text-[color:var(--color-primary-700)] text-xs px-1.5 py-0.5 rounded">
             {area}
           </span>
         ))}
-        {areas.length > (isCompact ? 2 : 3) && (
+        {areaNames.length > (isCompact ? 2 : 3) && (
           <span class="bg-gray-100 text-gray-700 text-xs px-1.5 py-0.5 rounded">
-            +{areas.length - (isCompact ? 2 : 3)} more
+            +{areaNames.length - (isCompact ? 2 : 3)} more
           </span>
         )}
       </div>
@@ -117,14 +111,14 @@ const areas = getTherapeuticAreaNames(company.therapeuticAreas);
           <p class="text-gray-600 line-clamp-2">{company.description}</p>
           
           <div class="mt-3 flex flex-wrap gap-2">
-            {areas.slice(0, 4).map(area => (
+            {areaNames.slice(0, 4).map(area => (
               <span class="bg-[color:var(--color-primary-50)] text-[color:var(--color-primary-700)] text-xs px-2 py-1 rounded">
                 {area}
               </span>
             ))}
-            {areas.length > 4 && (
+            {areaNames.length > 4 && (
               <span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
-                +{areas.length - 4} more
+                +{areaNames.length - 4} more
               </span>
             )}
           </div>

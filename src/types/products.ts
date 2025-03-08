@@ -5,27 +5,26 @@
  */
 
 export type ProductStage = 
+  | 'discovery'
   | 'preclinical'
   | 'phase1'
   | 'phase2'
   | 'phase3'
-  | 'submitted'
   | 'approved'
-  | 'marketed';
+  | 'market'
+  | 'discontinued';
+
+export interface ProductTimeline {
+  date: string;
+  stage: ProductStage;
+  description: string;
+}
 
 export interface ProductApproval {
   region: string;
   date: string;
-  agency: string;
   indication: string;
-  status: 'approved' | 'rejected' | 'pending';
-}
-
-export interface ProductTimeline {
-  stage: ProductStage;
-  startDate: string;
-  endDate?: string;
-  milestone?: string;
+  details?: string;
 }
 
 export interface Product {

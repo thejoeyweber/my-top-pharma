@@ -1,17 +1,16 @@
 ---
 /**
- * Market Overview Report Page
+ * Market Overview Report
  * 
- * Displays key market metrics and trends using our visualization components.
- * This is a demonstration of our data visualization capabilities.
+ * Comprehensive market overview dashboard with key metrics, trends, and insights.
  */
 import DashboardLayout from '../../components/templates/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
+import KeyMetric from '../../components/molecules/KeyMetric.astro';
 import FinancialChart from '../../components/molecules/FinancialChart.astro';
 import PipelineChart from '../../components/molecules/PipelineChart.astro';
 import DataTable from '../../components/molecules/DataTable.astro';
-import { companies } from '../../data/companies';
-import { products } from '../../data/products';
+import { companies, products } from '../../utils/dataUtils';
 
 // Prepare financial data for multiple years
 const topCompanies = companies.slice(0, 5);
@@ -175,6 +174,7 @@ const recentApprovals = [
     indication: "New indication for Endometrial Carcinoma"
   }
 ];
+
 ---
 
 <DashboardLayout

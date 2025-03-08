@@ -2,6 +2,9 @@
  * Convert Data
  * 
  * This script converts TS data files to JSON and extracts SVGs to separate files.
+ * 
+ * NOTE: After running this script, the TS data files can be removed as the application
+ * now uses JSON files exclusively through the dataUtils.ts utility.
  */
 
 import fs from 'fs';

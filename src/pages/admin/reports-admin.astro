@@ -1,12 +1,19 @@
 ---
 /**
- * Reports Administration
+ * Reports Administration Page
  * 
- * Admin page for managing report templates, scheduled exports, and report generation.
+ * Configure and manage system reports and scheduled reporting.
  */
-import Layout from '../../layouts/Layout.astro';
+import DashboardLayout from '../../components/templates/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
-import { reportsConfig } from '../../data/admin';
+import { reportsConfig } from '../../utils/dataUtils';
+
+// Breadcrumbs for navigation
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Admin', href: '/admin' },
+  { label: 'Reports Administration', href: '/admin/reports-admin', isActive: true },
+];
 
 // Format date
 const formatDate = (dateString: string): string => {

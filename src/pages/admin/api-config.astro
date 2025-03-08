@@ -1,12 +1,19 @@
 ---
 /**
- * API Configuration
+ * API Configuration Page
  * 
- * Admin page for managing API settings, keys, and usage limits.
+ * Configure and manage API endpoints and authentication keys.
  */
-import Layout from '../../layouts/Layout.astro';
+import DashboardLayout from '../../components/templates/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
-import { apiConfig } from '../../data/admin';
+import { apiConfig } from '../../utils/dataUtils';
+
+// Breadcrumbs for navigation
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Admin', href: '/admin' },
+  { label: 'API Configuration', href: '/admin/api-config', isActive: true },
+];
 
 // Format date
 const formatDate = (dateString: string): string => {

@@ -15,20 +15,27 @@ export type WebsiteCategory =
   | 'product';
 
 export interface Website {
-  // Basic Information
   id: string;
   domain: string;
-  siteName?: string;
+  siteName: string;
   category: WebsiteCategory;
-  subcategories?: string[];
-  description?: string;
+  description: string;
   companyId: string;
+  launchDate?: string;
+  lastUpdated?: string;
   products?: string[];
   therapeuticAreas?: string[];
+  regions?: string[];
+  screenshotUrl?: string;
+  url: string;
+  hasSSL: boolean;
+  technologies?: string[];
+
+  // Basic Information
+  subcategories?: string[];
   region?: string;
 
   // Visual Content
-  screenshotUrl?: string;
   screenshotDate?: string;
 
   // Technical Stack
@@ -85,6 +92,5 @@ export interface Website {
 
   // Tracking & Metadata
   lastCrawl?: string;
-  lastUpdate?: string;
   status?: "active" | "inactive" | "redirecting" | "error";
 } 

@@ -1,41 +1,40 @@
 /**
  * Asset Utilities
  * 
- * Helper functions for working with images and other assets
- * with fallback mechanisms for missing files.
+ * Helper functions for resolving URLs to assets like images, icons, etc.
  */
 
 /**
- * Get the company logo URL with a fallback if the specific logo doesn't exist
+ * Get the URL to a company logo
  */
 export function getCompanyLogoUrl(companyId: string): string {
-  // Return the company-specific logo path
-  return `/images/companies/${companyId}.svg`;
+  return `/src/data/assets/logos/${companyId}.svg`;
 }
 
 /**
- * Get the company header image URL with a fallback
+ * Get the URL to a company header image
  */
 export function getCompanyHeaderUrl(companyId: string): string {
-  // Return the company-specific header image path
   return `/images/headers/${companyId}-header.jpg`;
 }
 
 /**
- * Get the website screenshot URL with a fallback
+ * Get the URL to a product image
  */
-export function getWebsiteScreenshotUrl(domain: string, year: string = '2024'): string {
-  // Convert domain to URL-safe ID
-  const domainId = domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
-  
-  // Return the screenshot URL
-  return `/screenshots/${domainId}-${year}.png`;
+export function getProductImageUrl(productId: string): string {
+  return `/src/data/assets/products/${productId}.svg`;
 }
 
 /**
- * Get the product image URL with a fallback
+ * Get the URL to a website screenshot
  */
-export function getProductImageUrl(productId: string): string {
-  // Return the product image path
-  return `/images/products/${productId}.jpg`;
+export function getWebsiteScreenshotUrl(websiteId: string): string {
+  return `/src/data/assets/screenshots/${websiteId}.jpg`;
+}
+
+/**
+ * Get the URL to an icon
+ */
+export function getIconUrl(iconId: string): string {
+  return `/src/data/assets/icons/${iconId}.svg`;
 } 
