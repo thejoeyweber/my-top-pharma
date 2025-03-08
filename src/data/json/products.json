@@ -1,0 +1,40 @@
+[
+  {
+    "id": "exampla",
+    "name": "Exampla",
+    "genericName": "examplamab",
+    "companyId": "pfizer",
+    "description": "A monoclonal antibody targeting inflammatory pathways.",
+    "stage": "marketed",
+    "therapeuticAreas": [
+      "immunology",
+      "dermatology"
+    ],
+    "indications": [
+      "Rheumatoid Arthritis",
+      "Psoriasis"
+    ],
+    "moleculeType": "Monoclonal Antibody",
+    "timeline": [],
+    "approvals": [],
+    "imageUrl": "/src/data/assets/products/exampla.svg"
+  },
+  {
+    "id": "cardiofix",
+    "name": "CardioFix",
+    "genericName": "amlodipivastatin",
+    "companyId": "pfizer",
+    "description": "A dual-action therapy for cardiovascular disease management.",
+    "stage": "phase3",
+    "therapeuticAreas": [
+      "cardiovascular"
+    ],
+    "indications": [
+      "Hypertension with Hyperlipidemia"
+    ],
+    "moleculeType": "Small Molecule",
+    "timeline": [],
+    "approvals": [],
+    "imageUrl": "/src/data/assets/products/cardiofix.svg"
+  }
+]

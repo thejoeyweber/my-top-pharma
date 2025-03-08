@@ -1,0 +1,68 @@
+[
+  {
+    "id": "pfizer",
+    "name": "Pfizer",
+    "description": "Pfizer Inc. is an American multinational pharmaceutical and biotechnology corporation.",
+    "logoUrl": "/src/data/assets/logos/pfizer.svg",
+    "headquarters": "New York, USA",
+    "founded": "1849",
+    "website": "https://www.pfizer.com",
+    "marketCap": 240.5,
+    "employees": 79000,
+    "stockSymbol": "PFE",
+    "stockExchange": "NYSE",
+    "therapeuticAreas": [
+      "oncology",
+      "vaccines",
+      "immunology"
+    ],
+    "products": [],
+    "relatedCompanies": [],
+    "milestones": [],
+    "financials": []
+  },
+  {
+    "id": "novartis",
+    "name": "Novartis",
+    "description": "Novartis International AG is a Swiss multinational pharmaceutical company.",
+    "logoUrl": "/src/data/assets/logos/novartis.svg",
+    "headquarters": "Basel, Switzerland",
+    "founded": "1996",
+    "website": "https://www.novartis.com",
+    "marketCap": 180.3,
+    "employees": 108000,
+    "stockSymbol": "NVS",
+    "stockExchange": "NYSE",
+    "therapeuticAreas": [
+      "oncology",
+      "neuroscience",
+      "immunology"
+    ],
+    "products": [],
+    "relatedCompanies": [],
+    "milestones": [],
+    "financials": []
+  },
+  {
+    "id": "astrazeneca",
+    "name": "AstraZeneca",
+    "description": "AstraZeneca plc is a British-Swedish multinational pharmaceutical and biotechnology company.",
+    "logoUrl": "/src/data/assets/logos/astrazeneca.svg",
+    "headquarters": "Cambridge, United Kingdom",
+    "founded": "1999",
+    "website": "https://www.astrazeneca.com",
+    "marketCap": 210.7,
+    "employees": 83000,
+    "stockSymbol": "AZN",
+    "stockExchange": "LSE",
+    "therapeuticAreas": [
+      "oncology",
+      "respiratory",
+      "cardiovascular"
+    ],
+    "products": [],
+    "relatedCompanies": [],
+    "milestones": [],
+    "financials": []
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "value": "corporate",
+    "label": "Corporate"
+  },
+  {
+    "value": "hcp",
+    "label": "Healthcare Professional"
+  },
+  {
+    "value": "patient",
+    "label": "Patient"
+  },
+  {
+    "value": "campaign",
+    "label": "Campaign"
+  }
+]

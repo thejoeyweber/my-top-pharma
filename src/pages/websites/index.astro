@@ -148,7 +148,7 @@ const getDomainId = (domain: string) => {
         </p>
       </div>
       <div class="flex items-center gap-4">
-        <ViewToggle client:load defaultView={view} />
+        <ViewToggle initialValue={view} />
         <SortSelect 
           options={sortOptions} 
           defaultValue={sortField} 
@@ -286,7 +286,7 @@ const getDomainId = (domain: string) => {
               </div>
             </div>
           ) : (
-            <div id="grid-view" class={view === 'list' ? 'hidden' : ''}>
+            <div id="grid-view" class={view === 'list' ? 'hidden' : ''} data-view-container="grid">
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredWebsites.map((website) => (
                   <WebsiteCard website={website} view="grid" />
@@ -295,7 +295,7 @@ const getDomainId = (domain: string) => {
             </div>
           )}
           
-          <div id="list-view" class={view === 'grid' ? 'hidden' : ''}>
+          <div id="list-view" class={view === 'grid' ? 'hidden' : ''} data-view-container="list">
             <div class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-300">
                 <thead>
@@ -436,5 +436,25 @@ const getDomainId = (domain: string) => {
     });
     
     console.log('View toggle and advanced filters functionality ready');
+  });
+
+  // Listen for view:changed events from the ViewToggle component
+  document.addEventListener('view:changed', (event) => {
+    const viewValue = event.detail?.value;
+    if (!viewValue) return;
+    
+    // Get containers that should respond to view changes
+    const gridContainer = document.querySelector('[data-view-container="grid"]');
+    const listContainer = document.querySelector('[data-view-container="list"]');
+    
+    if (gridContainer && listContainer) {
+      if (viewValue === 'grid') {
+        gridContainer.classList.remove('hidden');
+        listContainer.classList.add('hidden');
+      } else {
+        gridContainer.classList.add('hidden');
+        listContainer.classList.remove('hidden');
+      }
+    }
   });
 </script> 

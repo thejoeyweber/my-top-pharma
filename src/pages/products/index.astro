@@ -345,19 +345,21 @@ const sortedProducts = [...products].sort((a, b) => {
           selectedValue="name-asc"
         />
         
-        <ViewToggle initialValue="grid" />
+        <div class="flex items-center gap-4">
+          <ViewToggle initialValue="grid" />
+        </div>
       </div>
     </div>
     
     <!-- Product cards (Grid View) -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-view="grid">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-view="grid" data-view-container="grid">
       {sortedProducts.map(product => (
         <ProductCard product={product} view="grid" />
       ))}
     </div>
     
     <!-- Product table (List View) -->
-    <div class="hidden overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg" data-view="list">
+    <div class="hidden overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg" data-view="list" data-view-container="list">
       <table class="min-w-full divide-y divide-gray-300">
         <thead class="bg-gray-50">
           <tr>
@@ -498,5 +500,25 @@ const sortedProducts = [...products].sort((a, b) => {
     });
     
     console.log('View toggle and advanced filters functionality ready');
+  });
+
+  // Listen for view:changed events from the ViewToggle component
+  document.addEventListener('view:changed', (event) => {
+    const viewValue = event.detail?.value;
+    if (!viewValue) return;
+    
+    // Get containers that should respond to view changes
+    const gridContainer = document.querySelector('[data-view-container="grid"]');
+    const listContainer = document.querySelector('[data-view-container="list"]');
+    
+    if (gridContainer && listContainer) {
+      if (viewValue === 'grid') {
+        gridContainer.classList.remove('hidden');
+        listContainer.classList.add('hidden');
+      } else {
+        gridContainer.classList.add('hidden');
+        listContainer.classList.remove('hidden');
+      }
+    }
   });
 </script> 

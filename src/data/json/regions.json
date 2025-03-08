@@ -1,0 +1,14 @@
+[
+  {
+    "value": "global",
+    "label": "Global"
+  },
+  {
+    "value": "US",
+    "label": "United States"
+  },
+  {
+    "value": "EU",
+    "label": "European Union"
+  }
+]

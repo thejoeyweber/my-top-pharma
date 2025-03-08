@@ -1,0 +1,30 @@
+[
+  {
+    "id": "oncology",
+    "name": "Oncology"
+  },
+  {
+    "id": "immunology",
+    "name": "Immunology"
+  },
+  {
+    "id": "neuroscience",
+    "name": "Neuroscience"
+  },
+  {
+    "id": "cardiovascular",
+    "name": "Cardiovascular"
+  },
+  {
+    "id": "infectious-diseases",
+    "name": "Infectious Diseases"
+  },
+  {
+    "id": "vaccines",
+    "name": "Vaccines"
+  },
+  {
+    "id": "rare-diseases",
+    "name": "Rare Diseases"
+  }
+]

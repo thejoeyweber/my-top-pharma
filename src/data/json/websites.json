@@ -1,0 +1,59 @@
+[
+  {
+    "id": "pfizer-corporate",
+    "domain": "pfizer.com",
+    "siteName": "Pfizer Corporate Website",
+    "category": "corporate",
+    "subcategories": [
+      "investor-relations",
+      "careers"
+    ],
+    "description": "Official corporate website for Pfizer Inc.",
+    "companyId": "pfizer",
+    "therapeuticAreas": [
+      "oncology",
+      "vaccines",
+      "immunology"
+    ],
+    "region": "global",
+    "screenshotUrl": "/src/data/assets/screenshots/pfizer-corporate.svg"
+  },
+  {
+    "id": "novartis-corporate",
+    "domain": "novartis.com",
+    "siteName": "Novartis Corporate Website",
+    "category": "corporate",
+    "subcategories": [
+      "investor-relations",
+      "careers"
+    ],
+    "description": "Official corporate website for Novartis AG.",
+    "companyId": "novartis",
+    "therapeuticAreas": [
+      "oncology",
+      "neuroscience",
+      "immunology"
+    ],
+    "region": "global",
+    "screenshotUrl": "/src/data/assets/screenshots/novartis-corporate.svg"
+  },
+  {
+    "id": "clinicaltrials-astrazeneca-com",
+    "domain": "clinicaltrials.astrazeneca.com",
+    "siteName": "AstraZeneca Clinical Trials",
+    "category": "clinical-trials",
+    "subcategories": [
+      "patient",
+      "hcp"
+    ],
+    "description": "Information about AstraZeneca's clinical trials for healthcare professionals and patients.",
+    "companyId": "astrazeneca",
+    "therapeuticAreas": [
+      "oncology",
+      "respiratory",
+      "cardiovascular"
+    ],
+    "region": "global",
+    "screenshotUrl": "/src/data/assets/screenshots/clinicaltrials-astrazeneca-com.svg"
+  }
+]
