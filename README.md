@@ -139,3 +139,113 @@ Type definitions for the data are located in `src/types/`:
 - `websites.ts`: Types for website data
 - `user.ts`: Types for user data
 - `admin.ts`: Types for admin data
+
+## S3 Data Lake Integration
+
+The Top Pharma application uses S3 (or MinIO for local development) as a data lake to store raw data from various sources before processing and ingestion into the database.
+
+### Setup
+
+1. **Environment Variables**
+
+   Set up the following environment variables in your `.env` file:
+
+   ```
+   S3_BUCKET_NAME=top-pharma-data-lake
+   S3_ACCESS_KEY=your-access-key
+   S3_SECRET_KEY=your-secret-key
+   S3_ENDPOINT_URL=http://localhost:9000  # For MinIO local development
+   ```
+
+   For AWS S3, leave S3_ENDPOINT_URL blank.
+
+2. **Local Development with MinIO**
+
+   Run the Docker Compose setup:
+
+   ```powershell
+   cd app
+   docker-compose up -d
+   ```
+
+   This will start:
+   - MinIO server at http://localhost:9000 (API) and http://localhost:9001 (Console)
+   - PostgreSQL database
+   - Prefect Orion server
+
+3. **Test S3 Connectivity**
+
+   ```powershell
+   cd app
+   python scripts/test_s3.py
+   ```
+
+### Setting up AWS S3 Connection
+
+For production use with AWS S3 instead of MinIO, follow these steps:
+
+1. Create an AWS S3 bucket
+2. Create an IAM user with programmatic access and attach the appropriate S3 policies
+3. Update your `.env` file with the AWS credentials:
+
+   ```
+   S3_BUCKET_NAME=your-bucket-name
+   S3_ACCESS_KEY=your-aws-access-key
+   S3_SECRET_KEY=your-aws-secret-key
+   S3_ENDPOINT_URL=  # Leave empty for AWS S3
+   ```
+
+4. Test your connection:
+
+   ```powershell
+   cd app
+   python scripts/test_s3.py
+   ```
+
+### Troubleshooting
+
+If you encounter issues with S3 connectivity:
+
+1. Check your credentials in `.env`
+2. Ensure the S3 bucket exists
+3. Verify that your IAM user has the necessary permissions
+4. If using MinIO, ensure the MinIO server is running
+5. If using AWS S3, ensure your region is correct (defaults to the profile default)
+
+If Docker is not available or running, you can still test the S3 client with the mock implementation:
+
+```powershell
+cd app
+python scripts/test_s3_mock.py
+```
+
+### Using the S3 Client
+
+The `utils/s3_client.py` module provides functions for interacting with S3:
+
+- `upload_file(file_path, object_name=None, bucket_name=None)`: Upload a file to S3
+- `upload_data(data, object_name, bucket_name=None)`: Upload data directly to S3
+- `download_file(object_name, file_path, bucket_name=None)`: Download a file from S3
+- `list_objects(prefix='', bucket_name=None)`: List objects in the bucket
+- `get_date_prefixed_key(base_path, file_name)`: Generate a date-prefixed key for organizing data by date
+
+### Using Prefect S3 Block
+
+The `flows/blocks/s3_block.py` module defines a Prefect S3 block for storing flow artifacts:
+
+```python
+from flows.blocks.s3_block import get_s3_block
+
+# Get or create an S3 block
+s3_block = get_s3_block("my-s3-block")
+
+# Use the block in a flow
+@flow
+def my_flow():
+    # ...
+    return "Result"
+
+if __name__ == "__main__":
+    # Deploy the flow
+    my_flow.with_options(name="my-flow", storage=s3_block).deploy()
+```
