@@ -1,0 +1,19 @@
+# Top Pharma Application Dependencies
+
+# Prefect for workflow orchestration
+prefect==3.0.0
+psycopg2-binary==2.9.9  # PostgreSQL adapter
+python-dotenv==1.0.0    # Environment variable management
+boto3==1.33.13          # AWS S3 integration for data lake
+rapidfuzz==3.6.1        # Fuzzy matching for entity resolution
+
+# Data processing libraries
+pandas==2.1.4
+numpy==1.26.3
+requests==2.31.0
+beautifulsoup4==4.12.2  # For web scraping
+
+# Development tools
+pytest==7.4.3
+black==23.12.1
+flake8==6.1.0 

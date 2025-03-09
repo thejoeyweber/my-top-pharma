@@ -1,0 +1,6 @@
+# Absolute minimum required for database connectivity
+psycopg2-binary==2.9.9
+python-dotenv==1.0.0
+
+# For running basic database operations
+sqlalchemy==2.0.27 
