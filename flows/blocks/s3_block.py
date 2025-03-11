@@ -1,75 +1,72 @@
 """
-Prefect S3 Block for Top Pharma
-
-This module defines a Prefect S3 block for storing flow artifacts.
+S3 integration for Prefect workflows.
 """
 
 import os
-import sys
 import boto3
-from prefect.blocks.system import Secret
-from prefect.blocks.storage import RemoteFileSystem
+import json
+from datetime import datetime
 
-# Add the parent directory to sys.path to import prefect_config
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from prefect_config import S3_BUCKET_NAME, S3_ACCESS_KEY, S3_SECRET_KEY, S3_ENDPOINT_URL
-
-def create_s3_block(block_name="top-pharma-s3"):
+def test_s3_connection():
     """
-    Create and register a Prefect RemoteFileSystem block for S3
+    Test S3 connection without requiring Prefect server.
     
-    Args:
-        block_name (str, optional): Name of the block. Defaults to "top-pharma-s3".
+    This is a standalone test that doesn't depend on Prefect infrastructure.
+    """
+    try:
+        print("Testing S3 connection...")
         
-    Returns:
-        RemoteFileSystem: The created RemoteFileSystem block
-    """
-    # Create the access key secret block if it doesn't exist
-    try:
-        access_key_secret = Secret.load("s3-access-key")
-    except ValueError:
-        access_key_secret = Secret(value=S3_ACCESS_KEY)
-        access_key_secret.save("s3-access-key", overwrite=True)
-    
-    # Create the secret key secret block if it doesn't exist
-    try:
-        secret_key_secret = Secret.load("s3-secret-key")
-    except ValueError:
-        secret_key_secret = Secret(value=S3_SECRET_KEY)
-        secret_key_secret.save("s3-secret-key", overwrite=True)
-    
-    # Create the RemoteFileSystem block
-    remote_fs = RemoteFileSystem(
-        base_path=f"s3://{S3_BUCKET_NAME}/prefect_flows",
-        credentials={
-            "access_key": S3_ACCESS_KEY,
-            "secret_key": S3_SECRET_KEY,
-            "endpoint_url": S3_ENDPOINT_URL if S3_ENDPOINT_URL else None
+        # Create S3 client
+        s3_client = boto3.client(
+            's3',
+            endpoint_url=os.environ.get("S3_ENDPOINT_URL", "http://localhost:9000"),
+            aws_access_key_id=os.environ.get("S3_ACCESS_KEY", "minioadmin"),
+            aws_secret_access_key=os.environ.get("S3_SECRET_KEY", "minioadmin")
+        )
+        
+        # Get or create bucket
+        bucket_name = os.environ.get('S3_BUCKET_NAME', 'top-pharma-data-lake')
+        
+        # List buckets
+        buckets = s3_client.list_buckets()
+        bucket_exists = False
+        
+        print("Existing buckets:")
+        for bucket in buckets['Buckets']:
+            print(f"- {bucket['Name']}")
+            if bucket['Name'] == bucket_name:
+                bucket_exists = True
+        
+        # Create bucket if it doesn't exist
+        if not bucket_exists:
+            print(f"Creating bucket: {bucket_name}")
+            s3_client.create_bucket(Bucket=bucket_name)
+            print(f"✅ Bucket {bucket_name} created")
+        else:
+            print(f"✅ Bucket {bucket_name} already exists")
+        
+        # Create test file
+        test_data = {
+            "prefect_test": True,
+            "timestamp": datetime.now().isoformat(),
+            "message": "Hello from S3 test!"
         }
-    )
-    
-    # Save the block
-    remote_fs.save(block_name, overwrite=True)
-    
-    return remote_fs
-
-def get_s3_block(block_name="top-pharma-s3"):
-    """
-    Get a Prefect RemoteFileSystem block for S3 by name
-    
-    Args:
-        block_name (str, optional): Name of the block. Defaults to "top-pharma-s3".
         
-    Returns:
-        RemoteFileSystem: The RemoteFileSystem block
-    """
-    try:
-        return RemoteFileSystem.load(block_name)
-    except ValueError:
-        print(f"S3 block '{block_name}' not found. Creating it...")
-        return create_s3_block(block_name)
+        # Upload to S3
+        test_key = f"test/{datetime.now().strftime('%Y-%m-%d')}/prefect_test.json"
+        
+        s3_client.put_object(
+            Bucket=bucket_name,
+            Key=test_key,
+            Body=json.dumps(test_data, indent=2)
+        )
+        
+        print(f"✅ Successfully uploaded test file to s3://{bucket_name}/{test_key}")
+        return True
+    except Exception as e:
+        print(f"❌ Error testing S3 connection: {e}")
+        return False
 
 if __name__ == "__main__":
-    # Create the S3 block if run directly
-    s3_block = create_s3_block()
-    print(f"Created S3 block with base path: {s3_block.base_path}") 
+    # Skip Prefect for now and just test S3 connection
+    test_s3_connection()

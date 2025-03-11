@@ -2,41 +2,72 @@
 /**
  * Card Component
  * 
- * A versatile card component that can be used throughout the application.
- * Supports different padding sizes and hover effects.
+ * A reusable card component for displaying content with various styles.
  */
 
 interface Props {
+  title?: string;
+  variant?: 'default' | 'bordered' | 'elevated';
   padding?: 'none' | 'sm' | 'md' | 'lg';
-  hover?: boolean;
   class?: string;
+  headerClass?: string;
+  bodyClass?: string;
+  footerClass?: string;
 }
 
 const {
+  title,
+  variant = 'default',
   padding = 'md',
-  hover = false,
   class: className = '',
+  headerClass = '',
+  bodyClass = '',
+  footerClass = '',
 } = Astro.props;
 
-// Padding classes
+// Get slots
+const hasHeader = title || Astro.slots.has('header');
+const hasFooter = Astro.slots.has('footer');
+
+// Define base classes
+const baseClasses = 'overflow-hidden transition-shadow rounded-lg';
+
+// Define variant classes
+const variantClasses = {
+  default: 'bg-white shadow',
+  bordered: 'bg-white border border-gray-200',
+  elevated: 'bg-white shadow-md hover:shadow-lg',
+};
+
+// Define padding classes
 const paddingClasses = {
   none: '',
   sm: 'p-3',
-  md: 'p-4',
-  lg: 'p-6',
+  md: 'p-5',
+  lg: 'p-7',
 };
 
-// Hover classes
-const hoverClasses = hover ? 'transition-shadow hover:shadow-card-hover' : '';
-
-const classes = [
-  'bg-white rounded-lg shadow-card',
-  paddingClasses[padding],
-  hoverClasses,
-  className,
-].join(' ');
+// Build class lists
+const cardClasses = [baseClasses, variantClasses[variant], className].join(' ');
+const headerDefaultClasses = 'px-5 py-4 border-b border-gray-200 font-medium';
+const bodyDefaultClasses = paddingClasses[padding];
+const footerDefaultClasses = 'px-5 py-4 bg-gray-50 border-t border-gray-200';
 ---
 
-<div class={classes}>
-  <slot />
+<div class={cardClasses}>
+  {hasHeader && (
+    <div class={`${headerDefaultClasses} ${headerClass}`}>
+      {title ? <h3 class="text-lg font-semibold">{title}</h3> : <slot name="header" />}
+    </div>
+  )}
+  
+  <div class={`${bodyDefaultClasses} ${bodyClass}`}>
+    <slot />
+  </div>
+  
+  {hasFooter && (
+    <div class={`${footerDefaultClasses} ${footerClass}`}>
+      <slot name="footer" />
+    </div>
+  )}
 </div> 

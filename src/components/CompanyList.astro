@@ -1,0 +1,82 @@
+---
+/**
+ * CompanyList.astro
+ * 
+ * Displays a list of pharmaceutical companies from the database
+ */
+
+import { client } from "../db/client";
+
+// Interface for company data structure
+interface Company {
+  company_id: number;
+  name: string;
+  ticker_symbol: string;
+  headquarters?: string;
+  description?: string;
+}
+
+// Query the database for companies
+const getCompanies = async () => {
+  try {
+    const result = await client.query(
+      "SELECT company_id, name, ticker_symbol, headquarters, description FROM companies ORDER BY name LIMIT 10"
+    );
+    return result.rows as Company[];
+  } catch (error) {
+    console.error("Error fetching companies:", error);
+    return [] as Company[];
+  }
+};
+
+// Get companies data
+const companies = await getCompanies();
+
+// Props
+export interface Props {
+  title?: string;
+  class?: string;
+}
+
+const { title = "Pharmaceutical Companies", class: className = "" } = Astro.props;
+---
+
+<div class="w-full mx-auto p-4" style="max-width: var(--max-w-3xl);">
+  <h2 class="text-xl font-bold mb-4">{title}</h2>
+  
+  {companies.length > 0 ? (
+    <ul class="space-y-4">
+      {companies.map((company) => (
+        <li class="border rounded-lg p-4 hover:bg-gray-50">
+          <div class="flex justify-between items-start">
+            <div>
+              <h3 class="text-lg font-semibold">
+                {company.name}
+                {company.ticker_symbol && (
+                  <span class="ml-2 text-sm bg-blue-100 text-blue-800 py-1 px-2 rounded">
+                    {company.ticker_symbol}
+                  </span>
+                )}
+              </h3>
+              {company.headquarters && (
+                <p class="text-sm text-gray-600">
+                  <span class="font-medium">HQ:</span> {company.headquarters}
+                </p>
+              )}
+              {company.description && (
+                <p class="mt-2 text-gray-700">{company.description}</p>
+              )}
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  ) : (
+    <div class="p-8 text-center">
+      <p class="text-gray-500">No companies found</p>
+      <p class="text-sm mt-2">
+        Run the SEC EDGAR flow to populate the database with companies.
+      </p>
+    </div>
+  )}
+</div> 

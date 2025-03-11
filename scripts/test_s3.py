@@ -1,86 +1,61 @@
-"""
-Test S3 Connectivity
-
-This script tests the S3 client utility by uploading a sample file,
-listing objects in the bucket, and downloading the file.
-"""
-
 import os
 import sys
 import json
-import logging
-from datetime import datetime
+from io import BytesIO
 
-# Add the parent directory to sys.path to import utils
+# Add parent directory to path to import utils
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.s3_client import upload_data, list_objects, download_file, get_date_prefixed_key
-from prefect_config import S3_BUCKET_NAME
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from utils.s3_client import get_s3_client, upload_to_s3, download_from_s3, list_objects, get_date_prefixed_key
 
 def test_s3_connectivity():
-    """Test S3 connectivity by uploading, listing, and downloading a sample file"""
+    """Test S3 connectivity and basic operations"""
+    bucket_name = os.environ.get('S3_BUCKET_NAME', 'top-pharma-data-lake')
     
-    # Create a sample data dictionary
-    sample_data = {
-        "name": "Test Data",
-        "timestamp": datetime.now().isoformat(),
-        "values": [1, 2, 3, 4, 5]
-    }
-    
-    # Convert to JSON string
-    json_data = json.dumps(sample_data, indent=2)
-    
-    # Generate a key with date prefix
-    object_key = get_date_prefixed_key("test", "sample_data.json")
-    
-    logger.info(f"Testing S3 connectivity with bucket: {S3_BUCKET_NAME}")
-    
-    # Upload the data
-    upload_success = upload_data(json_data, object_key)
-    if not upload_success:
-        logger.error("Failed to upload test data")
-        return False
-    
-    # List objects with the test prefix
-    objects = list_objects("test/")
-    logger.info(f"Objects in bucket with prefix 'test/': {objects}")
-    
-    # Check if our object is in the list
-    if object_key not in objects:
-        logger.error(f"Uploaded object {object_key} not found in bucket")
-        return False
-    
-    # Download the file
-    download_path = os.path.join(os.path.dirname(__file__), "downloaded_sample.json")
-    download_success = download_file(object_key, download_path)
-    if not download_success:
-        logger.error("Failed to download test data")
-        return False
-    
-    # Verify the downloaded file
     try:
+        print(f"Testing S3 connectivity with bucket: {bucket_name}")
+        
+        # Generate test data
+        test_data = {
+            "test": True,
+            "message": "Hello from S3 test",
+            "timestamp": "2025-03-09T12:00:00Z"
+        }
+        
+        # Convert to bytes for upload
+        data_bytes = BytesIO(json.dumps(test_data).encode('utf-8'))
+        
+        # Generate a key with date prefix
+        key = get_date_prefixed_key('test', 'sample_data.json')
+        
+        # Upload test data
+        print(f"Uploading test data to {bucket_name}/{key}")
+        upload_to_s3(data_bytes, bucket_name, key)
+        
+        # List objects to verify upload
+        print(f"Listing objects in {bucket_name} with prefix 'test/'")
+        objects = list_objects(bucket_name, 'test/')
+        print(f"Found objects: {objects}")
+        
+        # Download the uploaded file
+        download_path = os.path.join(os.path.dirname(__file__), 'downloaded_sample.json')
+        print(f"Downloading {key} to {download_path}")
+        download_from_s3(bucket_name, key, download_path)
+        
+        # Verify the downloaded content
         with open(download_path, 'r') as f:
             downloaded_data = json.load(f)
         
-        logger.info(f"Downloaded data: {downloaded_data}")
+        assert downloaded_data == test_data, "Downloaded data doesn't match uploaded data"
         
         # Clean up
+        print(f"Removing temporary downloaded file: {download_path}")
         os.remove(download_path)
-        logger.info(f"Removed temporary file: {download_path}")
         
+        print("S3 connectivity test passed!")
         return True
     except Exception as e:
-        logger.error(f"Error verifying downloaded file: {e}")
+        print(f"S3 connectivity test failed: {e}")
         return False
 
 if __name__ == "__main__":
-    success = test_s3_connectivity()
-    if success:
-        logger.info("S3 connectivity test passed!")
-        sys.exit(0)
-    else:
-        logger.error("S3 connectivity test failed!")
-        sys.exit(1) 
+    test_s3_connectivity()

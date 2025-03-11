@@ -3,6 +3,10 @@ Prefect Configuration for Top Pharma
 
 This module contains configuration settings for Prefect workflows.
 It centralizes configuration options and allows for easy updates.
+
+NOTE: If you encounter database connection issues, use the Docker-based
+database utilities in scripts/docker_db_query.py and scripts/docker_run_company_universe.py
+instead of direct database connections.
 """
 
 import os
@@ -21,16 +25,22 @@ MAX_CONCURRENT_FLOWS = int(os.getenv("MAX_CONCURRENT_FLOWS", "5"))
 
 # Storage settings
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "top-pharma-data-lake")
-S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "")
-S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "")
-S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL", "")  # Leave empty for AWS S3
+S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "minioadmin")
+S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "minioadmin")
+S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL", "http://localhost:9000")
 
 # Database settings
-DB_HOST = os.getenv("DB_HOST", "localhost")
+# When running outside Docker (like we are), we MUST use 'localhost', not 'postgres'
+# 'postgres' is only valid as a hostname inside the Docker network
+DB_HOST = "localhost"  # Hardcoded to localhost to ensure consistent connection
 DB_PORT = int(os.getenv("DB_PORT", "5432"))
 DB_NAME = os.getenv("DB_NAME", "toppharma")
 DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "password")
+# Use the password from .env file or docker-compose.yml
+DB_PASSWORD = os.getenv("DB_PASSWORD", "password")  # This should match the POSTGRES_PASSWORD in docker-compose.yml
+
+# Print connection details for debugging
+print(f"Database connection: {DB_HOST}:{DB_PORT} as {DB_USER}")
 
 # Flow-specific settings
 DEFAULT_DATA_RETENTION_DAYS = int(os.getenv("DEFAULT_DATA_RETENTION_DAYS", "90"))

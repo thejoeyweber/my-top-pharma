@@ -41,13 +41,26 @@ def get_db_connection():
             password=prefect_config.DB_PASSWORD
         )
         yield conn
+    except psycopg2.OperationalError as e:
+        logger.error(f"Database connection error: {e}")
+        logger.error("\nTroubleshooting PostgreSQL connection issues:")
+        logger.error("1. Check if PostgreSQL container is running:")
+        logger.error("   docker ps | findstr postgres")
+        logger.error(f"2. Ensure host ({prefect_config.DB_HOST}) is correct:")
+        logger.error("   - When running from host machine: use 'localhost'")
+        logger.error("   - When running inside Docker: use 'postgres'")
+        logger.error(f"3. Verify port ({prefect_config.DB_PORT}) is correctly mapped in docker-compose.yml")
+        logger.error(f"4. Check credentials (user:{prefect_config.DB_USER}, db:{prefect_config.DB_NAME})")
+        logger.error("5. Try connecting manually with:")
+        logger.error(f"   docker exec -it mytoppharma-postgres-1 psql -U {prefect_config.DB_USER} -d {prefect_config.DB_NAME}")
+        raise
     except psycopg2.Error as e:
         logger.error(f"Database connection error: {e}")
         raise
     finally:
         if conn is not None:
             conn.close()
-            logger.info("Database connection closed")
+            logger.debug("Database connection closed")
 
 @contextmanager
 def get_db_cursor(commit=False):
@@ -86,14 +99,21 @@ def execute_query(query, params=None, commit=True, fetch=True):
     Returns:
         list or None: Query results if fetch=True, None otherwise
     """
-    with get_db_cursor(commit=commit) as cursor:
-        cursor.execute(query, params or ())
-        
-        if fetch:
-            results = cursor.fetchall()
-            logger.debug(f"Query returned {len(results)} results")
-            return results
-        return None
+    try:
+        with get_db_cursor(commit=commit) as cursor:
+            cursor.execute(query, params or ())
+            
+            if fetch:
+                results = cursor.fetchall()
+                logger.debug(f"Query returned {len(results)} results")
+                return results
+            return None
+    except Exception as e:
+        logger.error(f"Query execution failed: {e}")
+        logger.error(f"Query: {query}")
+        if params:
+            logger.error(f"Parameters: {params}")
+        raise
 
 def execute_queries(queries, params_list=None, commit=True):
     """

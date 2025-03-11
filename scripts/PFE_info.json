@@ -1,0 +1,20 @@
+{
+  "ticker_symbol": "PFE",
+  "company_name": "PFIZER INC",
+  "filing_date": "2025-02-27",
+  "filing_type": "10-K",
+  "revenue": null,
+  "net_income": null,
+  "headquarters": null,
+  "raw_data": {
+    "filing_info": {
+      "accession_number": "000007800325000054",
+      "filing_date": "2025-02-27",
+      "form_type": "10-K",
+      "company_name": "PFIZER INC",
+      "ticker": "PFE",
+      "cik": "0000078003"
+    },
+    "html": false
+  }
+}

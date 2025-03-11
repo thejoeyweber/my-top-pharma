@@ -116,136 +116,203 @@ npm install
 # Start the development server
 npm run dev
 ```
+# Top Pharma Data Infrastructure
 
-### Converting Data
+This repository contains the data infrastructure for the Top Pharma application, including data ingestion pipelines, storage, and processing workflows.
 
-To convert data from TypeScript files to JSON files, run:
+## Components
 
-```bash
-npm run convert-data
-```
+- **PostgreSQL**: Primary database for structured data storage
+- **MinIO**: S3-compatible object storage for raw data files (data lake)
+- **Prefect**: Workflow orchestration for data processing pipelines
 
-This will:
-1. Convert all data from TypeScript to JSON
-2. Extract SVGs to separate files
-3. Update references in the JSON files
+## Quick Start
 
-## Type Definitions
-
-Type definitions for the data are located in `src/types/`:
-
-- `companies.ts`: Types for company data
-- `products.ts`: Types for product data
-- `websites.ts`: Types for website data
-- `user.ts`: Types for user data
-- `admin.ts`: Types for admin data
-
-## S3 Data Lake Integration
-
-The Top Pharma application uses S3 (or MinIO for local development) as a data lake to store raw data from various sources before processing and ingestion into the database.
-
-### Setup
-
-1. **Environment Variables**
-
-   Set up the following environment variables in your `.env` file:
-
+1. **Start the services**:
    ```
-   S3_BUCKET_NAME=top-pharma-data-lake
-   S3_ACCESS_KEY=your-access-key
-   S3_SECRET_KEY=your-secret-key
-   S3_ENDPOINT_URL=http://localhost:9000  # For MinIO local development
-   ```
-
-   For AWS S3, leave S3_ENDPOINT_URL blank.
-
-2. **Local Development with MinIO**
-
-   Run the Docker Compose setup:
-
-   ```powershell
-   cd app
    docker-compose up -d
    ```
 
-   This will start:
-   - MinIO server at http://localhost:9000 (API) and http://localhost:9001 (Console)
-   - PostgreSQL database
-   - Prefect Orion server
-
-3. **Test S3 Connectivity**
-
-   ```powershell
-   cd app
-   python scripts/test_s3.py
+2. **Activate the virtual environment**:
+   ```
+   .\venv\Scripts\activate  # Windows
+   source venv/bin/activate  # Linux/Mac
    ```
 
-### Setting up AWS S3 Connection
-
-For production use with AWS S3 instead of MinIO, follow these steps:
-
-1. Create an AWS S3 bucket
-2. Create an IAM user with programmatic access and attach the appropriate S3 policies
-3. Update your `.env` file with the AWS credentials:
-
+3. **Install dependencies**:
    ```
-   S3_BUCKET_NAME=your-bucket-name
-   S3_ACCESS_KEY=your-aws-access-key
-   S3_SECRET_KEY=your-aws-secret-key
-   S3_ENDPOINT_URL=  # Leave empty for AWS S3
+   pip install -r requirements.txt
    ```
 
-4. Test your connection:
-
-   ```powershell
-   cd app
-   python scripts/test_s3.py
+4. **Initialize the environment**:
+   ```
+   python setup.py
    ```
 
-### Troubleshooting
+## Environment Variables
 
-If you encounter issues with S3 connectivity:
+Required environment variables are stored in `.env`. You can modify them as needed:
 
-1. Check your credentials in `.env`
-2. Ensure the S3 bucket exists
-3. Verify that your IAM user has the necessary permissions
-4. If using MinIO, ensure the MinIO server is running
-5. If using AWS S3, ensure your region is correct (defaults to the profile default)
+- `DB_HOST`: PostgreSQL host (default: postgres)
+- `DB_PORT`: PostgreSQL port (default: 5432)
+- `DB_NAME`: PostgreSQL database name (default: toppharma)
+- `DB_USER`: PostgreSQL username (default: postgres)
+- `DB_PASSWORD`: PostgreSQL password (default: password)
+- `S3_BUCKET_NAME`: MinIO/S3 bucket name (default: top-pharma-data-lake)
+- `S3_ACCESS_KEY`: MinIO/S3 access key (default: minioadmin)
+- `S3_SECRET_KEY`: MinIO/S3 secret key (default: minioadmin)
+- `S3_ENDPOINT_URL`: MinIO/S3 endpoint URL (default: http://minio:9000)
 
-If Docker is not available or running, you can still test the S3 client with the mock implementation:
+## SEC EDGAR Integration
 
+The system includes comprehensive integration with the SEC EDGAR database to retrieve and process pharmaceutical company data.
+
+### Data Flow Architecture
+
+1. **Company Universe Flow**: Retrieves all pharmaceutical and biotech companies from SEC EDGAR by SIC codes
+2. **Raw Data Storage**: Stores the raw JSON data in MinIO S3 with date-based prefixes
+3. **Staging Processing**: Loads data into staging tables for validation and transformation
+4. **Main Tables Update**: Upserts valid records into the main `sec_companies` and `companies` tables
+
+### Database Schema
+
+- **sec_companies**: Primary table for SEC company data (CIK, name, ticker, SIC code)
+- **staging_sec_companies**: Staging table for new SEC company data
+- **companies**: Main companies table that integrates data from multiple sources
+
+### Running SEC EDGAR Flows
+
+#### Command Line (PowerShell)
+
+Run the full company universe flow:
 ```powershell
 cd app
-python scripts/test_s3_mock.py
+.\venv\Scripts\activate
+python -m flows.sec_edgar.company_universe_flow
 ```
 
-### Using the S3 Client
+Run the demonstration flow:
+```powershell
+python scripts/run_full_demo.py
+```
 
-The `utils/s3_client.py` module provides functions for interacting with S3:
+#### Using Prefect
 
-- `upload_file(file_path, object_name=None, bucket_name=None)`: Upload a file to S3
-- `upload_data(data, object_name, bucket_name=None)`: Upload data directly to S3
-- `download_file(object_name, file_path, bucket_name=None)`: Download a file from S3
-- `list_objects(prefix='', bucket_name=None)`: List objects in the bucket
-- `get_date_prefixed_key(base_path, file_name)`: Generate a date-prefixed key for organizing data by date
+Deploy and schedule the flow:
+```powershell
+python scripts/deploy_company_universe.py
+```
 
-### Using Prefect S3 Block
+Start a Prefect agent to process runs:
+```powershell
+python scripts/start_prefect_agent.py
+```
 
-The `flows/blocks/s3_block.py` module defines a Prefect S3 block for storing flow artifacts:
+### SEC EDGAR API Usage
+
+The integration uses SEC EDGAR's public API with appropriate rate limiting (10 requests/second). Key API endpoints include:
+
+- Companies by SIC code (pharmaceutical and biotech focus)
+- Company facts and filings
+- 10-K annual reports
+
+SIC codes used for pharmaceutical/biotech companies:
+- 2833: Medicinal Chemicals & Botanical Products
+- 2834: Pharmaceutical Preparations
+- 2835: In Vitro & In Vivo Diagnostic Substances
+- 2836: Biological Products (No Diagnostic Substances)
+- 3851: Ophthalmic Goods
+- 8731: Commercial Physical & Biological Research
+
+### Monitoring and Management
+
+Monitor SEC EDGAR data flows using:
+
+1. **Prefect UI**: http://localhost:4200
+2. **PostgreSQL Queries**:
+   ```sql
+   -- Check SEC companies
+   SELECT COUNT(*) FROM sec_companies;
+   
+   -- Check recent pipeline runs
+   SELECT * FROM pipeline_run_logs ORDER BY start_time DESC LIMIT 5;
+   ```
+3. **MinIO Console**: http://localhost:9001 (navigate to top-pharma-data-lake/sec_edgar/)
+
+## Directory Structure
+
+- `db/`: Database schemas and migrations
+- `flows/`: Prefect workflow definitions
+  - `blocks/`: Prefect block definitions
+  - `sec_edgar/`: SEC EDGAR specific flows
+- `scripts/`: Utility scripts
+- `utils/`: Shared utility functions
+  - `s3_client.py`: S3 client utilities
+  - `db_utils.py`: Database client utilities
+  - `sec_edgar_client.py`: SEC EDGAR API client
+
+## Development
+
+### Adding a New Data Source
+
+1. Create a staging table in `db/schema.sql`
+2. Create a flow file in `flows/`
+3. Implement the extraction, transformation, and loading tasks
+4. Test and deploy the flow
+
+### Using the S3 Data Lake
+
+Use the utilities in `utils/s3_client.py` to interact with the data lake:
 
 ```python
-from flows.blocks.s3_block import get_s3_block
+from utils.s3_client import upload_to_s3, download_from_s3
 
-# Get or create an S3 block
-s3_block = get_s3_block("my-s3-block")
+# Upload a file
+with open('data.json', 'rb') as f:
+    upload_to_s3(f, 'top-pharma-data-lake', 'path/to/data.json')
 
-# Use the block in a flow
-@flow
-def my_flow():
-    # ...
-    return "Result"
-
-if __name__ == "__main__":
-    # Deploy the flow
-    my_flow.with_options(name="my-flow", storage=s3_block).deploy()
+# Download a file
+download_from_s3('top-pharma-data-lake', 'path/to/data.json', 'local_data.json')
 ```
+
+### Using the Database
+
+Use the utilities in `utils/db_utils.py` to interact with the database:
+
+```python
+from utils.db_utils import execute_query, insert_record
+
+# Execute a query
+results = execute_query("SELECT * FROM companies WHERE ticker_symbol = %s", ['PFE'])
+
+# Insert a record
+insert_record('companies', {
+    'name': 'Pfizer Inc.',
+    'ticker_symbol': 'PFE',
+    'headquarters': 'New York, NY'
+})
+```
+
+## Troubleshooting
+
+### Database Connection Issues
+
+If you encounter database connection issues, check:
+- PostgreSQL container is running: `docker ps | grep postgres`
+- Connection details match your `.env` file
+- Network connectivity between services
+
+### S3/MinIO Issues
+
+If you encounter S3/MinIO issues, check:
+- MinIO container is running: `docker ps | grep minio`
+- MinIO console is accessible at http://localhost:9001
+- Credentials match your `.env` file
+
+### Prefect Issues
+
+If you encounter Prefect issues, check:
+- Prefect container is running: `docker ps | grep prefect`
+- Prefect UI is accessible at http://localhost:4200
+- Prefect API is accessible at http://localhost:4200/api
+- Agent is running: `prefect agent list`

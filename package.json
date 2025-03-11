@@ -23,6 +23,7 @@
     "@types/react-dom": "^19.0.4",
     "astro": "^5.4.2",
     "chart.js": "^4.4.8",
+    "pg": "^8.13.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwindcss": "^4.0.11"

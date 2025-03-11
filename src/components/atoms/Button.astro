@@ -2,76 +2,81 @@
 /**
  * Button Component
  * 
- * A versatile button component that can be used throughout the application.
- * Supports different variants, sizes, and states.
+ * A reusable button component with various styles and sizes.
+ * Follows Tailwind v4 design patterns as per the .cursorrules documentation.
  */
 
 interface Props {
-  variant?: 'primary' | 'secondary' | 'outline' | 'text';
-  size?: 'sm' | 'md' | 'lg';
   type?: 'button' | 'submit' | 'reset';
-  disabled?: boolean;
-  fullWidth?: boolean;
-  href?: string;
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   class?: string;
-  [key: string]: any; // Allow any additional props to be passed through
+  disabled?: boolean;
+  href?: string;
+  fullWidth?: boolean;
+  icon?: string;
+  iconPosition?: 'left' | 'right';
+  onClick?: (e: MouseEvent) => void;
 }
 
 const {
+  type = 'button',
   variant = 'primary',
   size = 'md',
-  type = 'button',
-  disabled = false,
-  fullWidth = false,
-  href,
   class: className = '',
-  ...rest // Capture all other props
+  disabled = false,
+  href,
+  fullWidth = false,
+  icon,
+  iconPosition = 'left',
 } = Astro.props;
 
-// Base classes
-const baseClasses = 'inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500';
+// Define base classes
+const baseClasses = 'inline-flex items-center justify-center font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none';
 
 // Size classes
 const sizeClasses = {
-  sm: 'text-sm px-3 py-1.5 rounded',
-  md: 'text-base px-4 py-2 rounded-md',
-  lg: 'text-lg px-6 py-3 rounded-lg',
+  xs: 'text-xs px-2.5 py-1.5 rounded',
+  sm: 'text-sm px-3 py-2 rounded-md',
+  md: 'text-sm px-4 py-2 rounded-md',
+  lg: 'text-base px-5 py-3 rounded-md',
 };
 
 // Variant classes
 const variantClasses = {
-  primary: 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500',
-  secondary: 'bg-secondary-500 text-white hover:bg-secondary-600 focus:ring-secondary-500',
-  outline: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-primary-500',
-  text: 'text-primary-600 hover:text-primary-700 hover:bg-gray-100 focus:ring-primary-500',
+  primary: 'bg-blue-600 text-white hover:bg-blue-700',
+  secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300',
+  outline: 'border border-gray-300 bg-transparent text-gray-700 hover:bg-gray-50',
+  ghost: 'bg-transparent text-gray-700 hover:bg-gray-100',
+  danger: 'bg-red-600 text-white hover:bg-red-700',
 };
 
-// State classes
-const stateClasses = {
-  disabled: 'opacity-50 cursor-not-allowed',
-  fullWidth: 'w-full',
-};
+// Full width class
+const fullWidthClass = fullWidth ? 'w-full' : '';
 
+// Combine all classes
 const classes = [
   baseClasses,
   sizeClasses[size],
   variantClasses[variant],
-  disabled ? stateClasses.disabled : '',
-  fullWidth ? stateClasses.fullWidth : '',
-  className,
+  fullWidthClass,
+  className
 ].join(' ');
 
-const Element = href ? 'a' : 'button';
+// Determine if we should render a button or a link
+const isLink = !!href && !disabled;
 ---
 
-{
-  href ? (
-    <a href={href} class={classes} {...disabled && { 'aria-disabled': 'true', tabindex: '-1' }} {...rest}>
-      <slot />
-    </a>
-  ) : (
-    <button type={type} class={classes} disabled={disabled} {...rest}>
-      <slot />
-    </button>
-  )
-} 
+{isLink ? (
+  <a href={href} class={classes} role="button">
+    {icon && iconPosition === 'left' && <span class="mr-2" set:html={icon} />}
+    <slot />
+    {icon && iconPosition === 'right' && <span class="ml-2" set:html={icon} />}
+  </a>
+) : (
+  <button type={type} class={classes} disabled={disabled}>
+    {icon && iconPosition === 'left' && <span class="mr-2" set:html={icon} />}
+    <slot />
+    {icon && iconPosition === 'right' && <span class="ml-2" set:html={icon} />}
+  </button>
+)} 

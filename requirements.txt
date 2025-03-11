@@ -11,7 +11,8 @@ rapidfuzz==3.6.1        # Fuzzy matching for entity resolution
 pandas==2.1.4
 numpy==1.26.3
 requests==2.31.0
-beautifulsoup4==4.12.2  # For web scraping
+beautifulsoup4==4.12.2  # For web scraping and HTML parsing
+lxml==5.1.0            # XML parser for BeautifulSoup
 
 # Development tools
 pytest==7.4.3

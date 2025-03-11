@@ -1,0 +1,319 @@
+---
+/**
+ * Database Audit: Companies
+ * 
+ * This page displays company data from the database for audit purposes,
+ * including a comparison with SEC companies data and the ability to
+ * trigger SEC EDGAR data updates.
+ */
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { dbClient } from '../../../utils/db';
+
+// Format the timestamp
+const timestamp = new Date().toLocaleString();
+
+// Get all companies and count
+const getAllCompanies = async () => {
+  try {
+    const companies = await dbClient.query(`SELECT * FROM companies ORDER BY name`);
+    return companies.rows || [];
+  } catch (error) {
+    console.error("Error fetching companies:", error);
+    return [];
+  }
+};
+
+// Get SEC companies and count
+const getSecCompanies = async () => {
+  try {
+    const secCompanies = await dbClient.query(`
+      SELECT 
+        id, cik, name, ticker, exchange, sic, sic_description, 
+        created_at, updated_at
+      FROM 
+        sec_companies 
+      ORDER BY 
+        name
+    `);
+    return secCompanies.rows || [];
+  } catch (error) {
+    console.error("Error fetching SEC companies:", error);
+    return [];
+  }
+};
+
+// Get table structure information
+const getTableStructure = async (tableName) => {
+  try {
+    const tableInfo = await dbClient.query(`
+      SELECT 
+        column_name, 
+        data_type, 
+        character_maximum_length
+      FROM 
+        information_schema.columns
+      WHERE 
+        table_name = $1
+      ORDER BY 
+        ordinal_position
+    `, [tableName]);
+    return tableInfo.rows || [];
+  } catch (error) {
+    console.error(`Error fetching table structure for ${tableName}:`, error);
+    return [];
+  }
+};
+
+// Get SIC code distribution
+const getSicDistribution = async () => {
+  try {
+    const sicDistribution = await dbClient.query(`
+      SELECT 
+        sic, 
+        sic_description, 
+        COUNT(*) as company_count
+      FROM 
+        sec_companies
+      GROUP BY 
+        sic, sic_description
+      ORDER BY 
+        company_count DESC
+    `);
+    return sicDistribution.rows || [];
+  } catch (error) {
+    console.error("Error fetching SIC distribution:", error);
+    return [];
+  }
+};
+
+// Test the database connection
+const connectionTest = await dbClient.testConnection();
+console.log("Database connection test:", connectionTest);
+
+// Fetch all the data we need
+const companies = await getAllCompanies();
+const secCompanies = await getSecCompanies();
+const companiesTableStructure = await getTableStructure('companies');
+const secCompaniesTableStructure = await getTableStructure('sec_companies');
+const sicDistribution = await getSicDistribution();
+
+// Count totals
+const totalCompanies = companies.length;
+const totalSecCompanies = secCompanies.length;
+
+// Handle form submission to trigger SEC EDGAR data update
+const triggerUpdate = Astro.url.searchParams.get('trigger_update') === 'true';
+let updateMessage = '';
+let updateStatus = '';
+
+if (triggerUpdate) {
+  try {
+    const { execSync } = await import('child_process');
+    const result = execSync('python scripts/sec_edgar_data_updater.py').toString();
+    updateMessage = 'SEC EDGAR data update triggered successfully. Check logs for details.';
+    updateStatus = 'success';
+  } catch (error) {
+    console.error('Error triggering update:', error);
+    updateMessage = `Error triggering update: ${error.message}`;
+    updateStatus = 'error';
+  }
+}
+---
+
+<BaseLayout title="Database Audit: Companies">
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6">Database Audit: Companies</h1>
+    <p class="mb-4 text-sm text-gray-600">Generated at {timestamp}</p>
+    
+    <!-- Database Connection Status -->
+    <div class="mb-8">
+      <div class={`p-4 rounded-lg ${connectionTest.connected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+        <p class="font-medium">Database Connection: {connectionTest.connected ? 'Connected' : 'Disconnected'}</p>
+        <p class="text-sm">{connectionTest.message}</p>
+      </div>
+    </div>
+    
+    <div class="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-xl font-semibold mb-4">Quick Stats</h2>
+        <ul class="space-y-2">
+          <li><span class="font-medium">Companies Records:</span> {totalCompanies}</li>
+          <li><span class="font-medium">SEC Companies Records:</span> {totalSecCompanies}</li>
+        </ul>
+      </div>
+      
+      <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-xl font-semibold mb-4">SIC Code Distribution</h2>
+        {sicDistribution.length > 0 ? (
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-gray-100">
+                  <th class="px-4 py-2 text-left">SIC</th>
+                  <th class="px-4 py-2 text-left">Description</th>
+                  <th class="px-4 py-2 text-right">Count</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sicDistribution.map(row => (
+                  <tr class="border-t">
+                    <td class="px-4 py-2">{row.sic}</td>
+                    <td class="px-4 py-2">{row.sic_description}</td>
+                    <td class="px-4 py-2 text-right">{row.company_count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-gray-500 italic">No SIC distribution data available</p>
+        )}
+      </div>
+    </div>
+    
+    <div class="mb-8">
+      <h2 class="text-2xl font-semibold mb-4">Companies Table Structure</h2>
+      {companiesTableStructure.length > 0 ? (
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-gray-100">
+                  <th class="px-4 py-2 text-left">Column Name</th>
+                  <th class="px-4 py-2 text-left">Data Type</th>
+                  <th class="px-4 py-2 text-left">Max Length</th>
+                </tr>
+              </thead>
+              <tbody>
+                {companiesTableStructure.map(column => (
+                  <tr class="border-t">
+                    <td class="px-4 py-2 font-medium">{column.column_name}</td>
+                    <td class="px-4 py-2">{column.data_type}</td>
+                    <td class="px-4 py-2">{column.character_maximum_length || 'N/A'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <p class="text-gray-500 italic">No table structure data available</p>
+      )}
+    </div>
+    
+    <div class="mb-8">
+      <h2 class="text-2xl font-semibold mb-4">SEC Companies Table Structure</h2>
+      {secCompaniesTableStructure.length > 0 ? (
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-gray-100">
+                  <th class="px-4 py-2 text-left">Column Name</th>
+                  <th class="px-4 py-2 text-left">Data Type</th>
+                  <th class="px-4 py-2 text-left">Max Length</th>
+                </tr>
+              </thead>
+              <tbody>
+                {secCompaniesTableStructure.map(column => (
+                  <tr class="border-t">
+                    <td class="px-4 py-2 font-medium">{column.column_name}</td>
+                    <td class="px-4 py-2">{column.data_type}</td>
+                    <td class="px-4 py-2">{column.character_maximum_length || 'N/A'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <p class="text-gray-500 italic">No SEC companies table structure data available</p>
+      )}
+    </div>
+    
+    <div class="mb-8">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-semibold">Companies Data</h2>
+        <a href="?trigger_update=true" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700">
+          Update SEC EDGAR Data
+        </a>
+      </div>
+      {companies.length > 0 ? (
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-gray-100">
+                  <th class="px-4 py-2 text-left">ID</th>
+                  <th class="px-4 py-2 text-left">Name</th>
+                  <th class="px-4 py-2 text-left">Headquarters</th>
+                  <th class="px-4 py-2 text-left">CIK</th>
+                  <th class="px-4 py-2 text-left">Ticker</th>
+                </tr>
+              </thead>
+              <tbody>
+                {companies.map(company => (
+                  <tr class="border-t">
+                    <td class="px-4 py-2">{company.id}</td>
+                    <td class="px-4 py-2 font-medium">{company.name}</td>
+                    <td class="px-4 py-2">{company.headquarters}</td>
+                    <td class="px-4 py-2">{company.cik || '—'}</td>
+                    <td class="px-4 py-2">{company.ticker || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <p class="text-gray-500 italic">No company data available</p>
+      )}
+    </div>
+    
+    <div>
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-semibold">SEC Companies Data</h2>
+      </div>
+      {secCompanies.length > 0 ? (
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-gray-100">
+                  <th class="px-4 py-2 text-left">ID</th>
+                  <th class="px-4 py-2 text-left">CIK</th>
+                  <th class="px-4 py-2 text-left">Name</th>
+                  <th class="px-4 py-2 text-left">Ticker</th>
+                  <th class="px-4 py-2 text-left">Exchange</th>
+                  <th class="px-4 py-2 text-left">SIC</th>
+                  <th class="px-4 py-2 text-left">SIC Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {secCompanies.map(company => (
+                  <tr class="border-t">
+                    <td class="px-4 py-2">{company.id}</td>
+                    <td class="px-4 py-2">{company.cik}</td>
+                    <td class="px-4 py-2 font-medium">{company.name}</td>
+                    <td class="px-4 py-2">{company.ticker}</td>
+                    <td class="px-4 py-2">{company.exchange}</td>
+                    <td class="px-4 py-2">{company.sic}</td>
+                    <td class="px-4 py-2">{company.sic_description}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <p class="text-gray-500 italic">No SEC company data available</p>
+      )}
+    </div>
+
+    {updateMessage && (
+      <div class={`mt-8 p-4 rounded-lg ${updateStatus === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+        <p>{updateMessage}</p>
+      </div>
+    )}
+  </div>
+</BaseLayout> 

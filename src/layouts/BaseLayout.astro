@@ -1,0 +1,59 @@
+---
+/**
+ * Base Layout component
+ * 
+ * This is the main layout component used across the application.
+ * It provides consistent styling and structure for all pages.
+ */
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { 
+  title = "MyTopPharma - Pharmaceutical Company Database", 
+  description = "A comprehensive directory of pharmaceutical companies, products, and websites." 
+} = Astro.props;
+
+// Import global styles
+import '../styles/global.css';
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body class="min-h-screen bg-gray-100 text-gray-800">
+    <header class="bg-white shadow">
+      <div class="max-w-screen-xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div>
+          <a href="/" class="text-2xl font-bold text-blue-600">MyTopPharma</a>
+        </div>
+        <nav>
+          <ul class="flex space-x-6">
+            <li><a href="/" class="hover:text-blue-600">Home</a></li>
+            <li><a href="/companies" class="hover:text-blue-600">Companies</a></li>
+            <li><a href="/audit" class="hover:text-blue-600">Audit</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    
+    <main>
+      <slot />
+    </main>
+    
+    <footer class="bg-white shadow mt-auto">
+      <div class="max-w-screen-xl mx-auto px-4 py-6">
+        <p class="text-center text-sm text-gray-500">
+          &copy; {new Date().getFullYear()} MyTopPharma. All rights reserved.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html> 

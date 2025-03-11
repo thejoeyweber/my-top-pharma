@@ -2,6 +2,7 @@
 import BaseLayout from '../components/templates/BaseLayout.astro';
 import Button from '../components/atoms/Button.astro';
 import Card from '../components/atoms/Card.astro';
+import CompanyList from '../components/organisms/CompanyList.astro';
 
 // Mock data for featured companies
 const featuredCompanies = [
@@ -208,6 +209,22 @@ const therapeuticAreas = [
         <Button href="/companies" variant="secondary">
           View All Companies
         </Button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Companies from Database Section -->
+  <div class="bg-white py-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center">
+        <h2 class="text-3xl font-bold text-gray-900">Companies from Database</h2>
+        <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+          These companies are loaded directly from our PostgreSQL database.
+        </p>
+      </div>
+
+      <div class="mt-12">
+        <CompanyList title="Pharmaceutical Companies in Database" />
       </div>
     </div>
   </div>
