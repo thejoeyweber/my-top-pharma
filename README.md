@@ -42,6 +42,10 @@ All commands are run from the root of the project, from a terminal:
 | `npm run preview`         | Preview your build locally, before deploying     |
 | `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
 | `npm run astro -- --help` | Get help using the Astro CLI                     |
+| `npm run convert-all`     | Convert all data files to TypeScript             |
+| `npm run create-migration <name>` | Create a new database migration file     |
+| `npm run db:push`         | Apply database migrations to Supabase            |
+| `npm run db:types`        | Generate TypeScript types from Supabase schema   |
 
 ## 👀 Want to learn more?
 
@@ -49,11 +53,128 @@ Feel free to check [our documentation](https://docs.astro.build) or jump into ou
 
 # Top Pharma
 
-A comprehensive directory of pharmaceutical companies, products, and websites.
+A comprehensive directory of pharmaceutical companies, products, and websites built with Astro and Supabase.
+
+## 🚀 Project Structure
+
+Inside of your Astro project, you'll see the following folders and files:
+
+```text
+/
+├── public/
+│   └── favicon.svg
+├── src/
+│   ├── components/
+│   ├── layouts/
+│   ├── pages/
+│   ├── styles/
+│   ├── types/
+│   └── utils/
+├── supabase/
+│   ├── migrations/
+│   └── config.toml
+└── package.json
+```
+
+## 🧞 Commands
+
+All commands are run from the root of the project, from a terminal:
+
+| Command                   | Action                                           |
+| :------------------------ | :----------------------------------------------- |
+| `npm install`             | Installs dependencies                            |
+| `npm run dev`             | Starts local dev server at `localhost:4321`      |
+| `npm run build`           | Build your production site to `./dist/`          |
+| `npm run preview`         | Preview your build locally, before deploying     |
+| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
+| `npm run convert-all`     | Convert all data files to TypeScript             |
+| `npm run create-migration <name>` | Create a new database migration file     |
+| `npm run db:push`         | Apply database migrations to Supabase            |
+| `npm run db:types`        | Generate TypeScript types from Supabase schema   |
+
+## 🔌 Supabase Integration
+
+This project uses Supabase as its backend database and authentication provider.
+
+### Setup
+
+1. Create a Supabase project at [supabase.com](https://supabase.com)
+2. Copy your project URL and anon key from the Supabase dashboard (Settings > API)
+3. Update the `.env` file with your Supabase credentials:
+
+```
+PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+4. Link your local project to your Supabase project:
+
+```
+npx supabase login
+npx supabase link --project-ref your-project-id
+```
+
+### Database Migrations
+
+The database schema is defined in SQL migration files located in the `supabase/migrations/` directory.
+
+#### Applying Migrations
+
+Run the following command to apply all pending migrations:
+
+```bash
+npx supabase db push
+```
+
+#### Creating New Migrations
+
+When you need to modify the database schema:
+
+1. Create a new migration file with a timestamp prefix in the `supabase/migrations/` directory:
+
+```bash
+touch supabase/migrations/$(date +%Y%m%d)_descriptive_name.sql
+```
+
+2. Add your SQL statements to the file
+3. Apply the migration with `npx supabase db push`
+
+See the `supabase/README.md` file for more detailed migration guidelines.
+
+### Testing the Connection
+
+Visit `/supabase-test` in your local development server to verify that your Supabase connection is working correctly.
+
+## 📊 Data Model
+
+The application uses the following primary data models:
+
+- **Companies**: Pharmaceutical and biotech companies
+- **Products**: Drugs and therapies (both approved and in pipeline)
+- **Websites**: Company-owned websites categorized by purpose
+- **Therapeutic Areas**: Medical domains (e.g., Oncology, Cardiology)
+
+## 🔄 Data Flow
+
+1. External data is ingested from sources like Financial Modeling Prep (FMP)
+2. Data is stored in Supabase
+3. The Astro frontend fetches and displays this data
+4. Updates are performed on a scheduled basis
+
+## 🛠️ Development
+
+To start development:
+
+1. Clone this repository
+2. Install dependencies with `npm install`
+3. Set up your `.env` file with Supabase credentials
+4. Link to your Supabase project with `npx supabase link --project-ref your-project-id`
+5. Apply migrations with `npx supabase db push`
+6. Run `npm run dev` to start the development server
 
 ## Data Structure
 
-The application uses JSON files for data storage, located in `src/data/json/`. SVG assets are stored in `src/data/assets/`.
+The application currently uses JSON files for data storage, located in `src/data/json/`. SVG assets are stored in `src/data/assets/`. We are in the process of migrating to Supabase for data storage.
 
 ### Data Files
 
@@ -95,41 +216,6 @@ const company = await getCompanyById('pfizer');
 const products = await getProductsByCompany('pfizer');
 ```
 
-### Resolving Asset Paths
-
-```typescript
-// Get the path to a company logo
-const logoPath = getAssetPath('logo', 'pfizer');
-
-// Get the path to a product image
-const productImagePath = getAssetPath('product', 'exampla');
-```
-
-## Development
-
-### Running the Application
-
-```bash
-# Install dependencies
-npm install
-
-# Start the development server
-npm run dev
-```
-
-### Converting Data
-
-To convert data from TypeScript files to JSON files, run:
-
-```bash
-npm run convert-data
-```
-
-This will:
-1. Convert all data from TypeScript to JSON
-2. Extract SVGs to separate files
-3. Update references in the JSON files
-
 ## Type Definitions
 
 Type definitions for the data are located in `src/types/`:
@@ -139,3 +225,4 @@ Type definitions for the data are located in `src/types/`:
 - `websites.ts`: Types for website data
 - `user.ts`: Types for user data
 - `admin.ts`: Types for admin data
+- `database.ts`: Types for Supabase database schema
