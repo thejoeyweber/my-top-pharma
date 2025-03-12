@@ -33,6 +33,7 @@ export interface CompanyProduct {
 export interface Company {
   id: string;
   name: string;
+  slug?: string;
   description: string;
   logoUrl: string;
   headerImageUrl?: string;

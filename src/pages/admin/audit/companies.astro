@@ -1,0 +1,265 @@
+---
+/**
+ * Companies Audit Page
+ * 
+ * Compare data between mock JSON and the database to validate data quality
+ * during the phased migration. Also provides a way to toggle the feature flag.
+ */
+import DashboardLayout from '../../../components/templates/DashboardLayout.astro';
+import Card from '../../../components/atoms/Card.astro';
+import { getCompanies } from '../../../utils/companyDataUtils';
+import { FEATURES, getAllFeatureFlags, setFeatureFlag } from '../../../utils/featureFlags';
+
+// Breadcrumbs for navigation
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Admin', href: '/admin' },
+  { label: 'Audit', href: '/admin/audit' },
+  { label: 'Companies', href: '/admin/audit/companies', isActive: true },
+];
+
+// Get feature flag state
+const featureFlags = getAllFeatureFlags();
+const isUsingDatabase = featureFlags[FEATURES.USE_DATABASE_COMPANIES];
+
+// Get companies from both sources for comparison
+const mockCompanies = await getCompanies(false);
+const dbCompanies = await getCompanies(true);
+
+// Calculate stats for comparison
+const stats = {
+  mockCount: mockCompanies.length,
+  dbCount: dbCompanies.length,
+  missingInDb: mockCompanies.filter(mock => 
+    !dbCompanies.some(db => db.id === mock.id)
+  ).length,
+  missingInMock: dbCompanies.filter(db => 
+    !mockCompanies.some(mock => mock.id === db.id)
+  ).length,
+  dataSource: isUsingDatabase ? 'Database' : 'Mock JSON'
+};
+
+// Sample of companies for display (first 10)
+const sampleMockCompanies = mockCompanies.slice(0, 10);
+const sampleDbCompanies = dbCompanies.slice(0, 10);
+
+// Format a number with commas for display
+function formatNumber(num: number): string {
+  return num.toLocaleString();
+}
+
+// Format large numbers to K, M, B (e.g., market cap)
+function formatCurrency(value: number | undefined): string {
+  if (value === undefined || value === null) return 'N/A';
+  
+  if (value >= 1e9) return `$${(value / 1e9).toFixed(1)}B`;
+  if (value >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
+  if (value >= 1e3) return `$${(value / 1e3).toFixed(1)}K`;
+  
+  return `$${value.toFixed(2)}`;
+}
+---
+
+<DashboardLayout title="Companies Audit | Admin | Top Pharma">
+  <div class="min-h-screen bg-gray-100">
+    <header class="bg-white shadow">
+      <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div class="flex items-center">
+          <a href="/admin" class="mr-2 text-gray-400 hover:text-gray-600">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+              <path fill-rule="evenodd" d="M11.03 3.97a.75.75 0 0 1 0 1.06l-6.22 6.22H21a.75.75 0 0 1 0 1.5H4.81l6.22 6.22a.75.75 0 1 1-1.06 1.06l-7.5-7.5a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd" />
+            </svg>
+          </a>
+          <h1 class="text-2xl font-bold text-gray-900">Companies Data Audit</h1>
+        </div>
+      </div>
+    </header>
+    
+    <main class="py-6">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        
+        <!-- Data Source Toggle -->
+        <div class="mb-6">
+          <Card>
+            <div class="p-6">
+              <h2 class="text-lg font-medium mb-4">Data Source Control</h2>
+              
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm text-gray-600">
+                    Current data source: <span class="font-medium">{stats.dataSource}</span>
+                  </p>
+                  <p class="mt-1 text-xs text-gray-500">
+                    Toggle the switch to change between database and mock data
+                  </p>
+                </div>
+                
+                <div class="relative inline-flex items-center">
+                  <button
+                    id="toggle-database"
+                    class={`relative inline-flex h-6 w-11 items-center rounded-full ${isUsingDatabase ? 'bg-blue-600' : 'bg-gray-200'}`}
+                    aria-checked={isUsingDatabase}
+                    role="switch"
+                  >
+                    <span class="sr-only">Toggle data source</span>
+                    <span 
+                      class={`inline-block h-4 w-4 transform rounded-full bg-white transition ${isUsingDatabase ? 'translate-x-6' : 'translate-x-1'}`}
+                    ></span>
+                  </button>
+                  <span class="ml-2 text-sm font-medium">
+                    {isUsingDatabase ? 'Database' : 'Mock JSON'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+        
+        <!-- Data Comparison Stats -->
+        <div class="mb-6">
+          <h2 class="text-lg font-medium mb-4">Data Comparison</h2>
+          
+          <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <div class="p-5">
+                <dt class="truncate text-sm font-medium text-gray-500">Mock Data Count</dt>
+                <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900">{formatNumber(stats.mockCount)}</dd>
+              </div>
+            </Card>
+            
+            <Card>
+              <div class="p-5">
+                <dt class="truncate text-sm font-medium text-gray-500">Database Count</dt>
+                <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900">{formatNumber(stats.dbCount)}</dd>
+              </div>
+            </Card>
+            
+            <Card>
+              <div class="p-5">
+                <dt class="truncate text-sm font-medium text-gray-500">Missing in Database</dt>
+                <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900">{formatNumber(stats.missingInDb)}</dd>
+              </div>
+            </Card>
+            
+            <Card>
+              <div class="p-5">
+                <dt class="truncate text-sm font-medium text-gray-500">Missing in Mock</dt>
+                <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900">{formatNumber(stats.missingInMock)}</dd>
+              </div>
+            </Card>
+          </div>
+        </div>
+        
+        <!-- Company Data Tables -->
+        <div class="mb-8">
+          <h2 class="text-lg font-medium mb-4">Company Data Sample</h2>
+          
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Mock Data Table -->
+            <Card>
+              <div class="p-4">
+                <h3 class="text-base font-medium mb-4">Mock JSON Data (First 10)</h3>
+                
+                <div class="overflow-x-auto">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th scope="col" class="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Symbol</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Market Cap</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      {sampleMockCompanies.map(company => (
+                        <tr>
+                          <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{company.name}</td>
+                          <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{company.stockSymbol}</td>
+                          <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(company.marketCap * 1e9)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </Card>
+            
+            <!-- Database Data Table -->
+            <Card>
+              <div class="p-4">
+                <h3 class="text-base font-medium mb-4">Database Data (First 10)</h3>
+                
+                <div class="overflow-x-auto">
+                  {dbCompanies.length > 0 ? (
+                    <table class="min-w-full divide-y divide-gray-200">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th scope="col" class="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                          <th scope="col" class="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Symbol</th>
+                          <th scope="col" class="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Market Cap</th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white divide-y divide-gray-200">
+                        {sampleDbCompanies.map(company => (
+                          <tr>
+                            <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{company.name}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{company.stockSymbol}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(company.marketCap * 1e9)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div class="py-10 text-center">
+                      <p class="text-sm text-gray-500">No database records found. Import companies from the Data Feeds page.</p>
+                      <a href="/admin/data-feeds" class="mt-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                        Go to Data Feeds
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+        
+      </div>
+    </main>
+  </div>
+</DashboardLayout>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const toggleBtn = document.getElementById('toggle-database');
+    
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', async () => {
+        const isCurrentlyActive = toggleBtn.getAttribute('aria-checked') === 'true';
+        const newState = !isCurrentlyActive;
+        
+        // Update local storage feature flag
+        try {
+          // Make a API request to set the feature flag
+          const response = await fetch('/api/toggle-feature-flag', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              flag: 'USE_DATABASE_COMPANIES',
+              value: newState
+            })
+          });
+          
+          if (response.ok) {
+            // Reload the page to reflect changes
+            window.location.reload();
+          } else {
+            console.error('Failed to toggle feature flag');
+          }
+        } catch (error) {
+          console.error('Error toggling feature flag:', error);
+        }
+      });
+    }
+  });
+</script> 

@@ -7,6 +7,7 @@
 import DashboardLayout from '../../components/templates/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
 import { dataFeeds } from '../../utils/dataUtils';
+import { supabase } from '../../utils/supabase';
 
 // Breadcrumbs for navigation
 const breadcrumbs = [
@@ -14,6 +15,39 @@ const breadcrumbs = [
   { label: 'Admin', href: '/admin' },
   { label: 'Data Feeds', href: '/admin/data-feeds', isActive: true },
 ];
+
+// Get FMP import stats
+let importStats = {
+  lastImport: null as string | null,
+  companyCount: 0,
+  status: 'unknown'
+};
+
+try {
+  // Get company count
+  const { count, error } = await supabase
+    .from('companies')
+    .select('*', { count: 'exact', head: true });
+
+  if (!error) {
+    importStats.companyCount = count || 0;
+  }
+
+  // Get last updated company to determine last import time
+  const { data, error: lastUpdateError } = await supabase
+    .from('companies')
+    .select('updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(1);
+
+  if (!lastUpdateError && data && data.length > 0) {
+    importStats.lastImport = data[0].updated_at;
+    importStats.status = 'healthy';
+  }
+} catch (error) {
+  console.error('Error fetching company stats:', error);
+  importStats.status = 'error';
+}
 
 // Format date
 const formatDate = (dateString: string): string => {
@@ -61,6 +95,89 @@ const getStatusColor = (status: string): string => {
     </header>
     <main class="mx-auto max-w-7xl py-6 px-4 sm:px-6 lg:px-8">
       
+      <!-- FMP Company Data Import Section -->
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-4">Financial Modeling Prep Data</h2>
+        <Card>
+          <div class="p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-lg font-medium">Company Data Import</h3>
+                <p class="text-sm text-gray-500 mt-1">
+                  Import company data from Financial Modeling Prep API
+                </p>
+              </div>
+              <div>
+                <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(importStats.status)}`}>
+                  {importStats.status === 'healthy' ? 'Active' : 
+                   importStats.status === 'error' ? 'Error' : 'Unknown'}
+                </span>
+              </div>
+            </div>
+            
+            <div class="mt-4 border-t border-gray-200 pt-4">
+              <dl>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
+                  <div>
+                    <dt class="text-sm font-medium text-gray-500">Last Import</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{importStats.lastImport ? formatDate(importStats.lastImport) : '--'}</dd>
+                  </div>
+                  <div>
+                    <dt class="text-sm font-medium text-gray-500">Companies</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{importStats.companyCount.toLocaleString()}</dd>
+                  </div>
+                  <div>
+                    <dt class="text-sm font-medium text-gray-500">Status</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                      {importStats.companyCount > 0 
+                        ? 'Data available' 
+                        : 'No data imported'}
+                    </dd>
+                  </div>
+                </div>
+              </dl>
+            </div>
+            
+            <div class="mt-5 flex items-center justify-end">
+              <a 
+                href="/admin/audit/companies" 
+                class="inline-flex items-center px-3 py-2 mr-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                View Audit
+              </a>
+              <button 
+                id="import-fmp-companies" 
+                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Import Now
+              </button>
+            </div>
+            
+            <!-- Import Status Display (hidden initially) -->
+            <div id="import-status" class="mt-4 p-4 rounded-md bg-gray-50 hidden">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg id="import-status-icon-loading" class="h-5 w-5 text-blue-400 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <svg id="import-status-icon-success" class="h-5 w-5 text-green-400 hidden" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                  </svg>
+                  <svg id="import-status-icon-error" class="h-5 w-5 text-red-400 hidden" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <h3 id="import-status-title" class="text-sm font-medium text-gray-800"></h3>
+                  <div id="import-status-message" class="mt-2 text-sm text-gray-600"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+      
       <!-- Overview -->
       <div class="mb-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-3">External Data Sources</h2>
@@ -94,9 +211,13 @@ const getStatusColor = (status: string): string => {
                     <tr>
                       <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{feed.name}</td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <a href={feed.url} target="_blank" class="text-primary-600 hover:text-primary-900">
-                          {feed.url.length > 30 ? feed.url.substring(0, 30) + '...' : feed.url}
-                        </a>
+                        {feed.url ? (
+                          <a href={feed.url} target="_blank" class="text-primary-600 hover:text-primary-900">
+                            {feed.url.length > 30 ? feed.url.substring(0, 30) + '...' : feed.url}
+                          </a>
+                        ) : (
+                          <span>{feed.provider || 'N/A'}</span>
+                        )}
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm">
                         <span class={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusColor(feed.status)}`}>
@@ -278,4 +399,108 @@ const getStatusColor = (status: string): string => {
       
     </main>
   </div>
-</DashboardLayout> 
+</DashboardLayout>
+
+<script>
+  // FMP Import Functionality
+  document.addEventListener('DOMContentLoaded', () => {
+    const importButton = document.getElementById('import-fmp-companies');
+    const importStatus = document.getElementById('import-status');
+    const statusTitle = document.getElementById('import-status-title');
+    const statusMessage = document.getElementById('import-status-message');
+    const loadingIcon = document.getElementById('import-status-icon-loading');
+    const successIcon = document.getElementById('import-status-icon-success');
+    const errorIcon = document.getElementById('import-status-icon-error');
+    
+    if (importButton) {
+      importButton.addEventListener('click', async () => {
+        try {
+          // Show loading state
+          importButton.disabled = true;
+          importButton.innerHTML = 'Importing...';
+          importStatus.classList.remove('hidden');
+          loadingIcon.classList.remove('hidden');
+          successIcon.classList.add('hidden');
+          errorIcon.classList.add('hidden');
+          statusTitle.textContent = 'Import in progress';
+          statusMessage.textContent = 'Fetching company data from FMP API...';
+          
+          // Call the API endpoint to import companies
+          const response = await fetch('/api/import-fmp-companies', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          // If the response is not successful, show an error
+          if (!response.ok) {
+            try {
+              const errorData = await response.json();
+              statusTitle.textContent = 'Import Failed';
+              statusMessage.textContent = `Error: ${errorData.error || 'Unknown error'}`;
+              
+              // Hide loading icon and show error icon
+              loadingIcon.classList.add('hidden');
+              errorIcon.classList.remove('hidden');
+              
+              if (errorData.details) {
+                // Show more detailed error information
+                const detailsElement = document.createElement('div');
+                detailsElement.className = 'text-red-400 text-sm mt-2';
+                detailsElement.textContent = errorData.details;
+                statusMessage.appendChild(detailsElement);
+                
+                // Add suggested fix if available
+                if (errorData.suggestedFix) {
+                  const fixElement = document.createElement('div');
+                  fixElement.className = 'text-blue-500 text-sm mt-2';
+                  fixElement.textContent = `Suggested fix: ${errorData.suggestedFix}`;
+                  statusMessage.appendChild(fixElement);
+                }
+              }
+            } catch (e) {
+              statusTitle.textContent = 'Import Failed';
+              statusMessage.textContent = `Error: Status ${response.status} - ${response.statusText}`;
+              loadingIcon.classList.add('hidden');
+              errorIcon.classList.remove('hidden');
+            }
+            return;
+          }
+          
+          // Parse the response JSON
+          const result = await response.json();
+          
+          // Show success message
+          statusTitle.textContent = 'Import Successful';
+          loadingIcon.classList.add('hidden');
+          successIcon.classList.remove('hidden');
+          statusMessage.textContent = `Imported ${result.imported} companies.`;
+          
+          // Add more detailed results if available
+          if (result.companies) {
+            const detailsElement = document.createElement('div');
+            detailsElement.className = 'text-sm mt-2';
+            detailsElement.innerHTML = `
+              <div class="font-medium mb-1">Company Breakdown:</div>
+              <div>Biotechnology: ${result.companies.biotech}</div>
+              <div>Drug Manufacturers (General): ${result.companies.pharmaGeneral}</div>
+              <div>Drug Manufacturers (Specialty): ${result.companies.pharmaSpecialty}</div>
+              <div class="mt-1 font-medium">Total: ${result.companies.total}</div>
+            `;
+            statusMessage.appendChild(detailsElement);
+          }
+        } catch (error) {
+          console.error('Error importing companies:', error);
+          statusTitle.textContent = 'Import Failed';
+          loadingIcon.classList.add('hidden');
+          errorIcon.classList.remove('hidden');
+          statusMessage.textContent = 'An error occurred while importing companies. Please try again later.';
+        } finally {
+          importButton.disabled = false;
+          importButton.innerHTML = 'Import Now';
+        }
+      });
+    }
+  });
+</script>

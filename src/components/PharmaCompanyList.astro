@@ -1,0 +1,70 @@
+---
+/**
+ * Pharma Company List
+ * 
+ * This component displays a list of pharmaceutical companies from the database.
+ * It demonstrates how to query and display data from the Supabase companies table.
+ */
+
+import { supabase } from '../utils/supabase';
+
+// Fetch companies from Supabase
+const { data: companies, error } = await supabase
+  .from('companies')
+  .select('id, name, slug, stock_symbol, stock_exchange, headquarters, founded_year')
+  .order('name')
+  .limit(20);
+
+// Handle potential errors
+let errorMessage = '';
+if (error) {
+  console.error('Error fetching companies:', error);
+  errorMessage = error.message;
+}
+---
+
+<div class="pb-8">
+  <h2 class="text-2xl font-bold mb-4">Pharmaceutical Companies</h2>
+  
+  {errorMessage && (
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+      <p>Error loading companies: {errorMessage}</p>
+    </div>
+  )}
+  
+  {!companies || companies.length === 0 ? (
+    <div class="text-gray-500">
+      <p>No companies found. Please run the data ingestion script first:</p>
+      <pre class="bg-gray-100 p-2 rounded mt-2">npm run ingest-companies</pre>
+    </div>
+  ) : (
+    <div class="overflow-x-auto">
+      <table class="min-w-full bg-white border border-gray-200">
+        <thead>
+          <tr class="bg-gray-100 text-gray-700">
+            <th class="py-2 px-4 border-b text-left">Name</th>
+            <th class="py-2 px-4 border-b text-left">Symbol</th>
+            <th class="py-2 px-4 border-b text-left">Exchange</th>
+            <th class="py-2 px-4 border-b text-left">Headquarters</th>
+            <th class="py-2 px-4 border-b text-left">Founded</th>
+          </tr>
+        </thead>
+        <tbody>
+          {companies.map((company) => (
+            <tr class="hover:bg-gray-50">
+              <td class="py-2 px-4 border-b">
+                <a href={`/companies/${company.slug}`} class="text-blue-600 hover:underline">
+                  {company.name}
+                </a>
+              </td>
+              <td class="py-2 px-4 border-b">{company.stock_symbol || '-'}</td>
+              <td class="py-2 px-4 border-b">{company.stock_exchange || '-'}</td>
+              <td class="py-2 px-4 border-b">{company.headquarters || '-'}</td>
+              <td class="py-2 px-4 border-b">{company.founded_year || '-'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</div> 

@@ -46,6 +46,8 @@ All commands are run from the root of the project, from a terminal:
 | `npm run create-migration <name>` | Create a new database migration file     |
 | `npm run db:push`         | Apply database migrations to Supabase            |
 | `npm run db:types`        | Generate TypeScript types from Supabase schema   |
+| `npm run ingest-companies` | Fetch and store pharmaceutical companies from FMP API |
+| `npm run test-fmp`        | Test the connection to the FMP API               |
 
 ## 👀 Want to learn more?
 
@@ -91,6 +93,8 @@ All commands are run from the root of the project, from a terminal:
 | `npm run create-migration <name>` | Create a new database migration file     |
 | `npm run db:push`         | Apply database migrations to Supabase            |
 | `npm run db:types`        | Generate TypeScript types from Supabase schema   |
+| `npm run ingest-companies` | Fetch and store pharmaceutical companies from FMP API |
+| `npm run test-fmp`        | Test the connection to the FMP API               |
 
 ## 🔌 Supabase Integration
 
@@ -144,6 +148,54 @@ See the `supabase/README.md` file for more detailed migration guidelines.
 ### Testing the Connection
 
 Visit `/supabase-test` in your local development server to verify that your Supabase connection is working correctly.
+
+## 📡 Financial Modeling Prep API Integration
+
+This project uses the Financial Modeling Prep (FMP) API to fetch data about pharmaceutical companies.
+
+### Setup
+
+1. Sign up for an API key at [financialmodelingprep.com](https://financialmodelingprep.com)
+2. Add your API key to the `.env` file:
+
+```
+PUBLIC_FMP_API_KEY=your-fmp-api-key
+```
+
+### Data Ingestion
+
+The project includes a data ingestion script that fetches pharmaceutical companies from the FMP API and stores them in Supabase:
+
+```bash
+npm run ingest-companies
+```
+
+This script:
+1. Fetches pharmaceutical and biotech companies from the FMP screener
+2. Retrieves detailed company profiles for each company
+3. Transforms the data to match the database schema
+4. Stores the data in the Supabase `companies` table
+5. Creates a backup JSON file in `data/backups/`
+
+### API Client
+
+The FMP API client is located in `src/lib/fmp.ts` and provides typed interfaces for interacting with the FMP API. The client handles:
+
+- API authentication
+- Rate limiting
+- Error handling
+- Type conversion
+
+For detailed information about the FMP integration, see [FMP Integration Documentation](./docs/fmp-integration.md).
+
+### Data Mapping
+
+The FMP data mapper (`src/lib/fmpMapper.ts`) transforms data from the FMP API format to the internal database schema, handling:
+
+- Field mapping
+- Data normalization
+- Slug generation
+- Type conversion
 
 ## 📊 Data Model
 
