@@ -27,6 +27,10 @@ import userProfile from '../data/json/userProfile.json';
 import userPreferences from '../data/json/userPreferences.json';
 import followedCompaniesData from '../data/json/followedCompanies.json';
 import systemStats from '../data/json/systemStats.json';
+// Import new FMP data types
+import companyFinancialsData from '../data/json/companyFinancials.json';
+import companyMetricsData from '../data/json/companyMetrics.json';
+import companyStockData from '../data/json/companyStockData.json';
 
 // Ensure imported JSON data matches expected types
 const typedCompaniesData = companiesData as unknown as Company[];
@@ -426,5 +430,9 @@ export {
   crawlerConfig,
   dataFeeds,
   reportsConfig,
-  userManagement
+  userManagement,
+  // Export the new FMP data types
+  companyFinancialsData as companyFinancials,
+  companyMetricsData as companyMetrics,
+  companyStockData
 }; 
