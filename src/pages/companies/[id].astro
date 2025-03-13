@@ -17,10 +17,10 @@ import DataTable from '../../components/molecules/DataTable.astro';
 
 // Import data utilities (supports both static and database sources)
 import { 
-  getCompanies,
+  getAllCompanies as getCompanies,
   getCompanyById, 
-  getRelatedCompanies 
-} from '../../utils/companyDataUtils';
+  getCompaniesByTherapeuticArea as getRelatedCompanies 
+} from '../../utils/companyData';
 
 // Import other existing utilities
 import { 

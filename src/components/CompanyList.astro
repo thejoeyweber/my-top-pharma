@@ -7,11 +7,12 @@
  */
 
 // Import types
-import type { FMPCompanyProfile } from '../lib/fmpClient';
+import type { Company } from '../utils/companyData';
+import { getAllCompanies } from '../utils/companyData';
+import { formatMarketCap } from '../utils/stringUtils';
 
-// Fetch initial data server-side
-const response = await fetch(`${import.meta.env.SITE}/api/companies`);
-const { companies, source, rateLimit } = await response.json();
+// Fetch companies using the standardized data access
+const companies = await getAllCompanies();
 
 // Format market cap for display
 function formatMarketCap(marketCap: number | string): string {
@@ -36,27 +37,27 @@ function formatMarketCap(marketCap: number | string): string {
     </div>
   ) : (
     <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {companies.map((company: FMPCompanyProfile) => (
+      {companies.map((company: Company) => (
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold">{company.companyName}</h3>
-            <span class="text-sm text-gray-500">{company.symbol}</span>
+            <h3 class="text-lg font-semibold">{company.name}</h3>
+            <span class="text-sm text-gray-500">{company.stock_symbol}</span>
           </div>
           
           <div class="space-y-2">
             <p class="text-sm">
               <span class="font-medium">Market Cap:</span>
-              <span class="ml-2">{formatMarketCap(company.mktCap)}</span>
+              <span class="ml-2">{formatMarketCap(company.market_cap || 0)}</span>
             </p>
             
             <p class="text-sm">
               <span class="font-medium">Industry:</span>
-              <span class="ml-2">{company.industry}</span>
+              <span class="ml-2">{company.industry || 'N/A'}</span>
             </p>
             
             <p class="text-sm">
               <span class="font-medium">Exchange:</span>
-              <span class="ml-2">{company.exchange}</span>
+              <span class="ml-2">{company.stock_exchange || 'N/A'}</span>
             </p>
           </div>
           
@@ -74,18 +75,6 @@ function formatMarketCap(marketCap: number | string): string {
           )}
         </div>
       ))}
-    </div>
-  )}
-  
-  {source === 'cache' && (
-    <div class="mt-4 text-sm text-gray-500 text-center">
-      Showing cached data from Supabase
-    </div>
-  )}
-  
-  {source === 'fmp' && rateLimit && (
-    <div class="mt-4 text-sm text-gray-500 text-center">
-      FMP API Rate Limit: {rateLimit.remaining} / {rateLimit.total} calls remaining
     </div>
   )}
 </div>

@@ -236,7 +236,10 @@ function formatCurrency(value: number | undefined): string {
         const isCurrentlyActive = toggleBtn.getAttribute('aria-checked') === 'true';
         const newState = !isCurrentlyActive;
         
-        // Update local storage feature flag
+        // Get current URL for redirect
+        const currentUrl = window.location.href;
+        
+        // Update feature flag with redirect
         try {
           // Make a API request to set the feature flag
           const response = await fetch('/api/toggle-feature-flag', {
@@ -246,12 +249,16 @@ function formatCurrency(value: number | undefined): string {
             },
             body: JSON.stringify({
               flag: 'USE_DATABASE_COMPANIES',
-              value: newState
+              value: newState,
+              redirectUrl: currentUrl
             })
           });
           
-          if (response.ok) {
-            // Reload the page to reflect changes
+          if (response.redirected) {
+            // Follow the redirect provided by the server
+            window.location.href = response.url;
+          } else if (response.ok) {
+            // If no redirect, reload the page
             window.location.reload();
           } else {
             console.error('Failed to toggle feature flag');

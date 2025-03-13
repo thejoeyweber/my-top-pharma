@@ -5,38 +5,11 @@
  * to match our internal database schema.
  */
 
-import type { FMPCompanyProfile, FMPScreenerResult } from './fmp';
+import type { FMPCompanyProfile, FMPScreenerResult } from './fmpClient';
 import type { Database } from '../types/supabase';
+import { generateSlug, parseNumeric } from '../utils/stringUtils';
 
 export type DbCompanyInsert = Database['public']['Tables']['companies']['Insert'];
-
-/**
- * Generate a slug from a company name
- * @param name Company name
- * @returns URL-friendly slug
- */
-export function generateSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, '') // Remove special characters
-    .replace(/\s+/g, '-')     // Replace spaces with hyphens
-    .replace(/-+/g, '-')      // Remove consecutive hyphens
-    .trim();
-}
-
-/**
- * Parse a numeric string or return null if invalid
- * @param value Value to parse
- * @returns Parsed number or null
- */
-export function parseNumeric(value: string | number | null | undefined): number | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  
-  const num = typeof value === 'string' ? parseFloat(value) : value;
-  return isNaN(num) ? null : num;
-}
 
 /**
  * Transform FMP company profile data to our database schema

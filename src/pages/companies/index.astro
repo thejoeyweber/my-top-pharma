@@ -15,11 +15,11 @@ import ViewToggle from '../../components/molecules/ViewToggle.astro';
 import { filterAndSortItems } from '../../utils/filterUtils';
 
 // Import company data utilities (supports both static and database sources)
-import { getCompanies } from '../../utils/companyDataUtils';
+import { getAllCompanies } from '../../utils/companyData';
 import { therapeuticAreas as taData } from '../../utils/dataUtils';
 
 // Fetch companies using the adapter function that supports both data sources
-const companies = await getCompanies();
+const companies = await getAllCompanies();
 
 // Define therapeutic areas for filtering
 const therapeuticAreas = [

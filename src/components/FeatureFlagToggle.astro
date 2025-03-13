@@ -71,7 +71,7 @@ const featureFlags = !isProduction
 )}
 
 <script>
-  import { getAllFeatureFlags, setFeatureFlag, resetFeatureFlags } from '../utils/featureFlags';
+  import { getAllFeatureFlags, resetFeatureFlags, setFeatureFlag } from '../utils/featureFlags';
   
   // Only execute in development mode
   if (import.meta.env.DEV) {
@@ -101,23 +101,86 @@ const featureFlags = !isProduction
       });
       
       // Reset feature flags
-      resetBtn.addEventListener('click', () => {
-        resetFeatureFlags();
-        updateToggleStates();
-        // Trigger storage event to update other components
-        window.dispatchEvent(new Event('storage'));
+      resetBtn.addEventListener('click', async () => {
+        try {
+          // Get current URL for redirect
+          const currentUrl = window.location.href;
+          
+          // Call the API to reset all flags with redirect
+          const response = await fetch('/api/reset-feature-flags', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              redirectUrl: currentUrl
+            })
+          });
+          
+          if (response.redirected) {
+            // Follow the redirect provided by the server
+            window.location.href = response.url;
+          } else if (response.ok) {
+            // If no redirect, reload the page
+            window.location.reload();
+          } else {
+            console.error('Failed to reset feature flags');
+            // Fallback to local reset
+            resetFeatureFlags();
+            updateToggleStates();
+            window.dispatchEvent(new Event('storage'));
+          }
+        } catch (error) {
+          console.error('Error resetting feature flags:', error);
+          // Fallback to local reset
+          resetFeatureFlags();
+          updateToggleStates();
+          window.dispatchEvent(new Event('storage'));
+        }
       });
       
       // Toggle individual flags
       toggleInputs.forEach(input => {
-        input.addEventListener('change', (event) => {
+        input.addEventListener('change', async (event) => {
           const target = event.target as HTMLInputElement;
           const flag = target.dataset.flag as string;
           const isChecked = target.checked;
           
-          setFeatureFlag(flag, isChecked);
-          // Trigger storage event to update other components
-          window.dispatchEvent(new Event('storage'));
+          try {
+            // Get current URL for redirect
+            const currentUrl = window.location.href;
+            
+            // Call the API endpoint to set the flag with redirect
+            const response = await fetch('/api/toggle-feature-flag', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                flag: flag,
+                value: isChecked,
+                redirectUrl: currentUrl
+              })
+            });
+            
+            if (response.redirected) {
+              // Follow the redirect provided by the server
+              window.location.href = response.url;
+            } else if (response.ok) {
+              // If no redirect, reload the page
+              window.location.reload();
+            } else {
+              console.error('Failed to toggle feature flag');
+              // Fall back to the local implementation if API fails
+              setFeatureFlag(flag, isChecked);
+              window.dispatchEvent(new Event('storage'));
+            }
+          } catch (error) {
+            console.error('Error toggling feature flag:', error);
+            // Fall back to the local implementation if API fails
+            setFeatureFlag(flag, isChecked);
+            window.dispatchEvent(new Event('storage'));
+          }
         });
       });
       

@@ -6,20 +6,16 @@
  * It demonstrates how to query and display data from the Supabase companies table.
  */
 
-import { supabase } from '../utils/supabase';
+import { getAllCompanies } from '../utils/companyData';
 
-// Fetch companies from Supabase
-const { data: companies, error } = await supabase
-  .from('companies')
-  .select('id, name, slug, stock_symbol, stock_exchange, headquarters, founded_year')
-  .order('name')
-  .limit(20);
+// Fetch companies using the standardized data access
+const companies = await getAllCompanies();
 
 // Handle potential errors
 let errorMessage = '';
-if (error) {
-  console.error('Error fetching companies:', error);
-  errorMessage = error.message;
+if (!companies) {
+  console.error('Error fetching companies');
+  errorMessage = 'Failed to load companies';
 }
 ---
 

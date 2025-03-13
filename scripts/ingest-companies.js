@@ -20,7 +20,7 @@ const __dirname = path.dirname(__filename);
 
 // Import FMP modules
 // We need to import these directly to avoid ESM/TypeScript issues in Node.js script
-import('../src/lib/fmp.js').then(fmpModule => {
+import('../src/lib/fmpClient.js').then(fmpModule => {
   const { createFMPClient } = fmpModule;
   
   import('../src/lib/fmpMapper.js').then(async mapperModule => {
@@ -70,13 +70,16 @@ async function runIngestion({ createFMPClient, processCompanyProfiles, processSc
     // Step 1: Fetch pharma companies from screener
     console.log('Fetching pharmaceutical companies from FMP...');
     const screenResults = await fmpClient.getPharmaCompanies();
-    console.log(`Found ${screenResults.length} companies from screener`);
+    console.log(`Found ${screenResults.companies.length} companies from screener`);
     
     // Get all tickers for batch profile lookup
-    const tickers = screenResults.map(company => company.symbol);
+    const tickers = screenResults.companies.map(company => company.symbol);
     
     // Step 2: Fetch detailed profiles for all tickers
     console.log('Fetching detailed company profiles...');
+    
+    // Create a rate limit handler for the profile requests
+    const rateLimitHandler = new fmpModule.RateLimitHandler();
     
     // Process in batches to avoid rate limits (25 tickers per batch)
     const BATCH_SIZE = 25;
@@ -87,7 +90,7 @@ async function runIngestion({ createFMPClient, processCompanyProfiles, processSc
       console.log(`Fetching profiles for batch ${i / BATCH_SIZE + 1} (${batchTickers.length} companies)...`);
       
       try {
-        const batchProfiles = await fmpClient.getCompanyProfiles(batchTickers);
+        const batchProfiles = await fmpClient.getCompanyProfiles(batchTickers, rateLimitHandler);
         allProfiles.push(...batchProfiles);
         
         if (i + BATCH_SIZE < tickers.length) {
@@ -113,7 +116,7 @@ async function runIngestion({ createFMPClient, processCompanyProfiles, processSc
     if (missingTickers.size > 0) {
       console.log(`Adding ${missingTickers.size} companies from screener data (missing profiles)`);
       
-      const missingCompanies = screenResults
+      const missingCompanies = screenResults.companies
         .filter(result => missingTickers.has(result.symbol))
         .map(result => processScreenerResults([result])[0]);
         
@@ -184,6 +187,29 @@ async function runIngestion({ createFMPClient, processCompanyProfiles, processSc
     console.log(`Companies processed: ${companies.length}`);
     console.log(`Database operations: ${inserted} successful, ${errors} errors`);
     console.log(`Total companies in database: ${finalCount}`);
+    
+    // Log to data_ingestion_logs table
+    try {
+      const { error: logError } = await supabase
+        .from('data_ingestion_logs')
+        .insert({
+          data_source_id: 1, // Assuming FMP is ID 1
+          started_at: startTime.toISOString(),
+          completed_at: endTime.toISOString(),
+          status: 'completed',
+          records_processed: companies.length,
+          records_added: inserted,
+          records_updated: updated,
+          records_skipped: companies.length - inserted - updated,
+          error_message: errors > 0 ? `${errors} batches had errors` : null
+        });
+        
+      if (logError) {
+        console.error('Error logging ingestion:', logError);
+      }
+    } catch (logError) {
+      console.error('Error logging ingestion:', logError);
+    }
     
   } catch (error) {
     console.error('Ingestion failed:', error);
