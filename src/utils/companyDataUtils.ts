@@ -91,7 +91,7 @@ export async function getCompanyById(
         ({ data, error } = await supabase
           .from('companies')
           .select('*')
-          .eq('ticker', id)
+          .eq('stock_symbol', id)
           .single());
       }
       

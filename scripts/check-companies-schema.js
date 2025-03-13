@@ -39,7 +39,8 @@ async function checkCompaniesTable() {
         console.log('Attempting test insert...');
         const testCompany = {
           name: 'Test Company',
-          ticker: 'TEST' + Date.now()
+          stock_symbol: 'TEST' + Date.now(),
+          slug: 'test-company-' + Date.now() // slug is required
         };
         
         const { error: insertError } = await supabase
@@ -55,7 +56,7 @@ async function checkCompaniesTable() {
           await supabase
             .from('companies')
             .delete()
-            .eq('ticker', testCompany.ticker);
+            .eq('stock_symbol', testCompany.stock_symbol);
         }
       } else {
         if (data && data.length > 0) {

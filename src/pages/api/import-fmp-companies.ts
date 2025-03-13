@@ -3,59 +3,26 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../../types/supabase';
 import { supabaseAdmin } from '../../lib/supabase-admin';
 import { FEATURES, setFeatureFlag } from '../../utils/featureFlags';
-
-// Define FMP company profile interface since there's a mismatch with our generated types
-interface FMPCompanyProfile {
-  symbol: string;
-  price: number;
-  beta: number;
-  volAvg: number;
-  mktCap: number | string;
-  lastDiv: number;
-  range: string;
-  changes: number;
-  companyName: string;
-  currency: string;
-  cik: string;
-  isin: string | null;
-  cusip: string | null;
-  exchange: string;
-  exchangeShortName: string;
-  industry: string;
-  website: string;
-  description: string;
-  ceo: string;
-  sector: string;
-  country: string;
-  fullTimeEmployees: string | number;
-  phone: string;
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
-  dcfDiff: number;
-  dcf: number;
-  image: string;
-  ipoDate: string;
-  defaultImage: boolean;
-  isEtf: boolean;
-  isActivelyTrading: boolean;
-  isAdr: boolean;
-  isFund: boolean;
-}
+import type { FMPCompanyProfile, ScreenOptions } from '../../lib/fmp';
+import { createFMPClient } from '../../lib/fmpEnhanced';
+import type { ImportConfig } from '../../types/admin';
+import { v4 as uuidv4 } from 'uuid';
 
 const API_KEY = import.meta.env.PUBLIC_FMP_API_KEY;
-const BASE_URL = 'https://financialmodelingprep.com/api/v3';
+const BASE_URL = 'https://financialmodelingprep.com/stable';
 
 // Transform FMP company data to match our database schema
 function transformCompany(profile: FMPCompanyProfile) {
-  // Generate slug from company name
-  const slug = profile.companyName
+  // Generate base slug from company name
+  const baseSlug = profile.companyName
     .toLowerCase()
     .replace(/[^\w\s-]/g, '') // Remove special characters
     .replace(/\s+/g, '-')     // Replace spaces with hyphens
     .replace(/-+/g, '-')      // Remove consecutive hyphens
     .trim();
+  
+  // Add stock symbol to make slug unique
+  const slug = `${baseSlug}-${profile.symbol.toLowerCase()}`;
   
   // Parse numeric values
   let marketCap = null;
@@ -122,111 +89,274 @@ function transformCompany(profile: FMPCompanyProfile) {
   };
 }
 
-// Fetch company data from FMP API
-async function fetchCompanies(): Promise<FMPCompanyProfile[]> {
+// Process the import from FMP
+async function processImport(config: ImportConfig) {
   try {
-    // Define industry sectors to query
-    const industries = [
-      'Biotechnology',
-      'Drug Manufacturers—General',
-      'Drug Manufacturers—Specialty & Generic'
-    ];
+    // Create FMP client with configuration
+    const fmpClient = createFMPClient(API_KEY, {
+      baseUrl: BASE_URL,
+      requestDelay: config.requestDelay,
+      defaultBatchSize: config.batchSize
+    });
     
-    // Use Set for deduplication based on symbol
-    const companySymbols = new Set<string>();
-    const allCompanies: any[] = [];
+    // Setup screening options from config
+    const screenOptions: ScreenOptions = {
+      batchSize: config.batchSize,
+      maxCompanies: config.maxCompanies,
+      includeIndustries: config.industries as any[],
+      requestDelay: config.requestDelay
+    };
     
-    // Fetch companies from each industry
-    for (const industry of industries) {
-      console.log(`Fetching ${industry} companies...`);
-      const url = `${BASE_URL}/stock-screener?sector=Healthcare&industry=${encodeURIComponent(industry)}&isActivelyTrading=true&apikey=${API_KEY}`;
-      
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        console.warn(`Error fetching ${industry} companies: ${response.status} ${response.statusText}`);
-        continue; // Skip to next industry rather than failing completely
+    // Add a notice about free tier limitations
+    console.log(`
+===============================
+  FREE TIER RECOMMENDATIONS
+===============================
+For successful imports with the free tier:
+1. Use a small batch size (1-5 companies)
+2. Use a longer request delay (2000-5000ms)
+3. Consider limiting max companies (e.g., 50-100) for initial tests
+4. Expect slower imports due to rate limiting precautions
+===============================
+`);
+    
+    // Fetch companies with our enhanced client
+    console.log(`Starting company import with config:`, config);
+    const result = await fmpClient.getPharmaCompanies(screenOptions);
+    console.log(`Found ${result.totalFound} companies across industries`);
+    console.log(`Industry breakdown:`, result.industries);
+    
+    // Initialize tracking variables
+    let addedCount = 0;
+    let updatedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+    let retryCount = 0;
+    
+    // Get list of all symbols from the screening
+    const allSymbols = result.companies.map(c => c.symbol);
+    
+    // Check which companies we already have in our database
+    const supabase = supabaseAdmin;
+    const { data: existingCompanies, error: existingError } = await supabase
+      .from('companies')
+      .select('stock_symbol, updated_at')
+      .in('stock_symbol', allSymbols);
+    
+    if (existingError) {
+      console.error('Error fetching existing companies:', existingError);
+      throw existingError;
+    }
+    
+    // Create a map of existing companies by symbol with their last update time
+    const existingSymbolsMap = new Map();
+    existingCompanies?.forEach(company => {
+      existingSymbolsMap.set(company.stock_symbol, new Date(company.updated_at));
+    });
+    
+    // Calculate the cutoff date for updates (default to 7 days)
+    const updateIntervalDays = config.updateIntervalDays || 7;
+    const updateCutoffDate = new Date();
+    updateCutoffDate.setDate(updateCutoffDate.getDate() - updateIntervalDays);
+    
+    console.log(`Using update interval of ${updateIntervalDays} days (cutoff: ${updateCutoffDate.toISOString().split('T')[0]})`);
+    
+    // Determine which companies are new or need updating
+    const symbolsToFetch = allSymbols.filter(symbol => {
+      // If it's a new company, we need to fetch it
+      if (!existingSymbolsMap.has(symbol)) {
+        return true;
       }
       
-      const companies = await response.json();
+      // For existing companies, only update if it's been more than the configured interval
+      const lastUpdated = existingSymbolsMap.get(symbol);
+      return lastUpdated < updateCutoffDate;
+    });
+    
+    // Calculate how many companies were skipped because they were recently updated
+    skippedCount = allSymbols.length - symbolsToFetch.length;
+    
+    // If there are no symbols to fetch, we can skip the API calls
+    if (symbolsToFetch.length === 0) {
+      console.log('No new or updated companies to fetch. Skipping API calls.');
+      return {
+        totalFound: result.totalFound,
+        processed: 0,
+        added: 0,
+        updated: 0,
+        errors: 0,
+        apiCalls: fmpClient.getRequestCount(),
+        industries: result.industries,
+        skipped: result.totalFound
+      };
+    }
+    
+    console.log(`Need to fetch detailed profiles for ${symbolsToFetch.length} companies (${skippedCount} skipped due to recent updates)`);
+    
+    // Process companies in batches to get detailed profiles
+    const batchSize = config.batchSize;
+    const profiles: FMPCompanyProfile[] = [];
+    
+    for (let i = 0; i < symbolsToFetch.length; i += batchSize) {
+      const batch = symbolsToFetch.slice(i, i + batchSize);
+      const symbols = batch.join(',');
       
-      if (!companies || !Array.isArray(companies)) {
-        console.warn(`Invalid response for ${industry}`);
-        continue;
-      }
+      console.log(`Fetching profiles for batch ${Math.floor(i / batchSize) + 1} (${symbols})...`);
       
-      console.log(`Found ${companies.length} ${industry} companies`);
+      // Add retry logic for API calls
+      let retries = 0;
+      const maxRetries = 3;
+      let success = false;
       
-      // Add unique companies to our collection
-      for (const company of companies) {
-        if (!companySymbols.has(company.symbol)) {
-          companySymbols.add(company.symbol);
-          allCompanies.push(company);
+      while (retries < maxRetries && !success) {
+        try {
+          // If this is a retry, add an additional delay
+          if (retries > 0) {
+            // Use exponential backoff - each retry waits exponentially longer
+            const retryDelay = config.requestDelay * Math.pow(2, retries);
+            console.log(`Retry #${retries} for batch ${Math.floor(i / batchSize) + 1} after ${retryDelay}ms delay...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            retryCount++;
+          }
+          
+          // Use the individual profile endpoint (free tier) instead of bulk
+          const profileUrl = `${BASE_URL}/profile/${symbols}?apikey=${API_KEY}`;
+          const profileResponse = await fetch(profileUrl);
+          
+          if (!profileResponse.ok) {
+            // If we get a 403, it's likely rate limiting
+            if (profileResponse.status === 403) {
+              if (retries < maxRetries - 1) {
+                retries++;
+                console.warn(`Rate limit (403) encountered for batch ${Math.floor(i / batchSize) + 1}. Retrying...`);
+                continue;
+              } else {
+                console.error(`Maximum retries reached for batch ${Math.floor(i / batchSize) + 1} after 403 error.`);
+                errorCount++;
+                break;
+              }
+            } else {
+              console.error(`Error fetching profiles for batch ${Math.floor(i / batchSize) + 1}: ${profileResponse.status} ${profileResponse.statusText}`);
+              errorCount++;
+              break;
+            }
+          }
+          
+          const batchProfiles = await profileResponse.json();
+          
+          if (batchProfiles && Array.isArray(batchProfiles)) {
+            profiles.push(...batchProfiles);
+            success = true;
+          } else {
+            console.error(`Invalid response format for batch ${Math.floor(i / batchSize) + 1}`);
+            errorCount++;
+            break;
+          }
+        } catch (error) {
+          console.error(`Error processing batch ${Math.floor(i / batchSize) + 1}:`, error);
+          
+          if (retries < maxRetries - 1) {
+            retries++;
+            continue;
+          } else {
+            errorCount++;
+            break;
+          }
         }
       }
       
-      // Add delay between industry requests to respect rate limits
-      if (industry !== industries[industries.length - 1]) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+      // Add a delay between batches to respect rate limits
+      if (i + batchSize < symbolsToFetch.length) {
+        await new Promise(resolve => setTimeout(resolve, config.requestDelay));
       }
     }
     
-    console.log(`Found ${allCompanies.length} unique companies across all industries`);
+    console.log(`Fetched ${profiles.length} company profiles (with ${retryCount} retries)`);
     
-    // If we have companies, fetch detailed profiles
-    // Limit to 50 per batch to avoid rate limits but capture more companies
-    const BATCH_SIZE = 10;
-    const profiles: FMPCompanyProfile[] = [];
-    const MAX_COMPANIES = 50;
+    // Transform profiles to match our database schema
+    const transformedCompanies = profiles.map(transformCompany);
     
-    for (let i = 0; i < Math.min(allCompanies.length, MAX_COMPANIES); i += BATCH_SIZE) {
-      const batch = allCompanies.slice(i, i + BATCH_SIZE);
-      const symbols = batch.map((c: any) => c.symbol).join(',');
+    // Create a set of symbols we were able to fetch profiles for
+    const fetchedSymbols = new Set(profiles.map(p => p.symbol));
+    
+    // Separate companies for insert vs update based on what we actually fetched
+    const companiesToInsert = transformedCompanies.filter(c => 
+      c.stock_symbol && fetchedSymbols.has(c.stock_symbol) && !existingSymbolsMap.has(c.stock_symbol)
+    );
+    
+    const companiesToUpdate = transformedCompanies.filter(c => 
+      c.stock_symbol && fetchedSymbols.has(c.stock_symbol) && existingSymbolsMap.has(c.stock_symbol)
+    );
+    
+    console.log(`Found ${companiesToInsert.length} new companies to insert`);
+    console.log(`Found ${companiesToUpdate.length} existing companies to update`);
+    
+    // Insert new companies
+    if (companiesToInsert.length > 0) {
+      const { data: insertedData, error: insertError } = await supabase
+        .from('companies')
+        .insert(companiesToInsert)
+        .select('id');
       
-      console.log(`Fetching profiles for batch ${i / BATCH_SIZE + 1} (${symbols})...`);
-      const profileUrl = `${BASE_URL}/profile/${symbols}?apikey=${API_KEY}`;
-      
-      const profileResponse = await fetch(profileUrl);
-      
-      if (!profileResponse.ok) {
-        console.error(`Error fetching profiles for batch ${i / BATCH_SIZE + 1}: ${profileResponse.status} ${profileResponse.statusText}`);
-        continue;
-      }
-      
-      const batchProfiles = await profileResponse.json();
-      
-      if (batchProfiles && Array.isArray(batchProfiles)) {
-        profiles.push(...batchProfiles);
-      }
-      
-      // Add a delay to respect rate limits
-      if (i + BATCH_SIZE < Math.min(allCompanies.length, MAX_COMPANIES)) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+      if (insertError) {
+        console.error('Error inserting companies:', insertError);
+        errorCount += companiesToInsert.length;
+      } else {
+        addedCount = insertedData?.length || 0;
+        console.log(`Successfully inserted ${addedCount} companies`);
       }
     }
     
-    console.log(`Fetched ${profiles.length} company profiles`);
+    // Update existing companies
+    for (const company of companiesToUpdate) {
+      const { error: updateError } = await supabase
+        .from('companies')
+        .update(company)
+        .eq('stock_symbol', company.stock_symbol);
+      
+      if (updateError) {
+        console.error(`Error updating company ${company.stock_symbol}:`, updateError);
+        errorCount++;
+      } else {
+        updatedCount++;
+      }
+    }
     
-    return profiles;
+    // Prepare summary for return
+    return {
+      totalFound: result.totalFound,
+      processed: profiles.length,
+      added: addedCount,
+      updated: updatedCount,
+      errors: errorCount,
+      retries: retryCount,
+      apiCalls: fmpClient.getRequestCount(),
+      industries: result.industries,
+      skipped: skippedCount
+    };
   } catch (error) {
-    console.error('Error fetching companies:', error);
+    console.error('Error in processImport:', error);
     throw error;
   }
 }
 
 export const POST: APIRoute = async ({ request }) => {
   try {
+    // Validate API key
+    if (!API_KEY) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Missing FMP API key',
+          details: 'Check .env.local file for PUBLIC_FMP_API_KEY'
+        }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    
     // Get Supabase credentials with enhanced logging
     const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
     const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
     const serviceRoleKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    console.log('Connection attempt with credentials:', {
-      urlProvided: !!supabaseUrl,
-      keyProvided: !!supabaseKey,
-      serviceRoleProvided: !!serviceRoleKey,
-      urlValue: supabaseUrl ? `${supabaseUrl.substring(0, 8)}...` : 'missing', // log partial URL for security
-    });
     
     if (!supabaseUrl || !supabaseKey) {
       return new Response(
@@ -252,182 +382,126 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
     
-    if (!API_KEY) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Missing FMP API key',
-          details: 'Check .env.local file for PUBLIC_FMP_API_KEY'
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Initialize Supabase client with enhanced logging
-    console.log('Initializing Supabase client...');
-    // We'll use the regular client for testing the connection
-    const supabase = createClient<Database>(supabaseUrl, supabaseKey);
-    
-    // Test connection to Supabase before proceeding
-    try {
-      console.log('Testing Supabase connection...');
-      const { data: testData, error: testError } = await supabase.from('companies').select('count');
-      
-      if (testError) {
-        console.error('Supabase connection test failed:', testError);
-        return new Response(
-          JSON.stringify({
-            error: 'Failed to connect to Supabase',
-            details: testError.message,
-            code: testError.code,
-            hint: testError.hint || 'Check your Supabase credentials and table permissions',
-            supabaseError: testError
-          }),
-          { status: 500, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      console.log('Supabase connection test successful');
-    } catch (connectionError) {
-      console.error('Supabase connection attempt error:', connectionError);
-      return new Response(
-        JSON.stringify({
-          error: 'Failed to connect to Supabase',
-          message: connectionError instanceof Error ? connectionError.message : String(connectionError),
-          stack: connectionError instanceof Error ? connectionError.stack : undefined
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Fetch companies from FMP
-    console.log('Starting FMP company import...');
-    let profiles: FMPCompanyProfile[] = [];
+    // Get data source information for logging
+    let dataSourceId = null;
+    let endpointId = null;
     
     try {
-      profiles = await fetchCompanies();
-    } catch (fetchError) {
-      console.error('Error fetching from FMP API:', fetchError);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Failed to fetch companies from FMP API',
-          message: fetchError instanceof Error ? fetchError.message : String(fetchError),
-          stack: fetchError instanceof Error ? fetchError.stack : undefined,
-          recommendation: 'Check your API key and network connection'
-        }),
-        { status: 502, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    if (!profiles || profiles.length === 0) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'No companies found from FMP API',
-          details: 'The API returned an empty result. This could be due to rate limiting or filtering criteria.'
-        }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    console.log(`Transforming ${profiles.length} company profiles...`);
-    
-    // Transform FMP data to match our database schema
-    const companies = profiles.map(transformCompany);
-    
-    console.log(`Upserting ${companies.length} companies to database...`);
-    
-    // Insert into Supabase with upsert using the admin client to bypass RLS
-    const { error, count } = await supabaseAdmin
-      .from('companies')
-      .upsert(companies, { 
-        onConflict: 'slug',
-        count: 'exact'
-      });
-    
-    if (error) {
-      console.error('Error inserting companies:', error);
+      const { data: sourceData } = await supabaseAdmin
+        .from('data_sources')
+        .select('id')
+        .eq('name', 'Financial Modeling Prep')
+        .single();
       
-      // Provide more detailed error information
-      let errorDetails = 'Unknown database error';
-      let suggestedFix = '';
-      
-      if (error.code === '23502') {
-        errorDetails = 'Not-null constraint violation. Check if required fields are missing.';
-        suggestedFix = 'Ensure all required fields in the companies table have values in your transformCompany function.';
-      } else if (error.code === '23505') {
-        errorDetails = 'Unique constraint violation. Duplicate record detected.';
-        suggestedFix = 'Check the onConflict parameter in your upsert operation.';
-      } else if (error.code === '42P01') {
-        errorDetails = 'Table does not exist. Check your database schema.';
-        suggestedFix = 'Create the companies table in your Supabase project.';
-      } else if (error.code?.startsWith('42')) {
-        errorDetails = 'Syntax error in SQL. Table or column might not exist as expected.';
-        suggestedFix = 'Verify table structure in Supabase matches your code expectations.';
-      } else if (error.code === '28000' || error.code === '28P01') {
-        errorDetails = 'Invalid authorization. Check your Supabase credentials.';
-        suggestedFix = 'Verify your PUBLIC_SUPABASE_URL and PUBLIC_SUPABASE_ANON_KEY values.';
-      } else if (error.code === '3D000') {
-        errorDetails = 'Database does not exist.';
-        suggestedFix = 'Check your Supabase project setup.';
+      if (sourceData) {
+        dataSourceId = sourceData.id;
+        
+        // Get endpoint ID for the import
+        const { data: endpointData } = await supabaseAdmin
+          .from('data_source_endpoints')
+          .select('id')
+          .eq('data_source_id', dataSourceId)
+          .eq('name', 'Company Profile')
+          .single();
+        
+        if (endpointData) {
+          endpointId = endpointData.id;
+        }
       }
-      
-      return new Response(
-        JSON.stringify({ 
-          error: `Failed to insert companies: ${error.message}`,
-          errorCode: error.code,
-          errorDetails,
-          suggestedFix,
-          fullError: error
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
+    } catch (error) {
+      console.warn('Could not find data source or endpoint:', error);
+      // Continue anyway, we'll just log without these IDs
     }
     
-    // If we successfully imported companies and there are more than a few,
-    // automatically set the feature flag to use database companies
-    let featureFlagUpdated = false;
-    if (count && count > 5) {
-      try {
-        setFeatureFlag(FEATURES.USE_DATABASE_COMPANIES, true);
-        console.log('Automatically enabled USE_DATABASE_COMPANIES feature flag');
-        featureFlagUpdated = true;
-      } catch (flagError) {
-        console.warn('Failed to set feature flag:', flagError);
-        // Continue anyway, this is just a convenience
-      }
+    // Parse request body for import configuration
+    const requestConfig = await request.json().catch(() => ({}));
+    
+    // Get import configuration with defaults
+    const config: ImportConfig = {
+      batchSize: requestConfig.batchSize || 5,
+      maxCompanies: requestConfig.maxCompanies || undefined,
+      industries: requestConfig.industries || [
+        'Biotechnology',
+        'Drug Manufacturers - Specialty & Generic',
+        'Drug Manufacturers - General'
+      ],
+      includeInactive: requestConfig.includeInactive || false,
+      requestDelay: requestConfig.requestDelay || 3000, // Longer default delay to avoid rate limiting
+      updateIntervalDays: requestConfig.updateIntervalDays || 7
+    };
+    
+    // Generate an import ID for tracking
+    const importId = uuidv4();
+    
+    // Create import log entry
+    if (dataSourceId && endpointId) {
+      await supabaseAdmin
+        .from('data_ingestion_logs')
+        .insert({
+          data_source_id: dataSourceId,
+          endpoint_id: endpointId,
+          started_at: new Date().toISOString(),
+          status: 'processing',
+          records_processed: 0,
+          records_added: 0,
+          records_updated: 0,
+          records_skipped: 0,
+          error_message: null
+        });
     }
     
-    // Return success response
+    // Process import
+    const result = await processImport(config);
+    
+    // Update import log with results
+    if (dataSourceId && endpointId) {
+      await supabaseAdmin
+        .from('data_ingestion_logs')
+        .update({
+          completed_at: new Date().toISOString(),
+          status: result.errors > 0 ? 'completed_with_errors' : 'completed',
+          records_processed: result.processed,
+          records_added: result.added,
+          records_updated: result.updated,
+          records_skipped: result.skipped,
+          error_message: result.errors > 0 ? `${result.errors} errors occurred during import` : null
+        })
+        .eq('data_source_id', dataSourceId)
+        .eq('endpoint_id', endpointId)
+        .eq('status', 'processing');
+    }
+    
+    // If we successfully imported companies, enable the feature flag
+    if (result.added > 0 || result.updated > 0) {
+      await setFeatureFlag(FEATURES.USE_DATABASE_COMPANIES, true);
+    }
+    
     return new Response(
       JSON.stringify({
         success: true,
-        imported: count || companies.length,
-        source: 'fmp',
-        featureFlagUpdated,
-        companies: {
-          biotech: profiles.filter(p => p.industry === 'Biotechnology').length,
-          pharmaGeneral: profiles.filter(p => p.industry === 'Drug Manufacturers—General').length,
-          pharmaSpecialty: profiles.filter(p => p.industry === 'Drug Manufacturers—Specialty & Generic').length,
-          total: profiles.length
+        message: 'Companies imported successfully',
+        summary: {
+          totalFound: result.totalFound,
+          processed: result.processed,
+          added: result.added,
+          updated: result.updated,
+          skipped: result.skipped,
+          errors: result.errors,
+          retries: result.retries,
+          apiCalls: result.apiCalls
         },
-        timestamp: new Date().toISOString()
+        importId
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
-    
   } catch (error) {
-    console.error('Import failed with unexpected error:', error);
-    
-    // Safe error message extraction
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    const errorName = error instanceof Error ? error.name : 'Unknown Error Type';
+    console.error('Error in import API route:', error);
     
     return new Response(
-      JSON.stringify({ 
-        error: `Import failed: ${errorMessage}`,
-        errorType: errorName,
-        details: errorStack,
-        timestamp: new Date().toISOString()
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        details: error instanceof Error ? error.stack : null
       }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );

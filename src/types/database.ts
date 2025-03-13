@@ -31,8 +31,6 @@ export interface Database {
           public_company: boolean;
           stock_symbol: string | null;
           stock_exchange: string | null;
-          ticker: string | null;
-          active: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -50,8 +48,6 @@ export interface Database {
           public_company?: boolean;
           stock_symbol?: string | null;
           stock_exchange?: string | null;
-          ticker?: string | null;
-          active?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -69,8 +65,6 @@ export interface Database {
           public_company?: boolean;
           stock_symbol?: string | null;
           stock_exchange?: string | null;
-          ticker?: string | null;
-          active?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -321,6 +315,7 @@ export interface Database {
           records_processed: number | null;
           records_added: number | null;
           records_updated: number | null;
+          records_skipped: number | null;
           status: string;
           error_message: string | null;
           started_at: string;
@@ -333,6 +328,7 @@ export interface Database {
           records_processed?: number | null;
           records_added?: number | null;
           records_updated?: number | null;
+          records_skipped?: number | null;
           status: string;
           error_message?: string | null;
           started_at?: string;
@@ -345,6 +341,7 @@ export interface Database {
           records_processed?: number | null;
           records_added?: number | null;
           records_updated?: number | null;
+          records_skipped?: number | null;
           status?: string;
           error_message?: string | null;
           started_at?: string;
