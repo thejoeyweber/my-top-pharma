@@ -14,8 +14,12 @@ import SortSelect from '../../components/molecules/SortSelect.astro';
 import ViewToggle from '../../components/molecules/ViewToggle.astro';
 import { filterAndSortItems } from '../../utils/filterUtils';
 
-// Import company data
-import { companies, therapeuticAreas as taData } from '../../utils/dataUtils';
+// Import company data utilities (supports both static and database sources)
+import { getCompanies } from '../../utils/companyDataUtils';
+import { therapeuticAreas as taData } from '../../utils/dataUtils';
+
+// Fetch companies using the adapter function that supports both data sources
+const companies = await getCompanies();
 
 // Define therapeutic areas for filtering
 const therapeuticAreas = [

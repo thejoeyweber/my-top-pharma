@@ -14,10 +14,16 @@ import Timeline from '../../components/molecules/Timeline.astro';
 import FinancialChart from '../../components/molecules/FinancialChart.astro';
 import PipelineChart from '../../components/molecules/PipelineChart.astro';
 import DataTable from '../../components/molecules/DataTable.astro';
+
+// Import data utilities (supports both static and database sources)
 import { 
-  companies,
+  getCompanies,
   getCompanyById, 
-  getRelatedCompanies, 
+  getRelatedCompanies 
+} from '../../utils/companyDataUtils';
+
+// Import other existing utilities
+import { 
   therapeuticAreas,
   getProductsByCompany,
   websiteCategories
@@ -26,7 +32,8 @@ import { getWebsitesByCompany } from '../../utils/crossReferenceUtils';
 import { getCompanyLogoUrl, getCompanyHeaderUrl, getWebsiteScreenshotUrl } from '../../utils/assetUtils';
 
 // Generate static paths for all companies
-export function getStaticPaths() {
+export async function getStaticPaths() {
+  const companies = await getCompanies();
   return companies.map(company => ({
     params: { id: company.id },
   }));
@@ -34,15 +41,15 @@ export function getStaticPaths() {
 
 // Get company ID from URL parameters
 const { id } = Astro.params;
-const company = getCompanyById(id as string);
+const company = await getCompanyById(id as string);
 
 // Handle case when company is not found
 if (!company) {
   return Astro.redirect('/companies');
 }
 
-// Get related companies
-const relatedCompanies = getRelatedCompanies(company.id);
+// Get related companies (now using async function)
+const relatedCompanies = await getRelatedCompanies(company.id);
 
 // Get company products
 const companyProducts = getProductsByCompany(company.id);

@@ -1,0 +1,97 @@
+---
+/**
+ * Company List Component
+ * 
+ * Displays a list of pharmaceutical companies fetched from our API endpoint.
+ * Uses server-side rendering for initial data and client-side updates.
+ */
+
+// Import types
+import type { FMPCompanyProfile } from '../lib/fmpClient';
+
+// Fetch initial data server-side
+const response = await fetch(`${import.meta.env.SITE}/api/companies`);
+const { companies, source, rateLimit } = await response.json();
+
+// Format market cap for display
+function formatMarketCap(marketCap: number | string): string {
+  const num = typeof marketCap === 'string' ? parseFloat(marketCap) : marketCap;
+  if (isNaN(num)) return 'N/A';
+  
+  if (num >= 1e12) return `$${(num / 1e12).toFixed(1)}T`;
+  if (num >= 1e9) return `$${(num / 1e9).toFixed(1)}B`;
+  if (num >= 1e6) return `$${(num / 1e6).toFixed(1)}M`;
+  return `$${num.toLocaleString()}`;
+}
+---
+
+<div class="company-list">
+  {!companies ? (
+    <div class="text-center py-8">
+      <p class="text-gray-500">Loading companies...</p>
+    </div>
+  ) : companies.length === 0 ? (
+    <div class="text-center py-8">
+      <p class="text-gray-500">No companies found</p>
+    </div>
+  ) : (
+    <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {companies.map((company: FMPCompanyProfile) => (
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold">{company.companyName}</h3>
+            <span class="text-sm text-gray-500">{company.symbol}</span>
+          </div>
+          
+          <div class="space-y-2">
+            <p class="text-sm">
+              <span class="font-medium">Market Cap:</span>
+              <span class="ml-2">{formatMarketCap(company.mktCap)}</span>
+            </p>
+            
+            <p class="text-sm">
+              <span class="font-medium">Industry:</span>
+              <span class="ml-2">{company.industry}</span>
+            </p>
+            
+            <p class="text-sm">
+              <span class="font-medium">Exchange:</span>
+              <span class="ml-2">{company.exchange}</span>
+            </p>
+          </div>
+          
+          {company.website && (
+            <div class="mt-4">
+              <a 
+                href={company.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-blue-500 hover:text-blue-600 text-sm"
+              >
+                Visit Website →
+              </a>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )}
+  
+  {source === 'cache' && (
+    <div class="mt-4 text-sm text-gray-500 text-center">
+      Showing cached data from Supabase
+    </div>
+  )}
+  
+  {source === 'fmp' && rateLimit && (
+    <div class="mt-4 text-sm text-gray-500 text-center">
+      FMP API Rate Limit: {rateLimit.remaining} / {rateLimit.total} calls remaining
+    </div>
+  )}
+</div>
+
+<style>
+  .company-list {
+    @apply max-w-7xl mx-auto px-4 py-8;
+  }
+</style> 

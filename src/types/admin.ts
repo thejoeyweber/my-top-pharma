@@ -103,4 +103,35 @@ export interface UserManagementData {
     description: string;
     userCount: number;
   }>;
+}
+
+/**
+ * Import configuration options
+ */
+export interface ImportConfig {
+  batchSize: number;
+  maxCompanies?: number;
+  industries: string[];
+  includeInactive: boolean;
+  requestDelay: number;
+  updateIntervalDays?: number;
+}
+
+/**
+ * Import history entry for tracking data imports
+ */
+export interface ImportHistoryEntry {
+  id: string;
+  dataSource: string;
+  startTime: string;
+  endTime?: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  recordsFound: number;
+  recordsAdded: number;
+  recordsUpdated: number;
+  recordsSkipped: number;
+  apiCallsMade: number;
+  errorMessage?: string;
+  config: ImportConfig;
+  importedIndustries?: Record<string, number>;
 } 

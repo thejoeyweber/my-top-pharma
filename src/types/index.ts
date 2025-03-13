@@ -9,8 +9,7 @@
 export type { 
   Company, 
   TherapeuticArea, 
-  // Rename Company's Product type to avoid conflict
-  Product as CompanyProduct, 
+  CompanyProduct,
   Milestone, 
   FinancialMetric 
 } from './companies';
@@ -44,4 +43,12 @@ export type {
   CrawlerConfig,
   LogEntry,
   UserManagementData
-} from './admin'; 
+} from './admin';
+
+// Re-export database types
+export type {
+  Database,
+  DbCompany,
+  DbCompanyInsert,
+  DbCompanyUpdate
+} from './database'; 

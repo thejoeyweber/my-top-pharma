@@ -7,6 +7,7 @@
 import DashboardLayout from '../../components/templates/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
 import { dataFeeds } from '../../utils/dataUtils';
+import { supabase } from '../../utils/supabase';
 
 // Breadcrumbs for navigation
 const breadcrumbs = [
@@ -14,6 +15,82 @@ const breadcrumbs = [
   { label: 'Admin', href: '/admin' },
   { label: 'Data Feeds', href: '/admin/data-feeds', isActive: true },
 ];
+
+// Get FMP import stats
+let importStats = {
+  lastImport: null as string | null,
+  companyCount: 0,
+  status: 'unknown'
+};
+
+// Get data sources and endpoints from Supabase
+let dataSources = [];
+let dataSourceEndpoints = [];
+
+try {
+  // Get company count
+  const { count, error } = await supabase
+    .from('companies')
+    .select('*', { count: 'exact', head: true });
+
+  if (!error) {
+    importStats.companyCount = count || 0;
+  }
+
+  // Get last updated company to determine last import time
+  const { data, error: lastUpdateError } = await supabase
+    .from('companies')
+    .select('updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(1);
+
+  if (!lastUpdateError && data && data.length > 0) {
+    importStats.lastImport = data[0].updated_at;
+    importStats.status = 'healthy';
+  }
+
+  // Try to fetch data sources from the database
+  try {
+    const { data: sourcesData, error: sourcesError } = await supabase
+      .from('data_sources')
+      .select('*')
+      .order('name');
+
+    if (!sourcesError && sourcesData) {
+      dataSources = sourcesData;
+    } else {
+      console.warn('Could not fetch data sources:', sourcesError);
+    }
+
+    // Try to fetch data source endpoints
+    const { data: endpointsData, error: endpointsError } = await supabase
+      .from('data_source_endpoints')
+      .select('*')
+      .order('name');
+
+    if (!endpointsError && endpointsData) {
+      dataSourceEndpoints = endpointsData;
+    } else {
+      console.warn('Could not fetch data source endpoints:', endpointsError);
+    }
+  } catch (sourcesFetchError) {
+    console.error('Error fetching data sources:', sourcesFetchError);
+    // If we can't fetch from database, data sources will remain an empty array
+  }
+
+} catch (error) {
+  console.error('Error fetching company stats:', error);
+  importStats.status = 'error';
+}
+
+// Group endpoints by data source
+const groupedEndpoints = {};
+dataSourceEndpoints.forEach(endpoint => {
+  if (!groupedEndpoints[endpoint.data_source_id]) {
+    groupedEndpoints[endpoint.data_source_id] = [];
+  }
+  groupedEndpoints[endpoint.data_source_id].push(endpoint);
+});
 
 // Format date
 const formatDate = (dateString: string): string => {
@@ -32,12 +109,17 @@ const formatDate = (dateString: string): string => {
 const getStatusColor = (status: string): string => {
   switch (status) {
     case 'healthy':
+    case 'active':
+    case 'true':
       return 'bg-green-100 text-green-800';
     case 'warning':
       return 'bg-yellow-100 text-yellow-800';
     case 'error':
+    case 'failed':
       return 'bg-red-100 text-red-800';
     case 'disabled':
+    case 'inactive':
+    case 'false':
       return 'bg-gray-100 text-gray-800';
     default:
       return 'bg-gray-100 text-gray-800';
@@ -61,9 +143,220 @@ const getStatusColor = (status: string): string => {
     </header>
     <main class="mx-auto max-w-7xl py-6 px-4 sm:px-6 lg:px-8">
       
-      <!-- Overview -->
+      <!-- FMP Company Data Import Section -->
+      <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-4">Financial Modeling Prep Data</h2>
+        <Card>
+          <div class="p-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-lg font-medium">Company Data Import</h3>
+                <p class="text-sm text-gray-500 mt-1">
+                  Import company data from Financial Modeling Prep API
+                </p>
+              </div>
+              <div>
+                <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(importStats.status)}`}>
+                  {importStats.status === 'healthy' ? 'Active' : 
+                   importStats.status === 'error' ? 'Error' : 'Unknown'}
+                </span>
+              </div>
+            </div>
+            
+            <div class="mt-4 border-t border-gray-200 pt-4">
+              <dl>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
+                  <div>
+                    <dt class="text-sm font-medium text-gray-500">Last Import</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{importStats.lastImport ? formatDate(importStats.lastImport) : '--'}</dd>
+                  </div>
+                  <div>
+                    <dt class="text-sm font-medium text-gray-500">Companies</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{importStats.companyCount.toLocaleString()}</dd>
+                  </div>
+                  <div>
+                    <dt class="text-sm font-medium text-gray-500">Status</dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                      {importStats.companyCount > 0 
+                        ? 'Data available' 
+                        : 'No data imported'}
+                    </dd>
+                  </div>
+                </div>
+              </dl>
+            </div>
+            
+            <!-- Import Configuration Form -->
+            <div class="mt-5 border-t border-gray-200 pt-4">
+              <div class="flex items-center justify-between mb-4">
+                <h4 class="text-sm font-medium text-gray-700">Import Configuration</h4>
+                <button 
+                  id="toggle-config" 
+                  type="button" 
+                  class="inline-flex items-center px-2 py-1 text-xs text-gray-600 hover:text-gray-900"
+                >
+                  <span id="toggle-text">Show Options</span>
+                  <svg id="toggle-icon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div id="import-config-form" class="hidden space-y-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label for="batchSize" class="block text-sm font-medium leading-6 text-gray-900">Batch Size</label>
+                    <p class="mt-1 text-sm leading-6 text-gray-600">Number of companies to process in each batch</p>
+                    <div class="mt-2">
+                      <select id="batchSize" name="batchSize" class="block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-blue-600 sm:text-sm sm:leading-6">
+                        <option value="1">1 company per batch</option>
+                        <option value="2">2 companies per batch</option>
+                        <option value="3">3 companies per batch</option>
+                        <option value="5" selected>5 companies per batch</option>
+                        <option value="10">10 companies per batch</option>
+                        <option value="20">20 companies per batch</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label for="max-companies" class="block text-sm font-medium leading-6 text-gray-900">Max Companies</label>
+                    <p class="mt-1 text-sm leading-6 text-gray-600">Maximum companies to import (0 = unlimited)</p>
+                    <div class="mt-2">
+                      <select id="max-companies" name="max-companies" class="block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-blue-600 sm:text-sm sm:leading-6">
+                        <option value="0">No limit</option>
+                        <option value="10">10 companies</option>
+                        <option value="25">25 companies</option>
+                        <option value="50">50 companies</option>
+                        <option value="100" selected>100 companies (recommended for free tier)</option>
+                        <option value="250">250 companies</option>
+                        <option value="500">500 companies</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label for="requestDelay" class="block text-sm font-medium leading-6 text-gray-900">Request Delay</label>
+                    <p class="mt-1 text-sm leading-6 text-gray-600">Milliseconds to wait between API requests (higher = less chance of rate limiting)</p>
+                    <div class="mt-2">
+                      <select id="requestDelay" name="requestDelay" class="block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-blue-600 sm:text-sm sm:leading-6">
+                        <option value="500">500ms (aggressive)</option>
+                        <option value="1000">1000ms (moderate)</option>
+                        <option value="2000">2000ms (conservative)</option>
+                        <option value="3000" selected>3000ms (very conservative)</option>
+                        <option value="5000">5000ms (extremely conservative)</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label for="include-inactive" class="block text-sm font-medium text-gray-700">Include Inactive Companies</label>
+                    <div class="mt-1">
+                      <select id="include-inactive" name="include-inactive" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="false" selected>No (Recommended)</option>
+                        <option value="true">Yes</option>
+                      </select>
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500">Whether to include inactive/delisted companies</p>
+                  </div>
+                </div>
+                
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Industries to Import</label>
+                  <div class="space-y-2">
+                    <div class="relative flex items-start">
+                      <div class="flex h-5 items-center">
+                        <input id="industry-biotech" name="industries" type="checkbox" value="Biotechnology" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                      </div>
+                      <div class="ml-3 text-sm">
+                        <label for="industry-biotech" class="font-medium text-gray-700">Biotechnology</label>
+                        <p class="text-gray-500 text-xs">Research-focused biotech companies</p>
+                      </div>
+                    </div>
+                    <div class="relative flex items-start">
+                      <div class="flex h-5 items-center">
+                        <input id="industry-specialty" name="industries" type="checkbox" value="Drug Manufacturers - Specialty & Generic" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                      </div>
+                      <div class="ml-3 text-sm">
+                        <label for="industry-specialty" class="font-medium text-gray-700">Drug Manufacturers - Specialty & Generic</label>
+                        <p class="text-gray-500 text-xs">Specialty and generic drug manufacturers</p>
+                      </div>
+                    </div>
+                    <div class="relative flex items-start">
+                      <div class="flex h-5 items-center">
+                        <input id="industry-general" name="industries" type="checkbox" value="Drug Manufacturers - General" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked>
+                      </div>
+                      <div class="ml-3 text-sm">
+                        <label for="industry-general" class="font-medium text-gray-700">Drug Manufacturers - General</label>
+                        <p class="text-gray-500 text-xs">Large pharmaceutical companies</p>
+                      </div>
+                    </div>
+                    <div class="relative flex items-start">
+                      <div class="flex h-5 items-center">
+                        <input id="industry-medical" name="industries" type="checkbox" value="Medical Devices" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                      </div>
+                      <div class="ml-3 text-sm">
+                        <label for="industry-medical" class="font-medium text-gray-700">Medical Devices</label>
+                        <p class="text-gray-500 text-xs">Medical equipment and device manufacturers</p>
+                      </div>
+                    </div>
+                    <div class="relative flex items-start">
+                      <div class="flex h-5 items-center">
+                        <input id="industry-healthcare" name="industries" type="checkbox" value="Healthcare Plans" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                      </div>
+                      <div class="ml-3 text-sm">
+                        <label for="industry-healthcare" class="font-medium text-gray-700">Healthcare Plans</label>
+                        <p class="text-gray-500 text-xs">Healthcare insurance and plan providers</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mt-5 flex items-center justify-end">
+              <a 
+                href="/admin/audit/companies" 
+                class="inline-flex items-center px-3 py-2 mr-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                View Audit
+              </a>
+              <button 
+                id="import-fmp-companies" 
+                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Import Now
+              </button>
+            </div>
+            
+            <!-- Import Status Display (hidden initially) -->
+            <div id="import-status" class="mt-4 p-4 rounded-md bg-gray-50 hidden">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg id="import-status-icon-loading" class="h-5 w-5 text-blue-400 hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <svg id="import-status-icon-success" class="h-5 w-5 text-green-400 hidden" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                  </svg>
+                  <svg id="import-status-icon-error" class="h-5 w-5 text-red-400 hidden" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <h3 id="import-status-title" class="text-sm font-medium text-gray-800"></h3>
+                  <div id="import-status-message" class="mt-2 text-sm text-gray-600"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+      
+      <!-- Data Sources Overview -->
       <div class="mb-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-3">External Data Sources</h2>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Data Sources</h2>
         <Card>
           <div class="px-4 py-5 sm:p-6">
             <p class="text-sm text-gray-500 mb-4">
@@ -72,101 +365,190 @@ const getStatusColor = (status: string): string => {
             
             <div class="mb-4 flex justify-end">
               <button type="button" class="inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
-                Add New Data Feed
+                Add New Data Source
               </button>
             </div>
             
-            <div class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead>
-                  <tr>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Frequency</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Fetch</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Fetch</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  {dataFeeds.map((feed) => (
-                    <tr>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{feed.name}</td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <a href={feed.url} target="_blank" class="text-primary-600 hover:text-primary-900">
-                          {feed.url.length > 30 ? feed.url.substring(0, 30) + '...' : feed.url}
-                        </a>
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        <span class={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusColor(feed.status)}`}>
-                          {feed.status}
+            {/* Show database data sources if available */}
+            {dataSources.length > 0 ? (
+              <div class="space-y-6">
+                {dataSources.map((source) => (
+                  <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <div class="bg-gray-50 px-4 py-3 flex items-center justify-between">
+                      <div class="flex items-center">
+                        <h3 class="text-lg font-medium text-gray-900">{source.name}</h3>
+                        <span class={`ml-3 inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(source.is_active ? 'active' : 'disabled')}`}>
+                          {source.is_active ? 'Active' : 'Disabled'}
                         </span>
-                        {feed.statusDetails && (
-                          <span class="block text-xs text-gray-500 mt-1">{feed.statusDetails}</span>
-                        )}
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {feed.frequency}
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(feed.lastFetch)}
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(feed.nextFetch)}
-                      </td>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <button type="button" class="text-primary-600 hover:text-primary-900 mr-3">Edit</button>
-                        <button type="button" class="text-primary-600 hover:text-primary-900 mr-3">Fetch Now</button>
-                        <button type="button" class="text-red-600 hover:text-red-900">
-                          {feed.active ? 'Disable' : 'Enable'}
+                      </div>
+                      <div>
+                        <button type="button" class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                          Edit Source
                         </button>
-                      </td>
+                      </div>
+                    </div>
+                    
+                    <div class="px-4 py-3 border-b border-gray-200">
+                      <p class="text-sm text-gray-500">{source.description || 'No description available.'}</p>
+                      {source.base_url && (
+                        <p class="text-sm text-gray-700 mt-1">
+                          <span class="font-medium">Base URL:</span> {source.base_url}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <h4 class="text-sm font-medium text-gray-700 p-4 pb-2">Endpoints</h4>
+                      <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                          <thead>
+                            <tr>
+                              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Path</th>
+                              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target Table</th>
+                              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Run</th>
+                              <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody class="bg-white divide-y divide-gray-200">
+                            {groupedEndpoints[source.id] ? 
+                              groupedEndpoints[source.id].map((endpoint) => (
+                                <tr>
+                                  <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{endpoint.name}</td>
+                                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{endpoint.endpoint_path}</td>
+                                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{endpoint.target_table}</td>
+                                  <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                    <span class={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusColor(endpoint.is_active ? 'active' : 'disabled')}`}>
+                                      {endpoint.is_active ? 'Active' : 'Disabled'}
+                                    </span>
+                                  </td>
+                                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                    {formatDate(endpoint.last_run_at) || '--'}
+                                  </td>
+                                  <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                    <button type="button" class="text-primary-600 hover:text-primary-900 mr-3">Edit</button>
+                                    <button type="button" class="text-primary-600 hover:text-primary-900 mr-3">Run Now</button>
+                                    <button type="button" class="text-red-600 hover:text-red-900">
+                                      {endpoint.is_active ? 'Disable' : 'Enable'}
+                                    </button>
+                                  </td>
+                                </tr>
+                              )) : (
+                                <tr>
+                                  <td colspan="6" class="px-4 py-3 text-sm text-gray-500 text-center">No endpoints configured for this data source.</td>
+                                </tr>
+                              )
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                      <div class="px-4 py-3 bg-gray-50 text-right">
+                        <button type="button" class="inline-flex items-center rounded-md border border-transparent bg-primary-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                          Add Endpoint
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                      <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
+                      <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Frequency</th>
+                      <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Fetch</th>
+                      <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Fetch</th>
+                      <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    {dataFeeds.map((feed) => (
+                      <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{feed.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {feed.url ? (
+                            <a href={feed.url} target="_blank" class="text-primary-600 hover:text-primary-900">
+                              {feed.url.length > 30 ? feed.url.substring(0, 30) + '...' : feed.url}
+                            </a>
+                          ) : (
+                            <span>{feed.provider || 'N/A'}</span>
+                          )}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                          <span class={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusColor(feed.status)}`}>
+                            {feed.status}
+                          </span>
+                          {feed.statusDetails && (
+                            <span class="block text-xs text-gray-500 mt-1">{feed.statusDetails}</span>
+                          )}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {feed.frequency}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(feed.lastFetch)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(feed.nextFetch)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <button type="button" class="text-primary-600 hover:text-primary-900 mr-3">Edit</button>
+                          <button type="button" class="text-primary-600 hover:text-primary-900 mr-3">Fetch Now</button>
+                          <button type="button" class="text-red-600 hover:text-red-900">
+                            {feed.active ? 'Disable' : 'Enable'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </Card>
       </div>
       
       <!-- Data Feed Details -->
       <div class="mb-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-3">Add/Edit Data Feed</h2>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Add/Edit Data Source Endpoint</h2>
         <Card>
           <div class="px-4 py-5 sm:p-6">
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <div class="sm:col-span-2">
-                <label for="feed-name" class="block text-sm font-medium text-gray-700">Feed Name</label>
+                <label for="endpoint-name" class="block text-sm font-medium text-gray-700">Endpoint Name</label>
                 <div class="mt-1">
-                  <input type="text" name="feed-name" id="feed-name" placeholder="e.g., FDA Drug Approvals" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                  <input type="text" name="endpoint-name" id="endpoint-name" placeholder="e.g., Company Profiles" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
                 </div>
               </div>
               
               <div class="sm:col-span-2">
-                <label for="feed-url" class="block text-sm font-medium text-gray-700">API URL</label>
+                <label for="endpoint-path" class="block text-sm font-medium text-gray-700">Endpoint Path</label>
                 <div class="mt-1">
-                  <input type="url" name="feed-url" id="feed-url" placeholder="https://api.example.com/endpoint" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                  <input type="text" name="endpoint-path" id="endpoint-path" placeholder="e.g., /profile/{ticker}" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
                 </div>
               </div>
               
               <div>
-                <label for="feed-frequency" class="block text-sm font-medium text-gray-700">Frequency</label>
+                <label for="target-table" class="block text-sm font-medium text-gray-700">Target Table</label>
                 <div class="mt-1">
-                  <select id="feed-frequency" name="feed-frequency" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
-                    <option value="hourly">Hourly</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
+                  <select id="target-table" name="target-table" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                    <option value="companies">companies</option>
+                    <option value="company_financials">company_financials</option>
+                    <option value="company_metrics">company_metrics</option>
+                    <option value="company_stock_data">company_stock_data</option>
                   </select>
                 </div>
               </div>
               
               <div>
-                <label for="feed-status" class="block text-sm font-medium text-gray-700">Status</label>
+                <label for="endpoint-status" class="block text-sm font-medium text-gray-700">Status</label>
                 <div class="mt-1">
-                  <select id="feed-status" name="feed-status" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
+                  <select id="endpoint-status" name="endpoint-status" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm">
                     <option value="active">Active</option>
                     <option value="disabled">Disabled</option>
                   </select>
@@ -174,18 +556,19 @@ const getStatusColor = (status: string): string => {
               </div>
               
               <div class="sm:col-span-2">
-                <label for="feed-auth" class="block text-sm font-medium text-gray-700">Authentication (Optional)</label>
+                <label for="field-mapping" class="block text-sm font-medium text-gray-700">Field Mapping</label>
                 <div class="mt-1">
-                  <textarea id="feed-auth" name="feed-auth" rows="3" placeholder="API Key or Authentication Details" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"></textarea>
+                  <textarea id="field-mapping" name="field-mapping" rows="5" placeholder='{ "name": "companyName", "ticker": "symbol" }' class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm font-mono"></textarea>
                 </div>
+                <p class="mt-2 text-sm text-gray-500">Define how fields from the external API map to database columns.</p>
               </div>
               
               <div class="sm:col-span-2">
-                <label for="feed-mapping" class="block text-sm font-medium text-gray-700">Data Mapping</label>
+                <label for="configuration" class="block text-sm font-medium text-gray-700">Configuration</label>
                 <div class="mt-1">
-                  <textarea id="feed-mapping" name="feed-mapping" rows="5" placeholder="JSON mapping configuration" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm font-mono"></textarea>
+                  <textarea id="configuration" name="configuration" rows="5" placeholder='{ "batch_supported": true, "frequency": "daily" }' class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm font-mono"></textarea>
                 </div>
-                <p class="mt-2 text-sm text-gray-500">Define how fields from the external API map to our database schema.</p>
+                <p class="mt-2 text-sm text-gray-500">Additional configuration options for this endpoint.</p>
               </div>
             </div>
             
@@ -194,7 +577,7 @@ const getStatusColor = (status: string): string => {
                 Cancel
               </button>
               <button type="button" class="ml-3 inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
-                Save Data Feed
+                Save Endpoint
               </button>
               <button type="button" class="ml-3 inline-flex items-center rounded-md border border-transparent bg-gray-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
                 Test Connection
@@ -206,68 +589,31 @@ const getStatusColor = (status: string): string => {
       
       <!-- Fetch History -->
       <div class="mb-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-3">Fetch History</h2>
+        <h2 class="text-lg font-semibold text-gray-900 mb-3">Ingestion History</h2>
         <Card>
           <div class="px-4 py-5 sm:p-6">
             <p class="text-sm text-gray-500 mb-4">
-              Recent data fetch operations and their status.
+              Recent data ingestion operations and their status.
             </p>
             
             <div class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead>
                   <tr>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Feed</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Records Updated</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data Source</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Time</th>
                     <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Records</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">API Calls</th>
+                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody id="import-history-table" class="bg-white divide-y divide-gray-200">
                   <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">FDA Drug Approvals</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 7, 2025 12:00 AM</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                      <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 bg-green-100 text-green-800">
-                        Success
-                      </span>
+                    <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">
+                      Loading import history...
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">42</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">3.2s</td>
-                  </tr>
-                  <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">ClinicalTrials.gov Updates</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 7, 2025 12:30 AM</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                      <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 bg-green-100 text-green-800">
-                        Success
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">187</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">12.7s</td>
-                  </tr>
-                  <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">SEC EDGAR Filings</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 6, 2025 11:45 PM</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                      <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 bg-red-100 text-red-800">
-                        Failed
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">0</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">30.0s</td>
-                  </tr>
-                  <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">WHO Essential Medicines</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 6, 2025 2:00 PM</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                      <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 bg-green-100 text-green-800">
-                        Success
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">3</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1.5s</td>
                   </tr>
                 </tbody>
               </table>
@@ -278,4 +624,353 @@ const getStatusColor = (status: string): string => {
       
     </main>
   </div>
-</DashboardLayout> 
+</DashboardLayout>
+
+<script>
+  // FMP Import Functionality
+  document.addEventListener('DOMContentLoaded', () => {
+    const importButton = document.getElementById('import-fmp-companies');
+    const importStatus = document.getElementById('import-status');
+    const statusTitle = document.getElementById('import-status-title');
+    const statusMessage = document.getElementById('import-status-message');
+    const loadingIcon = document.getElementById('import-status-icon-loading');
+    const successIcon = document.getElementById('import-status-icon-success');
+    const errorIcon = document.getElementById('import-status-icon-error');
+    
+    // Toggle configuration form
+    const toggleConfig = document.getElementById('toggle-config');
+    const toggleText = document.getElementById('toggle-text');
+    const toggleIcon = document.getElementById('toggle-icon');
+    const configForm = document.getElementById('import-config-form');
+    
+    if (toggleConfig) {
+      toggleConfig.addEventListener('click', () => {
+        configForm.classList.toggle('hidden');
+        if (configForm.classList.contains('hidden')) {
+          toggleText.textContent = 'Show Options';
+          toggleIcon.style.transform = '';
+        } else {
+          toggleText.textContent = 'Hide Options';
+          toggleIcon.style.transform = 'rotate(180deg)';
+        }
+      });
+    }
+    
+    // Load import history
+    const loadImportHistory = async () => {
+      try {
+        // Get the history table body
+        const historyTableBody = document.getElementById('import-history-table');
+        if (!historyTableBody) return;
+        
+        // Clear loading message
+        historyTableBody.innerHTML = '';
+        
+        // Fetch import history from our API
+        const response = await fetch('/api/import-history');
+        if (!response.ok) {
+          throw new Error(`Error fetching import history: ${response.status} ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.error || 'Unknown error fetching import history');
+        }
+        
+        const importHistory = result.data || [];
+        
+        // Format date
+        const formatDate = (dateString) => {
+          if (!dateString) return 'N/A';
+          const date = new Date(dateString);
+          return date.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+          });
+        };
+        
+        // Calculate duration
+        const calculateDuration = (startTime, endTime) => {
+          if (!startTime || !endTime) return 'N/A';
+          
+          const start = new Date(startTime);
+          const end = new Date(endTime);
+          const durationMs = end - start;
+          
+          if (durationMs < 0) return 'N/A';
+          
+          const minutes = Math.floor(durationMs / (1000 * 60));
+          const seconds = Math.floor((durationMs % (1000 * 60)) / 1000);
+          
+          if (minutes > 0) {
+            return `${minutes}m ${seconds}s`;
+          } else {
+            return `${seconds}s`;
+          }
+        };
+        
+        // Get status badge color
+        const getStatusColor = (status) => {
+          switch (status) {
+            case 'completed':
+              return 'bg-green-100 text-green-800';
+            case 'processing':
+              return 'bg-blue-100 text-blue-800';
+            case 'failed':
+              return 'bg-red-100 text-red-800';
+            case 'completed_with_errors':
+              return 'bg-yellow-100 text-yellow-800';
+            default:
+              return 'bg-gray-100 text-gray-800';
+          }
+        };
+        
+        // Format status text
+        const formatStatus = (status) => {
+          switch (status) {
+            case 'completed':
+              return 'Completed';
+            case 'processing':
+              return 'In Progress';
+            case 'failed':
+              return 'Failed';
+            case 'completed_with_errors':
+              return 'Completed with Errors';
+            default:
+              return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+          }
+        };
+        
+        // Add history rows
+        importHistory.forEach(entry => {
+          const row = document.createElement('tr');
+          
+          // Data Source
+          const dataSourceCell = document.createElement('td');
+          dataSourceCell.className = 'px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900';
+          dataSourceCell.textContent = entry.dataSource;
+          row.appendChild(dataSourceCell);
+          
+          // Start Time
+          const startTimeCell = document.createElement('td');
+          startTimeCell.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-500';
+          startTimeCell.textContent = formatDate(entry.startTime);
+          row.appendChild(startTimeCell);
+          
+          // Duration
+          const durationCell = document.createElement('td');
+          durationCell.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-500';
+          durationCell.textContent = calculateDuration(entry.startTime, entry.endTime);
+          row.appendChild(durationCell);
+          
+          // Status
+          const statusCell = document.createElement('td');
+          statusCell.className = 'px-6 py-4 whitespace-nowrap text-sm';
+          
+          const statusBadge = document.createElement('span');
+          statusBadge.className = `inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${getStatusColor(entry.status)}`;
+          statusBadge.textContent = formatStatus(entry.status);
+          statusCell.appendChild(statusBadge);
+          
+          row.appendChild(statusCell);
+          
+          // Records
+          const recordsCell = document.createElement('td');
+          recordsCell.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-500';
+          recordsCell.textContent = `+${entry.recordsAdded} / ~${entry.recordsUpdated} / =${entry.recordsSkipped}`;
+          row.appendChild(recordsCell);
+          
+          // API Calls
+          const apiCallsCell = document.createElement('td');
+          apiCallsCell.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-500';
+          apiCallsCell.textContent = entry.apiCallsMade;
+          row.appendChild(apiCallsCell);
+          
+          // Actions
+          const actionsCell = document.createElement('td');
+          actionsCell.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-500';
+          
+          const viewButton = document.createElement('button');
+          viewButton.className = 'text-primary-600 hover:text-primary-900';
+          viewButton.textContent = 'View Details';
+          viewButton.onclick = () => {
+            alert(`Import ID: ${entry.id}\nStart Time: ${formatDate(entry.startTime)}\nStatus: ${formatStatus(entry.status)}\nRecords Found: ${entry.recordsFound}\nRecords Added: ${entry.recordsAdded}\nRecords Updated: ${entry.recordsUpdated}\nRecords Skipped: ${entry.recordsSkipped}\nAPI Calls: ${entry.apiCallsMade}${entry.errorMessage ? '\n\nError: ' + entry.errorMessage : ''}`);
+          };
+          actionsCell.appendChild(viewButton);
+          
+          row.appendChild(actionsCell);
+          
+          historyTableBody.appendChild(row);
+        });
+        
+        // If no history, show a message
+        if (importHistory.length === 0) {
+          const emptyRow = document.createElement('tr');
+          const emptyCell = document.createElement('td');
+          emptyCell.colSpan = 7;
+          emptyCell.className = 'px-6 py-4 text-center text-sm text-gray-500';
+          emptyCell.textContent = 'No import history available.';
+          emptyRow.appendChild(emptyCell);
+          historyTableBody.appendChild(emptyRow);
+        }
+      } catch (error) {
+        console.error('Error loading import history:', error);
+        
+        // Show error message
+        const historyTableBody = document.getElementById('import-history-table');
+        if (historyTableBody) {
+          historyTableBody.innerHTML = '';
+          const errorRow = document.createElement('tr');
+          const errorCell = document.createElement('td');
+          errorCell.colSpan = 7;
+          errorCell.className = 'px-6 py-4 text-center text-sm text-red-500';
+          errorCell.textContent = `Error loading import history: ${error.message}`;
+          errorRow.appendChild(errorCell);
+          historyTableBody.appendChild(errorRow);
+        }
+      }
+    };
+    
+    // Load import history when the page loads
+    loadImportHistory();
+    
+    if (importButton) {
+      importButton.addEventListener('click', async () => {
+        try {
+          // Show loading state
+          importButton.disabled = true;
+          importButton.innerHTML = 'Importing...';
+          importStatus.classList.remove('hidden');
+          loadingIcon.classList.remove('hidden');
+          successIcon.classList.add('hidden');
+          errorIcon.classList.add('hidden');
+          statusTitle.textContent = 'Import in progress';
+          statusMessage.textContent = 'Fetching company data from FMP API...';
+          
+          // Get configuration values
+          const batchSize = parseInt(document.getElementById('batchSize')?.value || '5', 10);
+          const maxCompanies = parseInt(document.getElementById('max-companies')?.value || '0', 10);
+          const requestDelay = parseInt(document.getElementById('requestDelay')?.value || '3000', 10);
+          const includeInactive = document.getElementById('include-inactive')?.value === 'true';
+          
+          // Get selected industries
+          const industryCheckboxes = document.querySelectorAll('input[name="industries"]:checked');
+          const industries = Array.from(industryCheckboxes).map(cb => (cb as HTMLInputElement).value);
+          
+          // Build the configuration object
+          const config = {
+            batchSize,
+            maxCompanies: maxCompanies > 0 ? maxCompanies : undefined,
+            industries,
+            includeInactive,
+            requestDelay
+          };
+          
+          // Call the API endpoint to import companies
+          const response = await fetch('/api/import-fmp-companies', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(config)
+          });
+          
+          // If the response is not successful, show an error
+          if (!response.ok) {
+            try {
+              const errorData = await response.json();
+              statusTitle.textContent = 'Import Failed';
+              statusMessage.textContent = `Error: ${errorData.error || 'Unknown error'}`;
+              
+              // Hide loading icon and show error icon
+              loadingIcon.classList.add('hidden');
+              errorIcon.classList.remove('hidden');
+              
+              if (errorData.details) {
+                // Show more detailed error information
+                const detailsElement = document.createElement('div');
+                detailsElement.className = 'text-red-400 text-sm mt-2';
+                detailsElement.textContent = errorData.details;
+                statusMessage.appendChild(detailsElement);
+                
+                // Add suggested fix if available
+                if (errorData.suggestedFix) {
+                  const fixElement = document.createElement('div');
+                  fixElement.className = 'text-blue-500 text-sm mt-2';
+                  fixElement.textContent = `Suggested fix: ${errorData.suggestedFix}`;
+                  statusMessage.appendChild(fixElement);
+                }
+              }
+            } catch (e) {
+              statusTitle.textContent = 'Import Failed';
+              statusMessage.textContent = `Error: Status ${response.status} - ${response.statusText}`;
+              loadingIcon.classList.add('hidden');
+              errorIcon.classList.remove('hidden');
+            }
+            return;
+          }
+          
+          // Parse the response JSON
+          const result = await response.json();
+          
+          // Show success message
+          statusTitle.textContent = 'Import Successful';
+          loadingIcon.classList.add('hidden');
+          successIcon.classList.remove('hidden');
+          
+          // Display detailed summary
+          const summary = result.summary;
+          statusMessage.innerHTML = `
+            <div class="mb-2">
+              <span class="font-semibold">Company data imported successfully.</span>
+            </div>
+            <div class="text-xs grid grid-cols-2 gap-x-4 gap-y-2">
+              <div><span class="font-medium">Companies Found:</span> ${summary.totalFound}</div>
+              <div><span class="font-medium">Companies Processed:</span> ${summary.processed}</div>
+              <div><span class="font-medium">Companies Added:</span> ${summary.added}</div>
+              <div><span class="font-medium">Companies Updated:</span> ${summary.updated}</div>
+              <div><span class="font-medium">API Calls Made:</span> ${summary.apiCalls}</div>
+              <div><span class="font-medium">Errors:</span> ${summary.errors}</div>
+            </div>
+          `;
+          
+          // Add industry breakdown if available
+          if (summary.industries) {
+            const industriesDiv = document.createElement('div');
+            industriesDiv.className = 'mt-2 text-xs';
+            industriesDiv.innerHTML = `
+              <div class="font-medium mb-1">Industry Breakdown:</div>
+              <div class="grid grid-cols-2 gap-x-4">
+                ${Object.entries(summary.industries)
+                  .map(([industry, count]) => `<div>${industry}: ${count}</div>`)
+                  .join('')}
+              </div>
+            `;
+            statusMessage.appendChild(industriesDiv);
+          }
+          
+          // Refresh import history
+          loadImportHistory();
+          
+          // Refresh the page after a delay to update stats
+          setTimeout(() => {
+            window.location.reload();
+          }, 5000);
+          
+        } catch (error) {
+          console.error('Error importing companies:', error);
+          statusTitle.textContent = 'Import Failed';
+          loadingIcon.classList.add('hidden');
+          errorIcon.classList.remove('hidden');
+          statusMessage.textContent = 'An error occurred while importing companies. Please try again later.';
+        } finally {
+          importButton.disabled = false;
+          importButton.innerHTML = 'Import Now';
+        }
+      });
+    }
+  });
+</script>
