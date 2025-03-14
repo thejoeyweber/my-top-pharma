@@ -24,12 +24,12 @@ import {
 
 // Import other existing utilities
 import { 
-  therapeuticAreas,
   getProductsByCompany,
   websiteCategories
 } from '../../utils/dataUtils';
 import { getWebsitesByCompany } from '../../utils/crossReferenceUtils';
 import { getCompanyLogoUrl, getCompanyHeaderUrl, getWebsiteScreenshotUrl } from '../../utils/assetUtils';
+import { getAllTherapeuticAreas, getTherapeuticAreaById } from '../../utils/therapeuticAreaUtils';
 
 // Generate static paths for all companies
 export async function getStaticPaths() {
@@ -88,14 +88,17 @@ const tabs = [
 ];
 
 // Get therapeutic area names
-const getTherapeuticAreaNames = (areaIds: string[]) => {
+const getTherapeuticAreaNames = async (areaIds: string[]) => {
+  // Get all therapeutic areas
+  const allAreas = await getAllTherapeuticAreas();
+  
   return areaIds.map(id => {
-    const area = therapeuticAreas.find(a => a.id === id);
+    const area = allAreas.find(a => a.id === id);
     return area ? area.name : id;
   });
 };
 
-const companyTherapeuticAreas = getTherapeuticAreaNames(company.therapeuticAreas);
+const companyTherapeuticAreas = await getTherapeuticAreaNames(company.therapeuticAreas);
 
 // Format market cap for display
 const formatMarketCap = (marketCap: number) => {

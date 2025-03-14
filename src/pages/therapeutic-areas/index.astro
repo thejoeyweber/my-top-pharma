@@ -7,8 +7,12 @@
  */
 import DashboardLayout from '../../components/templates/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
-import { therapeuticAreas, getCompaniesByTherapeuticArea } from '../../utils/dataUtils';
+import { getCompaniesByTherapeuticArea } from '../../utils/dataUtils';
 import { getProductsByTherapeuticArea, getWebsitesByTherapeuticArea } from '../../utils/crossReferenceUtils';
+import { getAllTherapeuticAreas } from '../../utils/therapeuticAreaUtils';
+
+// Get all therapeutic areas
+const therapeuticAreas = await getAllTherapeuticAreas();
 
 // Get stats for each therapeutic area
 const areasWithStats = therapeuticAreas.map(area => {
@@ -55,7 +59,7 @@ const breadcrumbs = [
       <div class="p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedAreas.map(area => (
-            <a href={`/therapeutic-areas/${area.id}`} class="group">
+            <a href={`/therapeutic-areas/${area.slug}`} class="group">
               <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden hover:border-blue-300 hover:shadow-md transition-all duration-200">
                 <div class="p-6">
                   <h2 class="text-xl font-medium text-gray-900 group-hover:text-blue-600">{area.name}</h2>

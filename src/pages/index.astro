@@ -267,7 +267,7 @@ const therapeuticAreas = [
 
       <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {therapeuticAreas.map((area) => (
-          <a href={`/therapeutic-areas/${area.id}`} class="group">
+          <a href={`/therapeutic-areas/${area.slug}`} class="group">
             <Card>
               <div class="flex justify-between items-center p-6">
                 <h3 class="text-lg font-medium text-gray-900 group-hover:text-primary-600">{area.name}</h3>

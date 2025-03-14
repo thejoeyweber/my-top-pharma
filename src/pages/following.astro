@@ -202,7 +202,7 @@ const tabs = [
                     <tr>
                       <td class="px-6 py-4 whitespace-nowrap">
                         <div class="text-sm font-medium text-gray-900">
-                          <a href={`/therapeutic-areas/${area.id}`} class="hover:text-primary-600">{area.name}</a>
+                          <a href={`/therapeutic-areas/${area.slug}`} class="hover:text-primary-600">{area.name}</a>
                         </div>
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -210,7 +210,7 @@ const tabs = [
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button type="button" class="text-primary-600 hover:text-primary-900 mr-4" data-area-id={area.id}>Unfollow</button>
-                        <a href={`/therapeutic-areas/${area.id}`} class="text-gray-600 hover:text-gray-900">View</a>
+                        <a href={`/therapeutic-areas/${area.slug}`} class="text-gray-600 hover:text-gray-900">View</a>
                       </td>
                     </tr>
                   ))}

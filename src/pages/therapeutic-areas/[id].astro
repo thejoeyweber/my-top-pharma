@@ -13,25 +13,32 @@ import CompanyCard from '../../components/molecules/CompanyCard.astro';
 import ProductCard from '../../components/molecules/ProductCard.astro';
 import WebsiteCard from '../../components/molecules/WebsiteCard.astro';
 import { 
-  therapeuticAreas, 
   getCompaniesByTherapeuticArea, 
-  websiteCategories,
-  getTherapeuticAreaById
+  websiteCategories
 } from '../../utils/dataUtils';
 import { getProductsByTherapeuticArea, getWebsitesByTherapeuticArea } from '../../utils/crossReferenceUtils';
 import { getCompanyLogoUrl, getWebsiteScreenshotUrl } from '../../utils/assetUtils';
+import { getAllTherapeuticAreas, getTherapeuticAreaById, getTherapeuticAreaBySlug } from '../../utils/therapeuticAreaUtils';
 
 // Generate static paths for all therapeutic areas
-export function getStaticPaths() {
+export async function getStaticPaths() {
+  const therapeuticAreas = await getAllTherapeuticAreas();
   return therapeuticAreas.map(area => ({
-    params: { id: area.id },
-    props: { areaName: area.name }
+    params: { id: area.slug },
+    props: { 
+      areaId: area.id,
+      slug: area.slug,
+      areaName: area.name 
+    }
   }));
 }
 
-// Get therapeutic area ID from URL parameters
+// Get therapeutic area slug from URL parameters
 const { id } = Astro.params;
-const therapeuticArea = getTherapeuticAreaById(id as string);
+const { areaId, slug } = Astro.props;
+
+// Get the therapeutic area data
+const therapeuticArea = await getTherapeuticAreaBySlug(id as string);
 
 // If therapeutic area not found, redirect to listing page
 if (!therapeuticArea) {
@@ -42,13 +49,13 @@ if (!therapeuticArea) {
 const areaName = therapeuticArea.name;
 
 // Get all companies that work in this therapeutic area
-const relatedCompanies = getCompaniesByTherapeuticArea(id as string);
+const relatedCompanies = getCompaniesByTherapeuticArea(areaId as string);
 
 // Get all products related to this therapeutic area
-const relatedProducts = getProductsByTherapeuticArea(id as string);
+const relatedProducts = getProductsByTherapeuticArea(areaId as string);
 
 // Get all websites related to this therapeutic area
-const relatedWebsites = getWebsitesByTherapeuticArea(id as string);
+const relatedWebsites = getWebsitesByTherapeuticArea(areaId as string);
 
 // Function to get category label
 const getCategoryLabel = (categoryId: string) => {
@@ -71,14 +78,14 @@ const tabs = [
 const breadcrumbs = [
   { label: 'Home', href: '/' },
   { label: 'Therapeutic Areas', href: '/therapeutic-areas' },
-  { label: areaName, href: `/therapeutic-areas/${id}`, isActive: true },
+  { label: areaName, href: `/therapeutic-areas/${slug}`, isActive: true },
 ];
 ---
 
 <DashboardLayout 
   title={`${areaName} | Therapeutic Area | Top Pharma`}
   description={`Information about ${areaName} therapeutic area including companies, products, and websites`}
-  currentPath={`/therapeutic-areas/${id}`}
+  currentPath={`/therapeutic-areas/${slug}`}
   breadcrumbs={breadcrumbs}
 >
   <div class="space-y-6">
