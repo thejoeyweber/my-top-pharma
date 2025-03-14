@@ -7,6 +7,7 @@
  */
 import DashboardLayout from '../../components/templates/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
+import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
 import { getCompaniesByTherapeuticArea } from '../../utils/dataUtils';
 import { getProductsByTherapeuticArea, getWebsitesByTherapeuticArea } from '../../utils/crossReferenceUtils';
 import { getAllTherapeuticAreas } from '../../utils/therapeuticAreaUtils';
@@ -50,7 +51,10 @@ const breadcrumbs = [
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">Therapeutic Areas</h1>
-        <p class="mt-1 text-lg text-gray-500">Browse all therapeutic areas in the pharmaceutical industry</p>
+        <p class="mt-1 text-lg text-gray-500">
+          Browse all therapeutic areas in the pharmaceutical industry
+          <DataSourceVisualizer contentType="therapeutic_areas" />
+        </p>
       </div>
     </div>
     

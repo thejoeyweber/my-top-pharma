@@ -12,6 +12,7 @@ import MultiSelect from '../../components/molecules/MultiSelect.astro';
 import RangeSlider from '../../components/molecules/RangeSlider.astro';
 import SortSelect from '../../components/molecules/SortSelect.astro';
 import ViewToggle from '../../components/molecules/ViewToggle.astro';
+import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
 import { filterAndSortItems } from '../../utils/filterUtils';
 
 // Import company data utilities (supports both static and database sources)
@@ -186,6 +187,7 @@ const breadcrumbs = [
         <h1 class="text-2xl font-bold text-gray-900">Companies Directory</h1>
         <p class="mt-1 text-sm text-gray-500">
           Browse all pharmaceutical and biotech companies in our database
+          <DataSourceVisualizer contentType="companies" />
         </p>
       </div>
       <div class="flex items-center gap-2">

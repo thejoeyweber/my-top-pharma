@@ -43,11 +43,13 @@ All commands are run from the root of the project, from a terminal:
 | `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
 | `npm run astro -- --help` | Get help using the Astro CLI                     |
 | `npm run convert-all`     | Convert all data files to TypeScript             |
-| `npm run create-migration <name>` | Create a new database migration file     |
+| `npm run create-migration <n>` | Create a new database migration file     |
 | `npm run db:push`         | Apply database migrations to Supabase            |
 | `npm run db:types`        | Generate TypeScript types from Supabase schema   |
 | `npm run ingest-companies` | Fetch and store pharmaceutical companies from FMP API |
 | `npm run test-fmp`        | Test the connection to the FMP API               |
+| `npm run migrate:companies` | Migrate companies from JSON to local Supabase database |
+| `npm run migrate:therapeutic-areas` | Migrate therapeutic areas from JSON to local Supabase database |
 
 ## 👀 Want to learn more?
 
@@ -278,3 +280,79 @@ Type definitions for the data are located in `src/types/`:
 - `user.ts`: Types for user data
 - `admin.ts`: Types for admin data
 - `database.ts`: Types for Supabase database schema
+
+## 🗄️ Local Supabase Development
+
+This project supports toggling between local and remote Supabase instances for development and testing. Using a local Supabase instance provides several benefits:
+
+- Develop and test without internet connectivity
+- Make schema changes without affecting the production database
+- Reset the database to a clean state at any time
+- Avoid rate limits and quota restrictions
+
+### Prerequisites
+
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+2. Install the Supabase CLI:
+   ```bash
+   npm install -g supabase
+   ```
+
+### Setting Up Local Supabase
+
+1. Start Docker Desktop
+2. Initialize Supabase (first time only):
+   ```bash
+   npx supabase init
+   ```
+3. Start the local Supabase instance:
+   ```bash
+   npx supabase start
+   ```
+4. Copy the local URL and anon key to your `.env.local` file:
+   ```bash
+   PUBLIC_LOCAL_SUPABASE_URL=http://localhost:54321
+   PUBLIC_LOCAL_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+   ```
+5. Apply database migrations:
+   ```bash
+   npm run db:push
+   ```
+6. Migrate data from JSON to local database:
+   ```bash
+   npm run migrate:companies
+   npm run migrate:therapeutic-areas
+   ```
+
+### Accessing Local Supabase Dashboard
+
+- Supabase Studio: [http://localhost:54323](http://localhost:54323)
+- API Documentation: [http://localhost:54321/rest/v1/](http://localhost:54321/rest/v1/)
+
+### Common Tasks
+
+- Reset the local database:
+  ```bash
+  npx supabase db reset
+  ```
+- View logs:
+  ```bash
+  npx supabase logs
+  ```
+- Stop the local instance:
+  ```bash
+  npx supabase stop
+  ```
+
+### Testing Connection Status
+
+You can verify the database connection status and toggle between local and remote instances using the admin dashboard:
+
+1. Navigate to `/admin/data-feeds/connection-test`
+2. Toggle the "Use Local Supabase Instance" switch
+3. Check the connection status for both local and remote instances
+
+### Additional Resources
+
+- [Supabase Local Development](https://supabase.com/docs/guides/local-development)
+- [Supabase CLI Reference](https://supabase.com/docs/reference/cli/introduction)

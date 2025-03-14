@@ -19,7 +19,9 @@
     "convert-user": "node scripts/convertUser.js",
     "convert-all": "npm run convert-companies ; npm run convert-products ; npm run convert-websites ; npm run convert-admin ; npm run convert-user",
     "convert-data": "node scripts/convertData.js",
-    "cleanup-ts-data": "node scripts/cleanupTsData.js"
+    "cleanup-ts-data": "node scripts/cleanupTsData.js",
+    "migrate:companies": "npx tsx scripts/migrate-companies-to-local-db.ts",
+    "migrate:therapeutic-areas": "npx tsx scripts/migrate-therapeutic-areas-to-local-db.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
@@ -40,8 +42,9 @@
   },
   "devDependencies": {
     "@types/uuid": "^10.0.0",
-    "supabase": "^2.19.6",
+    "supabase": "^2.19.7",
     "ts-node": "^10.9.2",
+    "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   }
 }

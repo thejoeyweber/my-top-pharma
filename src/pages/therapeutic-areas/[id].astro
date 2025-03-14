@@ -12,6 +12,7 @@ import KeyMetric from '../../components/molecules/KeyMetric.astro';
 import CompanyCard from '../../components/molecules/CompanyCard.astro';
 import ProductCard from '../../components/molecules/ProductCard.astro';
 import WebsiteCard from '../../components/molecules/WebsiteCard.astro';
+import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
 import { 
   getCompaniesByTherapeuticArea, 
   websiteCategories
@@ -93,7 +94,10 @@ const breadcrumbs = [
       <div class="p-6">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
           <div>
-            <h1 class="text-2xl font-bold text-gray-900">{areaName}</h1>
+            <h1 class="text-2xl font-bold text-gray-900">
+              {areaName}
+              <DataSourceVisualizer contentType="therapeutic_areas" />
+            </h1>
             <p class="mt-1 text-lg text-gray-500">Therapeutic Area</p>
           </div>
           <div class="flex gap-3">

@@ -22,6 +22,23 @@ export const FEATURES = {
   USE_DATABASE_COMPANY_METRICS: 'USE_DATABASE_COMPANY_METRICS',
   USE_DATABASE_COMPANY_STOCK_DATA: 'USE_DATABASE_COMPANY_STOCK_DATA',
   
+  // Database connection flags
+  /**
+   * Controls which Supabase instance to use (local vs. remote)
+   * When true: Uses local Supabase instance (http://localhost:54321)
+   * When false: Uses remote Supabase instance
+   * 
+   * This flag is intended for development use only and will eventually be removed
+   * when the migration to database-driven content is complete.
+   * 
+   * @deprecated This will be removed once migration is complete.
+   * Path to removal:
+   * 1. Complete all data migrations to both local and remote databases
+   * 2. Update all data source utilities to use a single non-toggling client
+   * 3. Remove this flag and the factory pattern in supabase.ts/supabase-admin.ts
+   */
+  USE_LOCAL_DATABASE: 'USE_LOCAL_DATABASE',
+  
   // UI flags
   ENABLE_DATA_SOURCE_TOGGLE: 'ENABLE_DATA_SOURCE_TOGGLE',
 } as const;
@@ -42,6 +59,7 @@ const ENV_FLAGS: Partial<Record<FeatureFlag, boolean>> = {
   USE_DATABASE_COMPANY_FINANCIALS: import.meta.env.PUBLIC_USE_DATABASE_COMPANY_FINANCIALS === 'true',
   USE_DATABASE_COMPANY_METRICS: import.meta.env.PUBLIC_USE_DATABASE_COMPANY_METRICS === 'true',
   USE_DATABASE_COMPANY_STOCK_DATA: import.meta.env.PUBLIC_USE_DATABASE_COMPANY_STOCK_DATA === 'true',
+  USE_LOCAL_DATABASE: import.meta.env.PUBLIC_USE_LOCAL_DATABASE === 'true',
 };
 
 // Default feature flag values if not set in environment or cookies
@@ -53,6 +71,7 @@ const DEFAULT_FLAGS: Record<FeatureFlag, boolean> = {
   USE_DATABASE_COMPANY_FINANCIALS: false,
   USE_DATABASE_COMPANY_METRICS: false,
   USE_DATABASE_COMPANY_STOCK_DATA: false,
+  USE_LOCAL_DATABASE: false, // Default to remote database in production
   ENABLE_DATA_SOURCE_TOGGLE: import.meta.env.DEV, // Only enabled in development by default
 };
 
@@ -217,20 +236,45 @@ export function setFeatureFlag(flag: FeatureFlag, value: boolean): void {
   flags[flag] = value;
   featureFlagsCache = flags;
   
+  console.log(`🚩 Setting feature flag ${flag} to ${value}`);
+  
   // Only update storage in browser context
   if (typeof window !== 'undefined') {
     // Update localStorage
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(flags));
+      console.log(`✅ Updated localStorage with new flag value for ${flag}`);
     } catch (error) {
-      console.error('Error saving feature flags to local storage:', error);
+      console.error('❌ Error saving feature flags to local storage:', error);
     }
     
-    // Try to set a cookie as well
+    // Set a cookie as well with a longer expiration (30 days)
     try {
-      document.cookie = `ff_${flag.toLowerCase()}=${value}; path=/; max-age=86400`;
+      const cookieName = `ff_${flag.toLowerCase()}`;
+      const expires = new Date();
+      expires.setDate(expires.getDate() + 30);
+      
+      document.cookie = `${cookieName}=${value}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
+      console.log(`✅ Set cookie ${cookieName}=${value}`);
+      
+      // Also update URL parameter without page reload for easier sharing
+      const url = new URL(window.location.href);
+      url.searchParams.set(`ff_${flag.toLowerCase()}`, value.toString());
+      window.history.replaceState({}, '', url.toString());
     } catch (error) {
-      console.error('Error setting feature flag cookie:', error);
+      console.error('❌ Error setting feature flag cookie:', error);
+    }
+    
+    // Dispatch custom event for components to listen to
+    try {
+      const event = new CustomEvent('featureflag:changed', { 
+        detail: { flag, value },
+        bubbles: true 
+      });
+      window.dispatchEvent(event);
+      console.log(`✅ Dispatched featureflag:changed event for ${flag}`);
+    } catch (error) {
+      console.error('❌ Error dispatching feature flag change event:', error);
     }
   }
 }

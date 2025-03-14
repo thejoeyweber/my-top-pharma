@@ -8,6 +8,8 @@
 import { supabase } from './supabase';
 import type { TherapeuticArea, PharmClassMapping } from '../types/TherapeuticArea';
 import { getFeatureFlag } from './featureFlags';
+import { withDataSource } from './dataSourceUtil';
+import type { ContentType } from './dataSourceUtil';
 
 // Import mock data
 import therapeuticAreasData from '../data/json/therapeuticAreas.json';
@@ -26,99 +28,109 @@ function processTherapeuticAreas(): TherapeuticArea[] {
  * Fetches all therapeutic areas from either the database or mock data
  */
 export async function getAllTherapeuticAreas(): Promise<TherapeuticArea[]> {
-  const useDatabase = getFeatureFlag('USE_DATABASE_THERAPEUTIC_AREAS');
-  
-  if (useDatabase) {
-    try {
-      const { data, error } = await supabase
-        .from('therapeutic_areas')
-        .select('*')
-        .order('name');
+  return withDataSource<TherapeuticArea[]>(
+    'therapeutic_areas',
+    // Static JSON function
+    async () => processTherapeuticAreas(),
+    // Database function
+    async (isLocal) => {
+      try {
+        // Use a type assertion to help TypeScript understand the Supabase client
+        const result = await supabase
+          .from('therapeutic_areas')
+          .select('*')
+          .order('name');
+          
+        if (result.error) {
+          console.error('Error fetching therapeutic areas:', result.error);
+          return processTherapeuticAreas();
+        }
         
-      if (error) {
-        console.error('Error fetching therapeutic areas:', error);
+        return result.data as TherapeuticArea[];
+      } catch (error) {
+        console.error('Failed to fetch therapeutic areas:', error);
         return processTherapeuticAreas();
       }
-      
-      return data as TherapeuticArea[];
-    } catch (error) {
-      console.error('Failed to fetch therapeutic areas:', error);
-      return processTherapeuticAreas();
     }
-  } else {
-    // Use mock data directly - it's already in the correct format
-    return processTherapeuticAreas();
-  }
+  );
 }
 
 /**
  * Fetches a therapeutic area by ID
  */
 export async function getTherapeuticAreaById(id: string): Promise<TherapeuticArea | null> {
-  const useDatabase = getFeatureFlag('USE_DATABASE_THERAPEUTIC_AREAS');
-  
-  if (useDatabase) {
-    try {
-      const { data, error } = await supabase
-        .from('therapeutic_areas')
-        .select('*')
-        .eq('id', id)
-        .single();
+  return withDataSource<TherapeuticArea | null>(
+    'therapeutic_areas',
+    // Static JSON function
+    async () => {
+      const mockAreas = processTherapeuticAreas();
+      return mockAreas.find(area => area.id === id) || null;
+    },
+    // Database function
+    async (isLocal) => {
+      try {
+        // Use a type assertion to help TypeScript understand the Supabase client
+        const result = await supabase
+          .from('therapeutic_areas')
+          .select('*')
+          .eq('id', id)
+          .single();
+          
+        if (result.error) {
+          console.error(`Error fetching therapeutic area ${id}:`, result.error);
+          // Fall back to mock data
+          const mockAreas = processTherapeuticAreas();
+          return mockAreas.find(area => area.id === id) || null;
+        }
         
-      if (error) {
-        console.error(`Error fetching therapeutic area ${id}:`, error);
+        return result.data as TherapeuticArea;
+      } catch (error) {
+        console.error(`Failed to fetch therapeutic area ${id}:`, error);
         // Fall back to mock data
         const mockAreas = processTherapeuticAreas();
         return mockAreas.find(area => area.id === id) || null;
       }
-      
-      return data as TherapeuticArea;
-    } catch (error) {
-      console.error(`Failed to fetch therapeutic area ${id}:`, error);
-      // Fall back to mock data
-      const mockAreas = processTherapeuticAreas();
-      return mockAreas.find(area => area.id === id) || null;
     }
-  } else {
-    // Use mock data
-    const mockAreas = processTherapeuticAreas();
-    return mockAreas.find(area => area.id === id) || null;
-  }
+  );
 }
 
 /**
  * Fetches a therapeutic area by slug
  */
 export async function getTherapeuticAreaBySlug(slug: string): Promise<TherapeuticArea | null> {
-  const useDatabase = getFeatureFlag('USE_DATABASE_THERAPEUTIC_AREAS');
-  
-  if (useDatabase) {
-    try {
-      const { data, error } = await supabase
-        .from('therapeutic_areas')
-        .select('*')
-        .eq('slug', slug)
-        .single();
+  return withDataSource<TherapeuticArea | null>(
+    'therapeutic_areas',
+    // Static JSON function
+    async () => {
+      const mockAreas = processTherapeuticAreas();
+      return mockAreas.find(area => area.slug === slug) || null;
+    },
+    // Database function
+    async (isLocal) => {
+      try {
+        // Use a type assertion to help TypeScript understand the Supabase client
+        const result = await supabase
+          .from('therapeutic_areas')
+          .select('*')
+          .eq('slug', slug)
+          .single();
+          
+        if (result.error) {
+          console.error(`Error fetching therapeutic area with slug ${slug}:`, result.error);
+          // Fall back to mock data
+          const mockAreas = processTherapeuticAreas();
+          return mockAreas.find(area => area.slug === slug) || null;
+        }
         
-      if (error) {
-        console.error(`Error fetching therapeutic area with slug ${slug}:`, error);
+        return result.data as TherapeuticArea;
+      } catch (error) {
+        console.error(`Failed to fetch therapeutic area with slug ${slug}:`, error);
         // Fall back to mock data
         const mockAreas = processTherapeuticAreas();
         return mockAreas.find(area => area.slug === slug) || null;
       }
-      
-      return data as TherapeuticArea;
-    } catch (error) {
-      console.error(`Failed to fetch therapeutic area with slug ${slug}:`, error);
-      // Fall back to mock data
-      const mockAreas = processTherapeuticAreas();
-      return mockAreas.find(area => area.slug === slug) || null;
     }
-  } else {
-    // Use mock data
-    const mockAreas = processTherapeuticAreas();
-    return mockAreas.find(area => area.slug === slug) || null;
-  }
+  );
 }
 
 /**

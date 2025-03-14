@@ -1,0 +1,223 @@
+---
+/**
+ * Data Source Visualizer Component
+ * 
+ * This component displays a badge showing which data source is currently
+ * being used for a specific content type. It's useful for verifying
+ * data source configuration during development and testing.
+ * 
+ * Usage:
+ * <DataSourceVisualizer contentType="companies" />
+ */
+
+import { DataSource, ContentType, getDataSource, getDataSourceDisplayName, getDataSourceIcon, getDataSourceColor } from '../utils/dataSourceUtil';
+
+interface Props {
+  /**
+   * The content type to display the data source for
+   */
+  contentType: ContentType;
+  
+  /**
+   * Optional additional CSS classes
+   */
+  class?: string;
+  
+  /**
+   * Optional title text
+   */
+  title?: string;
+  
+  /**
+   * Whether to show a large badge (default: false)
+   */
+  large?: boolean;
+  
+  /**
+   * Whether to show the label text (default: true)
+   */
+  showLabel?: boolean;
+
+  /**
+   * Whether the component starts expanded (default: true)
+   */
+  startExpanded?: boolean;
+  
+  /**
+   * Whether to show the content type name (default: false)
+   */
+  showContentType?: boolean;
+}
+
+// Set up props with defaults
+const { 
+  contentType, 
+  class: className = '',
+  title = '',
+  large = false,
+  showLabel = true,
+  startExpanded = true,
+  showContentType = false
+} = Astro.props;
+
+// Get data source info
+const dataSource = getDataSource(contentType);
+const displayName = getDataSourceDisplayName(dataSource);
+const icon = getDataSourceIcon(dataSource);
+const color = getDataSourceColor(dataSource);
+
+// Format content type for display
+const contentTypeDisplay = contentType
+  .replace(/_/g, ' ')
+  .replace(/\b\w/g, c => c.toUpperCase());
+
+// Only show in development
+const isDev = import.meta.env.DEV;
+
+// Color mapping
+const colorClasses = {
+  'purple': 'bg-purple-100 text-purple-800 border-purple-300',
+  'cyan': 'bg-cyan-100 text-cyan-800 border-cyan-300',
+  'green': 'bg-green-100 text-green-800 border-green-300',
+  'gray': 'bg-gray-100 text-gray-800 border-gray-300'
+};
+
+// Get size classes
+const sizeClasses = large 
+  ? 'py-1.5 px-3 text-sm rounded-lg'
+  : 'py-0.5 px-1.5 text-xs rounded';
+
+// Generate a unique ID for this component instance
+const componentId = `datasource-${contentType}-${Math.random().toString(36).substring(2, 9)}`;
+---
+
+{isDev && (
+  <div class="datasource-visualizer relative inline-flex flex-col">
+    <div 
+      id={componentId}
+      class:list={[
+        'inline-flex items-center border transition-all duration-200', 
+        colorClasses[color], 
+        sizeClasses,
+        className
+      ]}
+      title={title || `${contentType} data source: ${displayName}`}
+      data-content-type={contentType}
+      data-source={dataSource}
+    >
+      <span class="mr-1 flex-shrink-0">{icon}</span>
+      
+      {showContentType && (
+        <span class="content-type-label mr-1 font-medium">
+          {contentTypeDisplay}:
+        </span>
+      )}
+      
+      <span class="data-label flex-grow truncate max-w-[120px]">{displayName}</span>
+      
+      <button 
+        class="ml-1 text-gray-500 hover:text-gray-700 focus:outline-none toggle-btn flex-shrink-0" 
+        title="Toggle visibility"
+        aria-label="Toggle data source visibility"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3 expand-icon">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3 h-3 collapse-icon hidden">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+        </svg>
+      </button>
+    </div>
+  </div>
+)}
+
+<script define:vars={{ componentId, startExpanded }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById(componentId)?.parentElement;
+    const badge = document.getElementById(componentId);
+    const toggleBtn = container?.querySelector('.toggle-btn');
+    const expandIcon = toggleBtn?.querySelector('.expand-icon');
+    const collapseIcon = toggleBtn?.querySelector('.collapse-icon');
+    const dataLabel = container?.querySelector('.data-label');
+    const contentTypeLabel = container?.querySelector('.content-type-label');
+    
+    if (!container || !badge || !toggleBtn || !expandIcon || !collapseIcon || !dataLabel) return;
+    
+    // Function to collapse the badge
+    const collapse = () => {
+      dataLabel.classList.add('hidden');
+      if (contentTypeLabel) contentTypeLabel.classList.add('hidden');
+      expandIcon.classList.add('hidden');
+      collapseIcon.classList.remove('hidden');
+      badge.classList.add('collapsed');
+      
+      // Store state in localStorage
+      localStorage.setItem(`${componentId}-collapsed`, 'true');
+    };
+    
+    // Function to expand the badge
+    const expand = () => {
+      dataLabel.classList.remove('hidden');
+      if (contentTypeLabel) contentTypeLabel.classList.remove('hidden');
+      expandIcon.classList.remove('hidden');
+      collapseIcon.classList.add('hidden');
+      badge.classList.remove('collapsed');
+      
+      // Store state in localStorage
+      localStorage.setItem(`${componentId}-collapsed`, 'false');
+    };
+    
+    // Set initial state based on localStorage or startExpanded prop
+    const savedState = localStorage.getItem(`${componentId}-collapsed`);
+    
+    if (savedState === 'true' || (!startExpanded && savedState !== 'false')) {
+      collapse();
+    } else {
+      expand();
+    }
+    
+    // Toggle visibility when button is clicked
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      
+      if (dataLabel.classList.contains('hidden')) {
+        expand();
+      } else {
+        collapse();
+      }
+    });
+    
+    // Double-click on the badge to toggle all badges of the same type
+    badge.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      
+      const isCollapsed = dataLabel.classList.contains('hidden');
+      const allBadges = document.querySelectorAll('.datasource-visualizer');
+      
+      allBadges.forEach(badgeContainer => {
+        const badgeToggleBtn = badgeContainer.querySelector('.toggle-btn');
+        if (badgeToggleBtn) {
+          // Simulate a click on all other badges to match this one's state
+          if (isCollapsed) {
+            // If this one is collapsed and we're expanding, expand others too
+            if (badgeContainer.querySelector('.data-label')?.classList.contains('hidden')) {
+              badgeToggleBtn.click();
+            }
+          } else {
+            // If this one is expanded and we're collapsing, collapse others too
+            if (!badgeContainer.querySelector('.data-label')?.classList.contains('hidden')) {
+              badgeToggleBtn.click();
+            }
+          }
+        }
+      });
+    });
+  });
+</script>
+
+<style>
+  .datasource-visualizer .collapsed {
+    max-width: 2.5rem;
+    overflow: hidden;
+  }
+</style> 
