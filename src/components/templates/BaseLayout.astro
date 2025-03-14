@@ -20,13 +20,15 @@ interface Props {
     href: string;
     isActive?: boolean;
   }[];
+  hasHero?: boolean;
 }
 
 const { 
   title,
   description,
   currentPath = Astro.url.pathname,
-  breadcrumbs = []
+  breadcrumbs = [],
+  hasHero = false
 } = Astro.props;
 ---
 
@@ -34,7 +36,14 @@ const {
   <div class="min-h-screen flex flex-col">
     <Header currentPath={currentPath} />
     
-    <main class="flex-grow pt-16">
+    {/* Hero Slot - Full Bleed Content */}
+    {hasHero && (
+      <div class="w-full z-10 mt-16">
+        <slot name="hero" />
+      </div>
+    )}
+    
+    <main class:list={["flex-grow", hasHero ? "" : "pt-16"]}>
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <!-- Breadcrumbs -->
         {breadcrumbs.length > 0 && (
