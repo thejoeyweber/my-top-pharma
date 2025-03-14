@@ -6,7 +6,8 @@
  */
 import Button from '../atoms/Button.astro';
 import type { Company } from '../../types/companies';
-import { therapeuticAreas } from '../../utils/dataUtils';
+import { getAllTherapeuticAreas } from '../../utils/therapeuticAreaUtils';
+import therapeuticAreasData from '../../data/json/therapeuticAreas.json';
 
 interface Props {
   company: Company;
@@ -25,15 +26,21 @@ const formatMarketCap = (marketCap: number): string => {
   }
 };
 
-// Get therapeutic area names
-const getTherapeuticAreaNames = (ids: string[]): string[] => {
+// Get therapeutic area names - simplified version
+const getTherapeuticAreaNames = async (ids: string[]): Promise<string[]> => {
+  // Handle invalid inputs
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return [];
+  }
+  
+  // Direct lookup from imported JSON data
   return ids.map(id => {
-    const area = therapeuticAreas.find(a => a.id === id);
-    return area ? area.name : id;
+    const area = therapeuticAreasData.find(a => a.id === id);
+    return area ? area.name : id; // Return the name if found, or the ID as fallback
   });
 };
 
-const areaNames = getTherapeuticAreaNames(company.therapeuticAreas);
+const areaNames = await getTherapeuticAreaNames(company.therapeuticAreas);
 ---
 
 {view === 'grid' ? (

@@ -17,23 +17,22 @@ import { filterAndSortItems } from '../../utils/filterUtils';
 // Import company data utilities (supports both static and database sources)
 import { getAllCompanies } from '../../utils/companyData';
 import { therapeuticAreas as taData } from '../../utils/dataUtils';
+import therapeuticAreasData from '../../data/json/therapeuticAreas.json';
 
 // Fetch companies using the adapter function that supports both data sources
 const companies = await getAllCompanies();
 
-// Define therapeutic areas for filtering
-const therapeuticAreas = [
-  { value: 'oncology', label: 'Oncology' },
-  { value: 'immunology', label: 'Immunology' },
-  { value: 'neuroscience', label: 'Neuroscience' },
-  { value: 'cardiovascular', label: 'Cardiovascular' },
-  { value: 'rare-diseases', label: 'Rare Diseases' },
-  { value: 'vaccines', label: 'Vaccines' },
-  { value: 'diabetes', label: 'Diabetes' },
-  { value: 'infectious-diseases', label: 'Infectious Diseases' },
-  { value: 'respiratory', label: 'Respiratory' },
-  { value: 'ophthalmology', label: 'Ophthalmology' },
-];
+// Helper function to get therapeutic area name from ID
+const getTherapeuticAreaName = (id) => {
+  const area = therapeuticAreasData.find(a => a.id === id);
+  return area ? area.name : id; // Return the name if found, or the ID as fallback
+};
+
+// Define therapeutic areas for filtering - using actual IDs and names from data
+const therapeuticAreas = therapeuticAreasData.map(area => ({
+  value: area.id,
+  label: area.name
+}));
 
 // Define regions for filtering
 const regions = [
@@ -455,7 +454,7 @@ const breadcrumbs = [
             <div class="flex flex-wrap gap-2 mt-3">
               {company.therapeuticAreas.slice(0, 3).map(area => (
                 <span class="bg-primary-50 text-primary-700 text-xs px-2 py-1 rounded">
-                  {area}
+                  {getTherapeuticAreaName(area)}
                 </span>
               ))}
               {company.therapeuticAreas.length > 3 && (
@@ -509,7 +508,7 @@ const breadcrumbs = [
                     <div class="flex flex-wrap gap-1">
                       {company.therapeuticAreas.slice(0, 2).map(area => (
                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-800">
-                          {area}
+                          {getTherapeuticAreaName(area)}
                         </span>
                       ))}
                       {company.therapeuticAreas.length > 2 && (

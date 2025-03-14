@@ -89,6 +89,24 @@
     "level": 1
   },
   {
+    "id": "207RO0000X",
+    "name": "Oncology",
+    "slug": "oncology",
+    "mesh_specialty_id": "D009367",
+    "mesh_disease_id": "D009369",
+    "description": "An internist who specializes in the diagnosis and treatment of all types of cancer and other benign and malignant tumors. This specialist decides on and administers therapy for these malignancies, as well as consults with surgeons and radiotherapists on other treatments for cancer.",
+    "level": 1
+  },
+  {
+    "id": "207RP0002X",
+    "name": "Pulmonology",
+    "slug": "pulmonology",
+    "mesh_specialty_id": "D011650",
+    "mesh_disease_id": "D012140",
+    "description": "An internist who treats diseases of the lungs and airways. The pulmonologist diagnoses and treats cancer, pneumonia, pleurisy, asthma, occupational and environmental diseases, bronchitis, sleep disorders, emphysema and other complex disorders of the lungs.",
+    "level": 1
+  },
+  {
     "id": "207RS0012X",
     "name": "Rare Diseases",
     "slug": "rare-diseases",
@@ -103,6 +121,24 @@
     "mesh_specialty_id": "D010575",
     "mesh_disease_id": "D011570",
     "description": "A neurological surgeon provides the operative and non-operative management (i.e., prevention, diagnosis, evaluation, treatment, critical care, and rehabilitation) of disorders of the central, peripheral, and autonomic nervous systems, including their supporting structures and vascular supply; the evaluation and treatment of pathological processes which modify function or activity of the nervous system; and the operative and non-operative management of pain. A neurological surgeon treats patients with disorders of the nervous system; disorders of the brain, meninges, skull, and their blood supply, including the extracranial carotid and vertebral arteries; disorders of the pituitary gland; disorders of the spinal cord, meninges, and vertebral column, including those which may require treatment by spinal fusion or instrumentation; and disorders of the cranial and spinal nerves throughout their distribution.",
+    "level": 1
+  },
+  {
+    "id": "207W00000X",
+    "name": "Ophthalmology",
+    "slug": "ophthalmology",
+    "mesh_specialty_id": "D009879",
+    "mesh_disease_id": "D009878",
+    "description": "A physician who specializes in the diagnosis and treatment of all types of disease and injury of the eye. This specialist examines the eye and performs medical, laser, and microsurgical procedures and prescribes vision services, including glasses and contact lenses.",
+    "level": 1
+  },
+  {
+    "id": "208VP0014X",
+    "name": "Pain Management",
+    "slug": "pain-management",
+    "mesh_specialty_id": "D010146",
+    "mesh_disease_id": "D010146",
+    "description": "Interventional Pain Medicine is the discipline of medicine devoted to the diagnosis and treatment of pain and related disorders principally with the application of interventional techniques in managing subacute, chronic, persistent, and intractable pain, independently or in conjunction with other modalities of treatment.",
     "level": 1
   },
   {

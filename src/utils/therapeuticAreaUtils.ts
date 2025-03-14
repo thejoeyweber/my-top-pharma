@@ -13,76 +13,13 @@ import { getFeatureFlag } from './featureFlags';
 import therapeuticAreasData from '../data/json/therapeuticAreas.json';
 
 /**
- * Convert the current therapeuticAreas.json data to match the new HPTCS format
- * This is a temporary function for backwards compatibility during transition
+ * Process the therapeuticAreas.json data
+ * This ensures the data has a consistent structure without trying to convert IDs
+ * that are already in HPTCS format
  */
-function mapLegacyTherapeuticAreas(): TherapeuticArea[] {
-  // Map from old ID to HPTCS code and MeSH references
-  const hptcsMapping: Record<string, Partial<TherapeuticArea>> = {
-    'oncology': {
-      id: '207RO0000X',
-      mesh_specialty_id: 'D009367',
-      mesh_disease_id: 'D009369',
-      description: 'Medical specialty focused on the study and treatment of cancer',
-      level: 1
-    },
-    'immunology': {
-      id: '207RI0011X',
-      mesh_specialty_id: 'D007167',
-      mesh_disease_id: 'D007155',
-      description: 'Medical specialty focused on immune system disorders',
-      level: 1
-    },
-    'neuroscience': {
-      id: '2084N0400X',
-      mesh_specialty_id: 'D009464',
-      mesh_disease_id: 'D009422',
-      description: 'Medical specialty focused on the nervous system and its disorders',
-      level: 1
-    },
-    'cardiovascular': {
-      id: '207RC0000X',
-      mesh_specialty_id: 'D002309',
-      mesh_disease_id: 'D002318',
-      description: 'Medical specialty focused on the heart and vascular system',
-      level: 1
-    },
-    'infectious-diseases': {
-      id: '207RI0200X',
-      mesh_specialty_id: 'D015673',
-      mesh_disease_id: 'D007239',
-      description: 'Medical specialty focused on diseases caused by pathogens',
-      level: 1
-    },
-    'vaccines': {
-      id: '2080I0204X',
-      mesh_specialty_id: 'D053823',
-      mesh_disease_id: undefined,
-      description: 'Development and administration of vaccines for disease prevention',
-      level: 2
-    },
-    'rare-diseases': {
-      id: '207RS0012X',
-      mesh_specialty_id: undefined,
-      mesh_disease_id: 'D035583',
-      description: 'Medical specialty focused on diseases affecting small numbers of patients',
-      level: 1
-    }
-  };
-
-  return therapeuticAreasData.map(ta => {
-    const mapping = hptcsMapping[ta.id] || {};
-    return {
-      ...ta,
-      id: mapping.id || ta.id,
-      slug: ta.id, // use the existing id as slug for compatibility
-      mesh_specialty_id: mapping.mesh_specialty_id,
-      mesh_disease_id: mapping.mesh_disease_id,
-      description: mapping.description || '',
-      level: mapping.level || 1,
-      parent_id: undefined
-    } as unknown as TherapeuticArea;
-  });
+function processTherapeuticAreas(): TherapeuticArea[] {
+  // Simply return the data as is - it's already in the correct format with HPTCS codes
+  return therapeuticAreasData;
 }
 
 /**
@@ -100,17 +37,17 @@ export async function getAllTherapeuticAreas(): Promise<TherapeuticArea[]> {
         
       if (error) {
         console.error('Error fetching therapeutic areas:', error);
-        return mapLegacyTherapeuticAreas();
+        return processTherapeuticAreas();
       }
       
       return data as TherapeuticArea[];
     } catch (error) {
       console.error('Failed to fetch therapeutic areas:', error);
-      return mapLegacyTherapeuticAreas();
+      return processTherapeuticAreas();
     }
   } else {
-    // Use mock data with added HPTCS fields
-    return mapLegacyTherapeuticAreas();
+    // Use mock data directly - it's already in the correct format
+    return processTherapeuticAreas();
   }
 }
 
@@ -131,7 +68,7 @@ export async function getTherapeuticAreaById(id: string): Promise<TherapeuticAre
       if (error) {
         console.error(`Error fetching therapeutic area ${id}:`, error);
         // Fall back to mock data
-        const mockAreas = mapLegacyTherapeuticAreas();
+        const mockAreas = processTherapeuticAreas();
         return mockAreas.find(area => area.id === id) || null;
       }
       
@@ -139,12 +76,12 @@ export async function getTherapeuticAreaById(id: string): Promise<TherapeuticAre
     } catch (error) {
       console.error(`Failed to fetch therapeutic area ${id}:`, error);
       // Fall back to mock data
-      const mockAreas = mapLegacyTherapeuticAreas();
+      const mockAreas = processTherapeuticAreas();
       return mockAreas.find(area => area.id === id) || null;
     }
   } else {
     // Use mock data
-    const mockAreas = mapLegacyTherapeuticAreas();
+    const mockAreas = processTherapeuticAreas();
     return mockAreas.find(area => area.id === id) || null;
   }
 }
@@ -166,7 +103,7 @@ export async function getTherapeuticAreaBySlug(slug: string): Promise<Therapeuti
       if (error) {
         console.error(`Error fetching therapeutic area with slug ${slug}:`, error);
         // Fall back to mock data
-        const mockAreas = mapLegacyTherapeuticAreas();
+        const mockAreas = processTherapeuticAreas();
         return mockAreas.find(area => area.slug === slug) || null;
       }
       
@@ -174,15 +111,198 @@ export async function getTherapeuticAreaBySlug(slug: string): Promise<Therapeuti
     } catch (error) {
       console.error(`Failed to fetch therapeutic area with slug ${slug}:`, error);
       // Fall back to mock data
-      const mockAreas = mapLegacyTherapeuticAreas();
+      const mockAreas = processTherapeuticAreas();
       return mockAreas.find(area => area.slug === slug) || null;
     }
   } else {
     // Use mock data
-    const mockAreas = mapLegacyTherapeuticAreas();
+    const mockAreas = processTherapeuticAreas();
     return mockAreas.find(area => area.slug === slug) || null;
   }
 }
+
+/**
+ * Local pharmaceutical class mappings for when database is not being used
+ * Used as a fallback for classifyProductByEPC when not using the database
+ */
+const localEpcMappings: Record<string, string[]> = {
+  // Cardiovascular
+  'HMG-CoA Reductase Inhibitor': ['207RC0000X'],
+  'Angiotensin II Receptor Antagonist': ['207RC0000X'],
+  'Beta-Adrenergic Blocker': ['207RC0000X'],
+  'Angiotensin-Converting Enzyme Inhibitor': ['207RC0000X'],
+  'Calcium Channel Blocker': ['207RC0000X'],
+  'Antiplatelet Agent': ['207RC0000X'],
+  'Diuretic': ['207RC0000X'],
+  'PCSK9 Inhibitor': ['207RC0000X'],
+  'Cardiac Glycoside': ['207RC0000X'],
+  'Direct Thrombin Inhibitor': ['207RC0000X'],
+  'Factor Xa Inhibitor': ['207RC0000X'],
+  
+  // Oncology
+  'Kinase Inhibitor': ['207RO0000X'],
+  'Tyrosine Kinase Inhibitor': ['207RO0000X'],
+  'Monoclonal Antibody': ['207RO0000X', '207RI0011X'], // Could be both oncology and immunology
+  'Immune Checkpoint Inhibitor': ['207RO0000X'],
+  'Histone Deacetylase Inhibitor': ['207RO0000X'],
+  'Proteasome Inhibitor': ['207RO0000X'],
+  'Vascular Endothelial Growth Factor Receptor Inhibitor': ['207RO0000X'],
+  'CD20 Monoclonal Antibody': ['207RO0000X'],
+  'Alkylating Agent': ['207RO0000X'],
+  'Androgen Receptor Inhibitor': ['207RO0000X'],
+  'Aromatase Inhibitor': ['207RO0000X'],
+  'Poly ADP Ribose Polymerase Inhibitor': ['207RO0000X'],
+  
+  // Immunology
+  'Interleukin-6 Receptor Inhibitor': ['207RI0011X'],
+  'Interleukin-1 Blocker': ['207RI0011X'],
+  'Janus Kinase Inhibitor': ['207RI0011X'],
+  'Tumor Necrosis Factor Blocker': ['207RI0011X', '207RG0100X'], // Both immunology and gastroenterology
+  'Interleukin-17 Inhibitor': ['207RI0011X'],
+  'Interleukin-23 Inhibitor': ['207RI0011X'],
+  'Interleukin-5 Receptor Antagonist': ['207RI0011X'],
+  'Integrin Receptor Antagonist': ['207RI0011X'],
+  
+  // Infectious Disease
+  'Cephalosporin Antibacterial': ['207RI0200X'],
+  'Macrolide Antimicrobial': ['207RI0200X'],
+  'Carbapenem': ['207RI0200X'],
+  'HIV Integrase Strand Transfer Inhibitor': ['207RI0200X'],
+  'Quinolone Antimicrobial': ['207RI0200X'],
+  'Neuraminidase Inhibitor': ['207RI0200X'],
+  'HIV Nucleoside Analog Reverse Transcriptase Inhibitor': ['207RI0200X'],
+  'HIV Non-nucleoside Reverse Transcriptase Inhibitor': ['207RI0200X'],
+  'Hepatitis C Virus NS5A Inhibitor': ['207RI0200X'],
+  'Hepatitis C Virus NS3/4A Protease Inhibitor': ['207RI0200X'],
+  'Hepatitis C Virus Polymerase Inhibitor': ['207RI0200X'],
+  
+  // Neurology
+  'Serotonin Reuptake Inhibitor': ['2084N0400X'],
+  'Calcitonin Gene-Related Peptide Receptor Antagonist': ['2084N0400X'],
+  'GABA-A Receptor Agonist': ['2084N0400X'],
+  'N-methyl-D-aspartate Receptor Antagonist': ['2084N0400X'],
+  'Dopamine Precursor': ['2084N0400X'],
+  'Dopamine Receptor Antagonist': ['2084N0400X'],
+  'Anti-epileptic Agent': ['2084N0400X'],
+  'Cholinesterase Inhibitor': ['2084N0400X'],
+  
+  // Endocrinology
+  'Sodium-Glucose Cotransporter 2 Inhibitor': ['207RE0101X'],
+  'Dipeptidyl Peptidase 4 Inhibitor': ['207RE0101X'],
+  'Incretin Mimetic': ['207RE0101X'],
+  'Insulin': ['207RE0101X'],
+  'Glucagon-Like Peptide-1 Receptor Agonist': ['207RE0101X'],
+  'Thiazolidinedione': ['207RE0101X'],
+  'Biguanide': ['207RE0101X'],
+  'Sulfonylurea': ['207RE0101X'],
+  'Thyroid Hormone': ['207RE0101X'],
+  
+  // Gastroenterology
+  'Proton Pump Inhibitor': ['207RG0100X'],
+  'Histamine-2 Receptor Antagonist': ['207RG0100X'],
+  '5-Hydroxytryptamine-3 Receptor Antagonist': ['207RG0100X'],
+  'Alpha-Glucosidase Inhibitor': ['207RG0100X'],
+  
+  // Pulmonary
+  'Beta-2 Adrenergic Agonist': ['207RP0002X'],
+  'Muscarinic Antagonist': ['207RP0002X'],
+  'Glucocorticoid': ['207RP0002X', '207RI0011X'], // Could be pulmonary or immunology
+  'Leukotriene Receptor Antagonist': ['207RP0002X'],
+  'Phosphodiesterase-4 Inhibitor': ['207RP0002X', '208D00000X'], // Could be pulmonary or dermatology
+  
+  // Allergy & Immunology
+  'H1 Receptor Antagonist': ['207QA0000X'],
+  'Mast Cell Stabilizer': ['207QA0000X'],
+  'Immunoglobulin E Blocker': ['207QA0000X'],
+  
+  // Psychiatry
+  'Selective Serotonin Reuptake Inhibitor': ['207T00000X'],
+  'Serotonin Norepinephrine Reuptake Inhibitor': ['207T00000X'],
+  'Antipsychotic': ['207T00000X'],
+  'Atypical Antipsychotic': ['207T00000X'],
+  'Monoamine Oxidase Inhibitor': ['207T00000X'],
+  'Norepinephrine Dopamine Reuptake Inhibitor': ['207T00000X'],
+  
+  // Nephrology
+  'Loop Diuretic': ['207RN0300X'],
+  'Potassium-Sparing Diuretic': ['207RN0300X'],
+  'Vasopressin Antagonist': ['207RN0300X'],
+  
+  // Dermatology
+  'Retinoid': ['208D00000X'],
+  'Calcineurin Inhibitor': ['208D00000X'],
+  
+  // Hematology
+  'Anticoagulant': ['207RH0000X'],
+  'Hematopoietic Growth Factor': ['207RH0000X'],
+  'Thrombopoietin Receptor Agonist': ['207RH0000X'],
+  
+  // Vaccines
+  'Vaccine': ['2080I0204X'],
+  'mRNA Vaccine': ['2080I0204X'],
+  'Viral Vector Vaccine': ['2080I0204X'],
+
+  // Pain Management
+  'Opioid Analgesic': ['208VP0014X'],
+  'Non-Steroidal Anti-Inflammatory Drug': ['208VP0014X', '208D00000X'], // Pain or Dermatology
+  'Cyclooxygenase-2 Selective Inhibitor': ['208VP0014X'],
+  'Opioid Receptor Antagonist': ['208VP0014X']
+};
+
+/**
+ * Map of ATC codes to therapeutic areas
+ * Used by classifyProductByRxCUI when fetching ATC classes from RxClass API
+ */
+const atcToTherapeuticAreaMap: Record<string, string[]> = {
+  // A - Alimentary tract and metabolism
+  'A': ['207RG0100X'], // Gastroenterology
+  'A10': ['207RE0101X'], // Endocrinology (diabetes)
+  
+  // B - Blood and blood forming organs
+  'B': ['207RH0000X'], // Hematology
+  
+  // C - Cardiovascular system
+  'C': ['207RC0000X'], // Cardiology
+  
+  // D - Dermatologicals
+  'D': ['208D00000X'], // Dermatology
+  
+  // G - Genito-urinary system and sex hormones
+  'G': ['208200000X'], // Obstetrics & Gynecology
+  
+  // H - Systemic hormonal preparations, excluding sex hormones and insulins
+  'H': ['207RE0101X'], // Endocrinology
+  
+  // J - Antiinfectives for systemic use
+  'J': ['207RI0200X'], // Infectious Disease
+  'J07': ['2080I0204X'], // Vaccines
+  
+  // L - Antineoplastic and immunomodulating agents
+  'L01': ['207RO0000X'], // Oncology
+  'L04': ['207RI0011X'], // Immunology
+  
+  // M - Musculo-skeletal system
+  'M': ['208VP0014X'], // Pain Management
+  
+  // N - Nervous system
+  'N': ['2084N0400X'], // Neurology
+  'N05': ['207T00000X'], // Psychiatry (psycholeptics)
+  'N06': ['207T00000X'], // Psychiatry (psychoanaleptics)
+  'N02': ['208VP0014X'], // Pain Management (analgesics)
+  
+  // P - Antiparasitic products, insecticides and repellents
+  'P': ['207RI0200X'], // Infectious Disease
+  
+  // R - Respiratory system
+  'R': ['207RP0002X'], // Pulmonary
+  'R06': ['207QA0000X'], // Allergy & Immunology (antihistamines)
+  
+  // S - Sensory organs
+  'S01': ['207W00000X'], // Ophthalmology
+  
+  // V - Various
+  'V': ['207R00000X'] // General Internal Medicine (fallback)
+};
 
 /**
  * Classifies a product by its Established Pharmacologic Classes (EPCs)
@@ -219,9 +339,17 @@ export async function classifyProductByEPC(epcClasses: string[]): Promise<string
       return [];
     }
   } else {
-    // When not using the database, we can't classify by EPC
-    // This would require a local mapping table
-    return [];
+    // When not using the database, use local mapping table
+    const matchedAreas = new Set<string>();
+    
+    for (const epcClass of epcClasses) {
+      const areas = localEpcMappings[epcClass];
+      if (areas) {
+        areas.forEach(area => matchedAreas.add(area));
+      }
+    }
+    
+    return Array.from(matchedAreas);
   }
 }
 
@@ -236,18 +364,10 @@ export async function classifyProductByRxCUI(rxcuis: string[]): Promise<string[]
     return [];
   }
 
-  // For now we'll implement a simplified version without calling RxClass API
-  // In a full implementation, we would:
-  // 1. Call RxClass API to get ATC classes for the RxCUI
-  // 2. Map ATC classes to therapeutic areas
-  
-  // This is a placeholder implementation
-  console.log('RxCUI classification would use:', rxcuis);
-  return [];
-  
-  // Future implementation would look like:
-  /*
   try {
+    // Keep track of all therapeutic areas matched
+    const therapeuticAreas = new Set<string>();
+    
     // Call RxClass API for each RxCUI
     const promises = rxcuis.map(rxcui => 
       fetch(`https://rxnav.nlm.nih.gov/REST/rxclass/class/byRxcui.json?rxcui=${rxcui}&relaSource=ATC`)
@@ -256,11 +376,75 @@ export async function classifyProductByRxCUI(rxcuis: string[]): Promise<string[]
     
     const results = await Promise.all(promises);
     
-    // Process results...
+    // Process RxClass API results
+    for (const result of results) {
+      if (result?.rxclassDrugInfoList?.rxclassDrugInfo) {
+        for (const classInfo of result.rxclassDrugInfoList.rxclassDrugInfo) {
+          const classId = classInfo?.rxclassMinConceptItem?.classId;
+          
+          if (!classId) continue;
+          
+          // Map ATC code to therapeutic areas
+          // First, try for exact match
+          if (atcToTherapeuticAreaMap[classId]) {
+            atcToTherapeuticAreaMap[classId].forEach(ta => therapeuticAreas.add(ta));
+          } else {
+            // Try for prefix match for hierarchical ATC codes (e.g., 'N02' matches 'N')
+            for (const atcPrefix of Object.keys(atcToTherapeuticAreaMap)) {
+              if (classId.startsWith(atcPrefix)) {
+                atcToTherapeuticAreaMap[atcPrefix].forEach(ta => therapeuticAreas.add(ta));
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
     
+    return Array.from(therapeuticAreas) as string[];
   } catch (error) {
     console.error('Failed to classify product by RxCUI:', error);
     return [];
   }
-  */
-} 
+}
+
+/**
+ * Utility function to convert HPTCS codes to their human-readable names in one call
+ * 
+ * @param codes Array of HPTCS codes
+ * @returns Object mapping HPTCS codes to their names
+ */
+export async function getTherapeuticAreaNamesMap(taIds: string[]): Promise<Record<string, string>> {
+  // Get all therapeutic areas
+  const allAreas = await getAllTherapeuticAreas();
+  
+  // Create a map of ID to name
+  const idToNameMap: Record<string, string> = {};
+  
+  // Only process if we have a valid array of IDs
+  if (Array.isArray(taIds)) {
+    taIds.forEach(id => {
+      const area = allAreas.find(a => a.id === id);
+      idToNameMap[id] = area ? area.name : id;
+    });
+  }
+  
+  return idToNameMap;
+}
+
+/**
+ * Usage example for therapeutic area classification:
+ * 
+ * import { classifyProductByEPC, classifyProductByRxCUI } from '../utils/therapeuticAreaUtils';
+ * 
+ * // Classify by EPC
+ * const epcClasses = ['HMG-CoA Reductase Inhibitor', 'Angiotensin II Receptor Antagonist'];
+ * const tasByEpc = await classifyProductByEPC(epcClasses);
+ * 
+ * // Classify by RxCUI
+ * const rxcuis = ['153165', '310965'];
+ * const tasByRxCui = await classifyProductByRxCUI(rxcuis);
+ * 
+ * // Combine results for better coverage
+ * const combinedTas = [...new Set([...tasByEpc, ...tasByRxCui])];
+ */ 

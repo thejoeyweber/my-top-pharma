@@ -8,6 +8,8 @@
 import Button from '../atoms/Button.astro';
 import type { Product } from '../../types/products';
 import { getStageName, getStageColor, getCompanyById } from '../../utils/dataUtils';
+import { getAllTherapeuticAreas } from '../../utils/therapeuticAreaUtils';
+import therapeuticAreasData from '../../data/json/therapeuticAreas.json';
 import Badge from '../atoms/Badge.astro';
 
 interface Props {
@@ -42,6 +44,22 @@ const getStageBadgeColor = () => {
   };
   return colorMap[stageColor] || 'background-color:var(--color-gray-100); color:var(--color-gray-800)';
 };
+
+// Get therapeutic area names - simplified version
+const getTherapeuticAreaNames = async (ids: string[]): Promise<string[]> => {
+  // Handle invalid inputs
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return [];
+  }
+  
+  // Direct lookup from imported JSON data
+  return ids.map(id => {
+    const area = therapeuticAreasData.find(a => a.id === id);
+    return area ? area.name : id; // Return the name if found, or the ID as fallback
+  });
+};
+
+const areaNames = await getTherapeuticAreaNames(product.therapeuticAreas);
 ---
 
 {view === 'grid' ? (
@@ -77,24 +95,16 @@ const getStageBadgeColor = () => {
       )}
       
       <div class="flex flex-wrap gap-1.5 mb-3">
-        {product.indications.slice(0, isCompact ? 1 : 2).map(indication => (
-          <span class="bg-gray-100 text-gray-700 text-xs px-1.5 py-0.5 rounded">
-            {indication}
-          </span>
-        ))}
-        {product.indications.length > (isCompact ? 1 : 2) && (
-          <span class="bg-gray-100 text-gray-700 text-xs px-1.5 py-0.5 rounded">
-            +{product.indications.length - (isCompact ? 1 : 2)} more
-          </span>
-        )}
-      </div>
-
-      <div class="flex flex-wrap gap-1.5 mb-3">
-        {product.therapeuticAreas.slice(0, isCompact ? 1 : 2).map(area => (
+        {areaNames.slice(0, isCompact ? 1 : 2).map(area => (
           <span class="bg-[color:var(--color-primary-50)] text-[color:var(--color-primary-700)] text-xs px-1.5 py-0.5 rounded">
             {area}
           </span>
         ))}
+        {areaNames.length > (isCompact ? 1 : 2) && (
+          <span class="bg-gray-100 text-gray-700 text-xs px-1.5 py-0.5 rounded">
+            +{areaNames.length - (isCompact ? 1 : 2)} more
+          </span>
+        )}
       </div>
 
       <div class="mt-auto pt-2">
@@ -140,15 +150,7 @@ const getStageBadgeColor = () => {
           <p class="text-gray-600 mb-3 line-clamp-2">{product.description}</p>
           
           <div class="flex flex-wrap gap-2">
-            {product.indications.map(indication => (
-              <span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
-                {indication}
-              </span>
-            ))}
-          </div>
-          
-          <div class="flex flex-wrap gap-2 mt-2">
-            {product.therapeuticAreas.map(area => (
+            {areaNames.map(area => (
               <span class="bg-[color:var(--color-primary-50)] text-[color:var(--color-primary-700)] text-xs px-2 py-1 rounded">
                 {area}
               </span>

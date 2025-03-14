@@ -22,6 +22,13 @@ import {
 } from '../../utils/dataUtils';
 import { getWebsitesByProduct } from '../../utils/crossReferenceUtils';
 import { getProductImageUrl } from '../../utils/assetUtils';
+import therapeuticAreasData from '../../data/json/therapeuticAreas.json';
+
+// Helper function to get therapeutic area name from ID
+const getTherapeuticAreaName = (id) => {
+  const area = therapeuticAreasData.find(a => a.id === id);
+  return area ? area.name : id; // Return the name if found, or the ID as fallback
+};
 
 // Generate static paths for all products
 export function getStaticPaths() {
@@ -172,7 +179,7 @@ const formatDate = (dateString: string) => {
                 <div class="flex flex-wrap gap-2">
                   {product.therapeuticAreas.map(area => (
                     <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-[color:var(--color-primary-50)] text-[color:var(--color-primary-700)]">
-                      {area}
+                      {getTherapeuticAreaName(area)}
                     </span>
                   ))}
                 </div>
