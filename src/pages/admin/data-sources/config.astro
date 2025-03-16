@@ -1,0 +1,184 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { getActiveDataSourceType, getAvailableDataSourceTypes, setActiveDataSource } from '../../../dataSources';
+
+// Get the current data source type
+const currentDataSourceType = getActiveDataSourceType();
+const availableDataSourceTypes = getAvailableDataSourceTypes();
+
+// Handle form submission
+let message = '';
+let messageType = '';
+
+if (Astro.request.method === 'POST') {
+  try {
+    const formData = await Astro.request.formData();
+    const dataSourceType = formData.get('dataSourceType');
+    
+    if (dataSourceType && availableDataSourceTypes.includes(dataSourceType as any)) {
+      setActiveDataSource(dataSourceType as any);
+      message = `Data source changed to ${dataSourceType}`;
+      messageType = 'success';
+    } else {
+      message = 'Invalid data source type';
+      messageType = 'error';
+    }
+  } catch (error) {
+    message = error instanceof Error ? error.message : 'An error occurred';
+    messageType = 'error';
+  }
+}
+
+// Define configuration options for each data source type
+const dataSourceConfigs = {
+  mock: {
+    title: 'Mock Data Source',
+    description: 'Uses hardcoded data for testing and development purposes.',
+    fields: []
+  },
+  supabase: {
+    title: 'Supabase Data Source',
+    description: 'Connects to a Supabase database for production data.',
+    fields: [
+      {
+        name: 'supabaseUrl',
+        label: 'Supabase URL',
+        type: 'text',
+        placeholder: 'https://your-project.supabase.co',
+        required: true
+      },
+      {
+        name: 'supabaseKey',
+        label: 'Supabase API Key',
+        type: 'password',
+        placeholder: 'your-supabase-api-key',
+        required: true
+      }
+    ]
+  }
+};
+---
+
+<AdminLayout title="Data Source Configuration">
+  <div class="max-w-4xl mx-auto py-8 px-4">
+    <h1 class="text-3xl font-bold mb-6">Data Source Configuration</h1>
+    
+    {message && (
+      <div class={`p-4 mb-6 rounded-md ${messageType === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+        {message}
+      </div>
+    )}
+    
+    <div class="bg-white shadow rounded-lg p-6 mb-8">
+      <h2 class="text-xl font-semibold mb-4">Active Data Source</h2>
+      
+      <div class="flex items-center mb-6">
+        <span class="font-medium mr-2">Current Data Source:</span>
+        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">{currentDataSourceType}</span>
+      </div>
+      
+      <form method="POST" class="space-y-6">
+        <div>
+          <label for="dataSourceType" class="block text-sm font-medium text-gray-700 mb-1">
+            Select Data Source
+          </label>
+          <select 
+            id="dataSourceType" 
+            name="dataSourceType" 
+            class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          >
+            {availableDataSourceTypes.map(type => (
+              <option value={type} selected={type === currentDataSourceType}>
+                {dataSourceConfigs[type]?.title || type}
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        <button 
+          type="submit" 
+          class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          Update Data Source
+        </button>
+      </form>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {availableDataSourceTypes.map(type => (
+        <div class={`bg-white shadow rounded-lg p-6 ${type === currentDataSourceType ? 'ring-2 ring-blue-500' : ''}`}>
+          <h2 class="text-xl font-semibold mb-2">{dataSourceConfigs[type]?.title || type}</h2>
+          <p class="text-gray-600 mb-4">{dataSourceConfigs[type]?.description || 'No description available.'}</p>
+          
+          {type === currentDataSourceType && (
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              Active
+            </span>
+          )}
+          
+          {dataSourceConfigs[type]?.fields && dataSourceConfigs[type].fields.length > 0 && (
+            <div class="mt-4">
+              <h3 class="text-lg font-medium mb-3">Configuration</h3>
+              <form class="space-y-4">
+                {dataSourceConfigs[type].fields.map(field => (
+                  <div>
+                    <label for={field.name} class="block text-sm font-medium text-gray-700 mb-1">
+                      {field.label}
+                    </label>
+                    <input
+                      type={field.type}
+                      id={field.name}
+                      name={field.name}
+                      placeholder={field.placeholder}
+                      required={field.required}
+                      class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                ))}
+                
+                <button 
+                  type="submit" 
+                  class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Save Configuration
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+    
+    <div class="mt-8 bg-white shadow rounded-lg p-6">
+      <h2 class="text-xl font-semibold mb-4">Data Source Documentation</h2>
+      
+      <div class="prose max-w-none">
+        <p>
+          The Data Source Abstraction Layer allows the application to work with different data sources
+          while maintaining a consistent interface. This makes it easy to switch between data sources
+          for different environments or testing scenarios.
+        </p>
+        
+        <h3>Available Data Sources</h3>
+        
+        <ul>
+          <li>
+            <strong>Mock Data Source</strong> - Uses hardcoded data for testing and development.
+            No configuration required.
+          </li>
+          <li>
+            <strong>Supabase Data Source</strong> - Connects to a Supabase database for production data.
+            Requires Supabase URL and API key.
+          </li>
+        </ul>
+        
+        <h3>Testing Your Connection</h3>
+        
+        <p>
+          After configuring your data source, you can test the connection on the 
+          <a href="/admin/data-sources/connection-test" class="text-blue-600 hover:text-blue-800">Connection Test</a> page.
+        </p>
+      </div>
+    </div>
+  </div>
+</AdminLayout> 

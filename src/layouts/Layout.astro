@@ -1,17 +1,28 @@
 ---
 import '../styles/global.css';
 import FeatureFlagToggle from '../components/FeatureFlagToggle.astro';
-import DataSourceIndicator from '../components/DataSourceIndicator.astro';
+import Footer from '../components/organisms/Footer.astro';
+import Header from '../components/organisms/Header.astro';
+import { ViewTransitions } from 'astro:transitions';
 
-interface Props {
-	title?: string;
+export interface Props {
+	title: string;
 	description?: string;
+	ogImage?: string;
+	styleOverrides?: string;
 }
 
 const { 
-	title = 'Top Pharma - Pharmaceutical Industry Directory',
-	description = 'A comprehensive directory of pharmaceutical companies, products, and websites.'
+	title = 'MyTopPharma',
+	description = 'Explore pharmaceutical companies, products, and industry insights',
+	ogImage = '/images/og-image.jpg',
+	styleOverrides,
 } = Astro.props;
+
+// Construct the full page title
+const pageTitle = title !== 'MyTopPharma' 
+	? `${title} | MyTopPharma`
+	: 'MyTopPharma - Pharmaceutical Industry Insights';
 ---
 
 <!doctype html>
@@ -22,15 +33,19 @@ const {
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
 		<meta name="description" content={description} />
-		<title>{title}</title>
+		<title>{pageTitle}</title>
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
 	</head>
 	<body class="h-full bg-gray-50 text-gray-900 antialiased">
-		<slot />
+		<Header />
+		<main>
+			<slot />
+		</main>
+		<Footer />
+		<ViewTransitions />
 		{/* Development UI Components (Dev Mode Only) */}
-		<DataSourceIndicator />
 		<FeatureFlagToggle />
 	</body>
 </html>

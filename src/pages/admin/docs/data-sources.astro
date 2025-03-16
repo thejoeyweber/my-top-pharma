@@ -1,0 +1,180 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+---
+
+<AdminLayout title="Data Source Documentation">
+  <div class="max-w-4xl mx-auto py-8 px-4">
+    <h1 class="text-3xl font-bold mb-6">Data Source Abstraction Layer</h1>
+    
+    <div class="prose max-w-none">
+      <p class="lead">
+        The Data Source Abstraction Layer provides a consistent interface for accessing data
+        from various sources, making it easy to switch between different data providers
+        without changing the application code.
+      </p>
+      
+      <h2>Overview</h2>
+      
+      <p>
+        The Data Source Abstraction Layer is built around the <code>DataSource</code> interface,
+        which defines a standard set of methods for retrieving data. This interface is implemented
+        by various data source classes, such as <code>MockDataSource</code> and <code>SupabaseDataSource</code>.
+      </p>
+      
+      <p>
+        The <code>DataSourceFactory</code> class manages the creation and access to these data sources,
+        allowing the application to switch between them as needed.
+      </p>
+      
+      <h2>Architecture</h2>
+      
+      <div class="bg-white p-6 rounded-lg shadow mb-6">
+        <h3 class="text-lg font-semibold mb-4">Core Components</h3>
+        
+        <ul class="space-y-4">
+          <li>
+            <strong>DataSource Interface</strong>: Defines the standard methods for retrieving data.
+            <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>interface DataSource {
+  healthCheck(): Promise<boolean>;
+  getCompanyById(id: string): Promise<Company | null>;
+  getCompanies(options?: QueryOptions): Promise<PaginatedResult<Company>>;
+  // ... other methods
+}</code></pre>
+          </li>
+          
+          <li>
+            <strong>Data Source Implementations</strong>: Classes that implement the DataSource interface.
+            <ul class="ml-6 mt-2 space-y-2">
+              <li><code>MockDataSource</code>: Uses hardcoded data for testing and development.</li>
+              <li><code>SupabaseDataSource</code>: Connects to a Supabase database for production data.</li>
+            </ul>
+          </li>
+          
+          <li>
+            <strong>DataSourceFactory</strong>: Manages the creation and access to data sources.
+            <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>// Get the active data source
+const dataSource = DataSourceFactory.getInstance().getDataSource();
+
+// Switch to a different data source
+DataSourceFactory.getInstance().setActiveDataSource('supabase');</code></pre>
+          </li>
+          
+          <li>
+            <strong>Entity Interfaces</strong>: Define the structure of data entities.
+            <ul class="ml-6 mt-2 space-y-2">
+              <li><code>Company</code>: Represents a pharmaceutical company.</li>
+              <li><code>Product</code>: Represents a pharmaceutical product.</li>
+              <li><code>Website</code>: Represents a pharmaceutical website.</li>
+              <li><code>TherapeuticArea</code>: Represents a therapeutic area.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+      
+      <h2>Using the Data Source Abstraction Layer</h2>
+      
+      <div class="bg-white p-6 rounded-lg shadow mb-6">
+        <h3 class="text-lg font-semibold mb-4">Basic Usage</h3>
+        
+        <p>To use the Data Source Abstraction Layer in your code, import the <code>getDataSource</code> function:</p>
+        
+        <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>import { getDataSource } from '../dataSources';
+
+// Get the active data source
+const dataSource = getDataSource();
+
+// Use the data source to retrieve data
+const companies = await dataSource.getCompanies();
+const company = await dataSource.getCompanyById('pfizer');
+const products = await dataSource.getProductsForCompany('pfizer');</code></pre>
+        
+        <h3 class="text-lg font-semibold mt-6 mb-4">Query Options</h3>
+        
+        <p>Most data retrieval methods accept a <code>QueryOptions</code> parameter that allows you to filter, sort, and paginate the results:</p>
+        
+        <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>// Get companies with filtering, sorting, and pagination
+const options = {
+  filters: { name: 'Pfizer' },
+  sort: { field: 'name', direction: 'asc' },
+  pagination: { page: 1, limit: 10 }
+};
+
+const companies = await dataSource.getCompanies(options);</code></pre>
+        
+        <h3 class="text-lg font-semibold mt-6 mb-4">Paginated Results</h3>
+        
+        <p>Methods that return multiple items return a <code>PaginatedResult</code> object:</p>
+        
+        <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>// PaginatedResult structure
+{
+  data: [/* array of items */],
+  pagination: {
+    total: 100,  // Total number of items
+    page: 1,     // Current page
+    limit: 10,   // Items per page
+    pages: 10    // Total number of pages
+  }
+}</code></pre>
+      </div>
+      
+      <h2>Extending the Data Source Abstraction Layer</h2>
+      
+      <div class="bg-white p-6 rounded-lg shadow mb-6">
+        <h3 class="text-lg font-semibold mb-4">Creating a New Data Source</h3>
+        
+        <p>To create a new data source, implement the <code>DataSource</code> interface:</p>
+        
+        <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>import type { DataSource, QueryOptions, PaginatedResult } from '../interfaces/DataSource';
+import type { Company, Product, Website, TherapeuticArea } from '../interfaces/entities';
+
+export class MyCustomDataSource implements DataSource {
+  async healthCheck(): Promise<boolean> {
+    // Implement health check
+    return true;
+  }
+  
+  async getCompanyById(id: string): Promise<Company | null> {
+    // Implement company retrieval
+    return null;
+  }
+  
+  // Implement other methods...
+}</code></pre>
+        
+        <h3 class="text-lg font-semibold mt-6 mb-4">Registering a New Data Source</h3>
+        
+        <p>Register your new data source with the <code>DataSourceFactory</code>:</p>
+        
+        <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>import { DataSourceFactory } from '../dataSources';
+import { MyCustomDataSource } from './MyCustomDataSource';
+
+// Register the new data source
+DataSourceFactory.getInstance().registerDataSource(
+  'custom', 
+  new MyCustomDataSource()
+);</code></pre>
+      </div>
+      
+      <h2>Admin Tools</h2>
+      
+      <div class="bg-white p-6 rounded-lg shadow">
+        <h3 class="text-lg font-semibold mb-4">Available Admin Pages</h3>
+        
+        <ul class="space-y-2">
+          <li>
+            <a href="/admin/data-sources/connection-test" class="text-blue-600 hover:text-blue-800">
+              Connection Test
+            </a>
+            - Test the connection to the active data source.
+          </li>
+          <li>
+            <a href="/admin/data-sources/config" class="text-blue-600 hover:text-blue-800">
+              Data Source Configuration
+            </a>
+            - Configure and switch between data sources.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</AdminLayout> 
