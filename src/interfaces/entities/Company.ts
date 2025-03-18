@@ -112,7 +112,7 @@ export interface Company {
   /**
    * Stock ticker symbol
    */
-  stockSymbol?: string;
+  tickerSymbol?: string;
   
   /**
    * Stock exchange where the company is listed
@@ -176,17 +176,21 @@ export function dbCompanyToCompany(dbCompany: DbCompany): Company {
     logoUrl: dbCompany.logo_url || undefined,
     headerImageUrl: dbCompany.header_image_url || undefined,
     headquarters: dbCompany.headquarters || undefined,
-    founded: dbCompany.founded || undefined,
+    founded: dbCompany.founded ? String(dbCompany.founded) : undefined,
     website: dbCompany.website || undefined,
-    marketCap: dbCompany.market_cap || undefined,
+    marketCap: dbCompany.market_cap ? 
+      (typeof dbCompany.market_cap === 'string' ? 
+        parseFloat(dbCompany.market_cap) : 
+        dbCompany.market_cap) : 
+      undefined,
     employees: dbCompany.employees || undefined,
-    stockSymbol: dbCompany.stock_symbol || undefined,
+    tickerSymbol: dbCompany.ticker_symbol || undefined,
     stockExchange: dbCompany.stock_exchange || undefined,
     ownershipType: dbCompany.ownership_type || undefined,
     parentCompanyId: dbCompany.parent_company_id || undefined,
     createdAt: dbCompany.created_at || undefined,
     updatedAt: dbCompany.updated_at || undefined,
-    slug: dbCompany.slug,
+    slug: dbCompany.slug || '',
     therapeuticAreas: [], // This will be populated separately by joining with company_therapeutic_areas
   };
 }
@@ -206,7 +210,7 @@ export function companyToDbCompany(company: Partial<Company>): Partial<DbCompany
     website: company.website || null,
     market_cap: company.marketCap || null,
     employees: company.employees || null,
-    stock_symbol: company.stockSymbol || null,
+    ticker_symbol: company.tickerSymbol || null,
     stock_exchange: company.stockExchange || null,
     ownership_type: company.ownershipType || null,
     parent_company_id: company.parentCompanyId || null,

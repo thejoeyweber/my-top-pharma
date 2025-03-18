@@ -156,6 +156,16 @@ export interface Product {
   stage?: string;
   
   /**
+   * Current status (approved, pending, etc.)
+   */
+  status?: string;
+  
+  /**
+   * Year of product release/approval
+   */
+  year?: number;
+  
+  /**
    * IDs of therapeutic areas associated with this product
    */
   therapeuticAreas?: string[];
@@ -216,7 +226,9 @@ export function dbProductToProduct(dbProduct: DbProduct): Product {
     genericName: dbProduct.generic_name || undefined,
     companyId: dbProduct.company_id,
     description: dbProduct.description || undefined,
+    status: dbProduct.status || undefined,
     stage: dbProduct.stage || undefined,
+    year: dbProduct.year ? Number(dbProduct.year) : undefined,
     moleculeType: dbProduct.molecule_type || undefined,
     imageUrl: dbProduct.image_url || undefined,
     website: dbProduct.website || undefined,

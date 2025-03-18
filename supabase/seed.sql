@@ -13,7 +13,7 @@ VALUES
   ('00000000-0000-0000-0000-000000000005', 'Infectious Disease', 'Treatments for bacterial, viral, and fungal infections', 'infectious-disease');
 
 -- 2. Companies
-INSERT INTO companies (id, name, description, headquarters, website, founded, stock_symbol, stock_exchange, slug)
+INSERT INTO companies (id, name, description, headquarters, website, founded, ticker_symbol, stock_exchange, slug)
 VALUES 
   ('00000000-0000-0000-0000-000000000001', 'Pfizer', 'Global pharmaceutical company focusing on innovative medicines and vaccines.', 'New York, USA', 'https://www.pfizer.com', '1849', 'PFE', 'NYSE', 'pfizer'),
   ('00000000-0000-0000-0000-000000000002', 'Merck', 'Leading biopharmaceutical company with a diverse portfolio of prescription medicines, vaccines, and animal health products.', 'Kenilworth, USA', 'https://www.merck.com', '1891', 'MRK', 'NYSE', 'merck'),

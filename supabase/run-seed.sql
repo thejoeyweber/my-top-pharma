@@ -15,6 +15,7 @@
 \i 'seed/09_website_details.sql'
 \i 'seed/10_news.sql'
 \i 'seed/11_analytics_and_system.sql'
+\i 'seed/12_development_phases.sql'
 
 -- Success message
-SELECT 'Database seed completed successfully!' as result; 
+SELECT 'Successfully ran all seed files' as status; 

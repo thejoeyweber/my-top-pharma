@@ -19,6 +19,7 @@ import { supabase } from '../../lib/supabase';
 import { dbProductToProduct } from '../../interfaces/entities/Product';
 import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/TherapeuticArea';
 import type { Product, TherapeuticArea } from '../../interfaces/entities';
+import { getCompany } from '../../utils/companyDataUtils';
 
 // Define breadcrumbs for navigation
 const breadcrumbs = [
@@ -145,6 +146,12 @@ const sortedProducts = [...products].sort((a, b) => {
   // Default sort: name ascending
   return a.name.localeCompare(b.name);
 });
+
+// Helper function to get company by ID
+async function getCompanyById(id: string) {
+  const result = await getCompany(id, 'id');
+  return result.data;
+}
 ---
 
 <DashboardLayout
@@ -457,7 +464,7 @@ const sortedProducts = [...products].sort((a, b) => {
                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{product.moleculeType}</td>
                 <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                   {company ? (
-                    <a href={`/companies/${company.id}`} class="text-[color:var(--color-primary-600)] hover:underline">
+                    <a href={`/companies/${company.slug}`} class="text-[color:var(--color-primary-600)] hover:underline">
                       {company.name}
                     </a>
                   ) : ('N/A')}

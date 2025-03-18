@@ -40,7 +40,7 @@ const websites: Website[] = (dbWebsites || []).map(dbWebsiteToWebsite);
 // Fetch companies data for filtering
 const { data: dbCompanies, error: companiesError } = await supabase
   .from('companies')
-  .select('id, name')
+  .select('id, name, slug')
   .order('name')
   .limit(20);
 
@@ -197,8 +197,18 @@ const filteredWebsites = filterAndSortItems(
 );
 
 // Get URL-safe domain for routing
-const getDomainId = (domain: string) => {
+const getDomainSlug = (domain: string): string => {
+  if (!domain) return '';
   return domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+};
+
+// Get the proper URL for a website detail page
+const getWebsiteDetailUrl = (website): string => {
+  if (website.slug) {
+    return `/websites/${website.slug}`;
+  }
+  // Fallback to domain slug if needed
+  return `/websites/${getDomainSlug(website.domain)}`;
 };
 ---
 
@@ -399,7 +409,7 @@ const getDomainId = (domain: string) => {
                           </div>
                         </td>
                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          <a href={`/companies/${website.companyId}`} class="text-blue-600 hover:underline">{companyName}</a>
+                          <a href={`/companies/${companies.find(c => c.id === website.companyId)?.slug}`} class="text-blue-600 hover:underline">{companyName}</a>
                         </td>
                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{categoryLabel}</td>
                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{website.region || 'N/A'}</td>
@@ -407,7 +417,7 @@ const getDomainId = (domain: string) => {
                           {website.lastCrawl ? new Date(website.lastCrawl).toLocaleDateString() : 'N/A'}
                         </td>
                         <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                          <a href={`/websites/${getDomainId(website.domain)}`} class="text-blue-600 hover:text-blue-900 mr-4">View</a>
+                          <a href={getWebsiteDetailUrl(website)} class="text-blue-600 hover:text-blue-900 mr-4">View</a>
                           <a href={`https://${website.domain}`} target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 inline-flex items-center">
                             Visit
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 ml-1">

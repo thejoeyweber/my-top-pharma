@@ -10,6 +10,7 @@
  */
 
 import { ErrorCategory, createErrorResponse, type ErrorResponse } from './errorUtils';
+import { FEATURES } from './constants';
 
 /**
  * Feature flag types
@@ -19,6 +20,18 @@ export interface FeatureFlags {
   databaseUrl: string;
   databaseKey: string;
   databaseUseSsl: boolean;
+  
+  // Database usage flags (defined in constants.ts)
+  // Using indexed signature notation to avoid TS errors with computed properties
+  useDbCompanies: boolean;
+  useDbProducts: boolean;
+  useDbWebsites: boolean;
+  useDbTherapeuticAreas: boolean;
+  useDbCompanyFinancials: boolean;
+  useDbCompanyMetrics: boolean;
+  useDbCompanyStockData: boolean;
+  useLocalDatabase: boolean;
+  enableDataSourceToggle: boolean;
   
   // Additional feature flags
   enableDevTools: boolean;
@@ -37,6 +50,17 @@ export const defaultFeatureFlags: FeatureFlags = {
   databaseUrl: import.meta.env.PUBLIC_SUPABASE_URL || '',
   databaseKey: import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '',
   databaseUseSsl: true,
+  
+  // Database usage flags (all enabled by default)
+  useDbCompanies: true,
+  useDbProducts: true,
+  useDbWebsites: true,
+  useDbTherapeuticAreas: true,
+  useDbCompanyFinancials: true,
+  useDbCompanyMetrics: true,
+  useDbCompanyStockData: true,
+  useLocalDatabase: false,
+  enableDataSourceToggle: import.meta.env.DEV === true,
   
   // Additional feature flags
   enableDevTools: import.meta.env.DEV === true,
@@ -122,6 +146,17 @@ export function initializeFeatureFlags(): FeatureFlags {
  * @returns The feature flag value
  */
 export function getFeatureFlag<K extends keyof FeatureFlags>(name: K): FeatureFlags[K] {
+  // Handle mapping from FEATURES constant to actual property name
+  if (name === FEATURES.USE_DATABASE_COMPANIES) return featureFlags.useDbCompanies as FeatureFlags[K];
+  if (name === FEATURES.USE_DATABASE_PRODUCTS) return featureFlags.useDbProducts as FeatureFlags[K];
+  if (name === FEATURES.USE_DATABASE_WEBSITES) return featureFlags.useDbWebsites as FeatureFlags[K];
+  if (name === FEATURES.USE_DATABASE_THERAPEUTIC_AREAS) return featureFlags.useDbTherapeuticAreas as FeatureFlags[K];
+  if (name === FEATURES.USE_DATABASE_COMPANY_FINANCIALS) return featureFlags.useDbCompanyFinancials as FeatureFlags[K];
+  if (name === FEATURES.USE_DATABASE_COMPANY_METRICS) return featureFlags.useDbCompanyMetrics as FeatureFlags[K];
+  if (name === FEATURES.USE_DATABASE_COMPANY_STOCK_DATA) return featureFlags.useDbCompanyStockData as FeatureFlags[K];
+  if (name === FEATURES.USE_LOCAL_DATABASE) return featureFlags.useLocalDatabase as FeatureFlags[K];
+  if (name === FEATURES.ENABLE_DATA_SOURCE_TOGGLE) return featureFlags.enableDataSourceToggle as FeatureFlags[K];
+  
   return featureFlags[name];
 }
 
@@ -136,8 +171,29 @@ export function setFeatureFlag<K extends keyof FeatureFlags>(
   value: FeatureFlags[K]
 ): { success: boolean; error?: ErrorResponse } {
   try {
-    // Update in-memory value
-    featureFlags[name] = value;
+    // Handle mapping from FEATURES constant to actual property name
+    if (name === FEATURES.USE_DATABASE_COMPANIES) {
+      featureFlags.useDbCompanies = value as boolean;
+    } else if (name === FEATURES.USE_DATABASE_PRODUCTS) {
+      featureFlags.useDbProducts = value as boolean;
+    } else if (name === FEATURES.USE_DATABASE_WEBSITES) {
+      featureFlags.useDbWebsites = value as boolean;
+    } else if (name === FEATURES.USE_DATABASE_THERAPEUTIC_AREAS) {
+      featureFlags.useDbTherapeuticAreas = value as boolean;
+    } else if (name === FEATURES.USE_DATABASE_COMPANY_FINANCIALS) {
+      featureFlags.useDbCompanyFinancials = value as boolean;
+    } else if (name === FEATURES.USE_DATABASE_COMPANY_METRICS) {
+      featureFlags.useDbCompanyMetrics = value as boolean;
+    } else if (name === FEATURES.USE_DATABASE_COMPANY_STOCK_DATA) {
+      featureFlags.useDbCompanyStockData = value as boolean;
+    } else if (name === FEATURES.USE_LOCAL_DATABASE) {
+      featureFlags.useLocalDatabase = value as boolean;
+    } else if (name === FEATURES.ENABLE_DATA_SOURCE_TOGGLE) {
+      featureFlags.enableDataSourceToggle = value as boolean;
+    } else {
+      // Update other flags
+      featureFlags[name] = value;
+    }
     
     // Persist to localStorage if available
     if (typeof localStorage !== 'undefined') {
@@ -148,7 +204,14 @@ export function setFeatureFlag<K extends keyof FeatureFlags>(
     if (typeof document !== 'undefined') {
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + 30); // 30 days
-      document.cookie = `ff_${name}=${value};expires=${expiryDate.toUTCString()};path=/`;
+      
+      // For FEATURES constant keys, map to the actual property name
+      let cookieName = name as string;
+      if (name in FEATURES) {
+        cookieName = name.toString().replace(/^use/, '').replace(/^([A-Z])/, (m) => m.toLowerCase());
+      }
+      
+      document.cookie = `ff_${cookieName}=${value};expires=${expiryDate.toUTCString()};path=/`;
     }
     
     // Dispatch event for components that need to react to flag changes

@@ -477,7 +477,7 @@ const breadcrumbs = [
               )}
             </div>
             <div class="mt-5">
-              <Button href={`/companies/${company.id}`} variant="outline" size="sm">View Profile</Button>
+              <Button href={`/companies/${company.slug}`} variant="outline" size="sm">View Profile</Button>
             </div>
           </div>
         </Card>
@@ -511,7 +511,7 @@ const breadcrumbs = [
                       </div>
                       <div class="ml-4">
                         <div class="text-sm font-medium text-gray-900">{company.name}</div>
-                        <div class="text-sm text-gray-500">{company.stockSymbol || 'Private'}</div>
+                        <div class="text-sm text-gray-500">{company.tickerSymbol || 'Private'}</div>
                       </div>
                     </div>
                   </td>
@@ -531,9 +531,9 @@ const breadcrumbs = [
                       )}
                     </div>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{company.employees.toLocaleString()}</td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{company.employees ? company.employees.toLocaleString() : 'N/A'}</td>
                   <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <a href={`/companies/${company.id}`} class="text-primary-600 hover:text-primary-900">View</a>
+                    <a href={`/companies/${company.slug}`} class="text-primary-600 hover:text-primary-900">View</a>
                   </td>
                 </tr>
               ))}

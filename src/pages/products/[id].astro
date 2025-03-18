@@ -22,6 +22,7 @@ import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/Th
 import type { Product, Company, Website, TherapeuticArea } from '../../interfaces/entities';
 
 import { getProductImageUrl } from '../../utils/assetUtils';
+import { generateSlug } from '../../utils/stringUtils';
 
 // Helper function to get stage name
 const getStageName = (stage: string): string => {
@@ -41,22 +42,50 @@ const getStageName = (stage: string): string => {
 export async function getStaticPaths() {
   const { data: dbProducts } = await supabase
     .from('products')
-    .select('id');
+    .select('id, slug, name');
     
   return (dbProducts || []).map(product => ({
-    params: { id: product.id },
+    params: { 
+      id: product.slug
+    },
+    props: { productId: product.id }
   }));
 }
 
-// Get product ID from URL parameters
+// Get product ID or slug from URL parameters
 const { id } = Astro.params;
+const { productId } = Astro.props;
 
-// Fetch product data directly from Supabase
-const { data: dbProduct, error: productError } = await supabase
-  .from('products')
-  .select('*')
-  .eq('id', id)
-  .single();
+// Fetch product data directly from Supabase - first try by ID from props, then by slug
+let productResponse;
+
+if (productId) {
+  productResponse = await supabase
+    .from('products')
+    .select('*')
+    .eq('id', productId)
+    .single();
+}
+
+// If not found or ID not provided, try to fetch by slug
+if (!productResponse || productResponse.error || !productResponse.data) {
+  productResponse = await supabase
+    .from('products')
+    .select('*')
+    .eq('slug', id)
+    .single();
+    
+  // Last resort, try to fetch by ID as fallback
+  if (productResponse.error || !productResponse.data) {
+    productResponse = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', id)
+      .single();
+  }
+}
+
+const { data: dbProduct, error: productError } = productResponse;
 
 // Handle product not found
 if (productError || !dbProduct) {
@@ -65,6 +94,11 @@ if (productError || !dbProduct) {
 
 // Convert database record to application entity
 const product = dbProductToProduct(dbProduct);
+
+// Ensure product.approvals is initialized
+if (!product.approvals) {
+  product.approvals = [];
+}
 
 // Fetch company that manufactures the product
 const { data: dbCompany } = await supabase
@@ -208,7 +242,7 @@ const formatDate = (dateString: string) => {
               <p class="mt-1 text-sm text-gray-500 italic">{product.genericName}</p>
             )}
             <p class="mt-1 max-w-2xl text-sm text-gray-500">
-              {product.moleculeType} • {product.indications.join(', ')}
+              {product.moleculeType} • {product.indications && product.indications.length > 0 ? product.indications.join(', ') : 'No indications listed'}
             </p>
           </div>
           {product.website && (
@@ -235,7 +269,7 @@ const formatDate = (dateString: string) => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
               <span class="mr-1">Developed by:</span>
-              <a href={`/companies/${company.id}`} class="font-medium text-[color:var(--color-primary-600)] hover:underline">
+              <a href={`/companies/${company.slug}`} class="font-medium text-[color:var(--color-primary-600)] hover:underline">
                 {company.name}
               </a>
             </div>
@@ -261,7 +295,7 @@ const formatDate = (dateString: string) => {
               <div class="mt-6">
                 <h3 class="text-sm font-medium text-gray-900 mb-2">Therapeutic Areas</h3>
                 <div class="flex flex-wrap gap-2">
-                  {product.therapeuticAreas.map(area => (
+                  {product.therapeuticAreas && product.therapeuticAreas.map(area => (
                     <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-[color:var(--color-primary-50)] text-[color:var(--color-primary-700)]">
                       {getTherapeuticAreaName(area)}
                     </span>
@@ -272,7 +306,7 @@ const formatDate = (dateString: string) => {
               <div class="mt-6">
                 <h3 class="text-sm font-medium text-gray-900 mb-2">Indications</h3>
                 <ul class="list-disc pl-5 text-gray-600">
-                  {product.indications.map(indication => (
+                  {product.indications && product.indications.map(indication => (
                     <li>{indication}</li>
                   ))}
                 </ul>
@@ -306,7 +340,7 @@ const formatDate = (dateString: string) => {
                         
                         <div class="flex justify-between items-center mt-3">
                           <a 
-                            href={`/websites/${website.domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase()}`} 
+                            href={`/websites/${website.slug}`} 
                             class="text-sm text-blue-600 hover:text-blue-800 font-medium"
                           >
                             View details
@@ -387,7 +421,7 @@ const formatDate = (dateString: string) => {
                                   
                                   <div class="flex justify-between items-center mt-auto">
                                     <a 
-                                      href={`/websites/${website.domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase()}`} 
+                                      href={`/websites/${website.slug}`} 
                                       class="text-sm text-blue-600 hover:text-blue-800 font-medium"
                                     >
                                       View details
@@ -435,7 +469,7 @@ const formatDate = (dateString: string) => {
                   
                   <div class="flex flex-wrap gap-3">
                     <a 
-                      href={`/companies/${company.id}`} 
+                      href={`/companies/${company.slug}`} 
                       class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" class="-ml-0.5 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -464,7 +498,7 @@ const formatDate = (dateString: string) => {
           </div>
           
           <!-- Quick Regulatory Summary -->
-          {product.approvals.length > 0 && (
+          {product.approvals && product.approvals.length > 0 && (
             <Card>
               <div class="p-6">
                 <h2 class="text-lg font-medium text-gray-900 mb-4">Regulatory Status</h2>
@@ -528,7 +562,7 @@ const formatDate = (dateString: string) => {
           <div class="p-6">
             <h2 class="text-lg font-medium text-gray-900 mb-6">Regulatory Information</h2>
             
-            {product.approvals.length > 0 ? (
+            {(product.approvals && product.approvals.length > 0) ? (
               <div class="space-y-6">
                 <h3 class="text-base font-medium text-gray-900">Approval History</h3>
                 <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">

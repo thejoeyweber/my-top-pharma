@@ -6,8 +6,8 @@
  * including related companies, products, and websites.
  */
 import { supabase } from '../../lib/supabase';
-import DashboardLayout from '../../layouts/DashboardLayout.astro';
-import Breadcrumbs from '../../components/molecules/Breadcrumbs.astro';
+import DashboardLayout from '../../components/templates/DashboardLayout.astro';
+import Breadcrumb from '../../components/molecules/Breadcrumb.astro';
 import TabGroup from '../../components/molecules/TabGroup.astro';
 import CompanyCard from '../../components/molecules/CompanyCard.astro';
 import ProductCard from '../../components/molecules/ProductCard.astro';
@@ -18,30 +18,60 @@ import { dbWebsiteToWebsite } from '../../interfaces/entities/Website';
 import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/TherapeuticArea';
 import type { TherapeuticArea } from '../../interfaces/entities';
 
-// Get the therapeutic area ID from the URL
-const { id } = Astro.params;
-
 // Function to generate static paths for all therapeutic areas
 export async function getStaticPaths() {
   const { data: therapeuticAreas } = await supabase
     .from('therapeutic_areas')
-    .select('id');
+    .select('id, slug, name');
   
   if (!therapeuticAreas) {
     return [];
   }
   
   return therapeuticAreas.map(ta => ({
-    params: { id: ta.id }
+    params: { id: ta.slug },
+    props: { therapeuticAreaId: ta.id }
   }));
 }
 
-// Fetch the therapeutic area by ID
-const { data: taData } = await supabase
-  .from('therapeutic_areas')
-  .select('*')
-  .eq('id', id)
-  .single();
+// Get the therapeutic area ID from the URL
+const { id } = Astro.params;
+const { therapeuticAreaId } = Astro.props;
+
+// Fetch the therapeutic area data - first try by ID from props, then by slug
+let taData;
+
+if (therapeuticAreaId) {
+  const { data } = await supabase
+    .from('therapeutic_areas')
+    .select('*')
+    .eq('id', therapeuticAreaId)
+    .single();
+  
+  taData = data;
+}
+
+// If not found or ID not provided, try by slug
+if (!taData) {
+  const { data } = await supabase
+    .from('therapeutic_areas')
+    .select('*')
+    .eq('slug', id)
+    .single();
+  
+  taData = data;
+  
+  // Last resort, try by ID
+  if (!taData) {
+    const { data } = await supabase
+      .from('therapeutic_areas')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    taData = data;
+  }
+}
 
 // Redirect to the therapeutic areas list if the therapeutic area is not found
 if (!taData) {
@@ -54,7 +84,7 @@ const therapeuticArea: TherapeuticArea = dbTherapeuticAreaToTherapeuticArea(taDa
 const { data: companiesData } = await supabase
   .from('companies')
   .select('*')
-  .contains('therapeutic_area_ids', [id]);
+  .contains('therapeutic_area_ids', [therapeuticArea.id]);
 
 const companies = companiesData ? companiesData.map(dbCompanyToCompany) : [];
 
@@ -62,7 +92,7 @@ const companies = companiesData ? companiesData.map(dbCompanyToCompany) : [];
 const { data: productsData } = await supabase
   .from('products')
   .select('*')
-  .contains('therapeutic_area_ids', [id]);
+  .contains('therapeutic_area_ids', [therapeuticArea.id]);
 
 const products = productsData ? productsData.map(dbProductToProduct) : [];
 
@@ -70,15 +100,15 @@ const products = productsData ? productsData.map(dbProductToProduct) : [];
 const { data: websitesData } = await supabase
   .from('websites')
   .select('*')
-  .contains('therapeutic_area_ids', [id]);
+  .contains('therapeutic_area_ids', [therapeuticArea.id]);
 
 const websites = websitesData ? websitesData.map(dbWebsiteToWebsite) : [];
 
 // Set up breadcrumbs
-const breadcrumbs = [
-  { text: 'Home', href: '/' },
-  { text: 'Therapeutic Areas', href: '/therapeutic-areas' },
-  { text: therapeuticArea.name, href: `/therapeutic-areas/${id}` }
+const breadcrumbItems = [
+  { label: 'Home', href: '/' },
+  { label: 'Therapeutic Areas', href: '/therapeutic-areas' },
+  { label: therapeuticArea.name, href: `/therapeutic-areas/${id}`, isActive: true }
 ];
 
 // Set up tabs
@@ -86,50 +116,22 @@ const tabs = [
   { 
     id: 'overview', 
     label: 'Overview', 
-    count: null,
-    content: 'Overview content will go here...' 
+    count: null
   },
   { 
     id: 'companies', 
     label: 'Companies', 
-    count: companies.length,
-    content: companies.length > 0 ? (
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {companies.map(company => (
-          <CompanyCard company={company} />
-        ))}
-      </div>
-    ) : (
-      <p class="text-gray-500">No companies found for this therapeutic area.</p>
-    )
+    count: companies.length
   },
   { 
     id: 'products', 
     label: 'Products', 
-    count: products.length,
-    content: products.length > 0 ? (
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {products.map(product => (
-          <ProductCard product={product} />
-        ))}
-      </div>
-    ) : (
-      <p class="text-gray-500">No products found for this therapeutic area.</p>
-    )
+    count: products.length
   },
   { 
     id: 'websites', 
     label: 'Websites', 
-    count: websites.length,
-    content: websites.length > 0 ? (
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {websites.map(website => (
-          <WebsiteCard website={website} />
-        ))}
-      </div>
-    ) : (
-      <p class="text-gray-500">No websites found for this therapeutic area.</p>
-    )
+    count: websites.length
   }
 ];
 
@@ -139,7 +141,7 @@ const activeTab = Astro.url.searchParams.get('tab') || 'overview';
 
 <DashboardLayout title={`${therapeuticArea.name} - Therapeutic Area | MyTopPharma`}>
   <div class="container mx-auto px-4 py-8">
-    <Breadcrumbs items={breadcrumbs} />
+    <Breadcrumb items={breadcrumbItems} />
     
     <div class="bg-white rounded-lg shadow-md p-6 mt-6">
       <div class="flex flex-col md:flex-row md:items-center justify-between mb-6">
@@ -152,6 +154,57 @@ const activeTab = Astro.url.searchParams.get('tab') || 'overview';
       </div>
       
       <TabGroup tabs={tabs} activeTab={activeTab} baseUrl={`/therapeutic-areas/${id}`} />
+      
+      <!-- Tab Content -->
+      <div class="mt-6">
+        {activeTab === 'overview' && (
+          <div>
+            <p>Overview content for {therapeuticArea.name}</p>
+          </div>
+        )}
+        
+        {activeTab === 'companies' && (
+          <div>
+            {companies.length > 0 ? (
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {companies.map(company => (
+                  <CompanyCard company={company} />
+                ))}
+              </div>
+            ) : (
+              <p class="text-gray-500">No companies found for this therapeutic area.</p>
+            )}
+          </div>
+        )}
+        
+        {activeTab === 'products' && (
+          <div>
+            {products.length > 0 ? (
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {products.map(product => (
+                  <ProductCard product={product} />
+                ))}
+              </div>
+            ) : (
+              <p class="text-gray-500">No products found for this therapeutic area.</p>
+            )}
+          </div>
+        )}
+        
+        {activeTab === 'websites' && (
+          <div>
+            {websites.length > 0 ? (
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {websites.map(website => (
+                  <WebsiteCard website={website} />
+                ))}
+              </div>
+            ) : (
+              <p class="text-gray-500">No websites found for this therapeutic area.</p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   </div>
 </DashboardLayout> 

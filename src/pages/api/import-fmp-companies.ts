@@ -83,7 +83,7 @@ function transformCompany(profile: FMPCompanyProfile) {
     employee_count: employeeCount, 
     revenue_usd: null, // Not available in FMP basic data
     public_company: true,
-    stock_symbol: profile.symbol || null,
+    ticker_symbol: profile.symbol || null,
     stock_exchange: profile.exchange || null,
     founded_year: foundedYear
   };
@@ -140,8 +140,8 @@ For successful imports with the free tier:
     const supabase = supabaseAdmin;
     const { data: existingCompanies, error: existingError } = await supabase
       .from('companies')
-      .select('stock_symbol, updated_at')
-      .in('stock_symbol', allSymbols);
+      .select('ticker_symbol, updated_at')
+      .in('ticker_symbol', allSymbols);
     
     if (existingError) {
       console.error('Error fetching existing companies:', existingError);
@@ -151,7 +151,7 @@ For successful imports with the free tier:
     // Create a map of existing companies by symbol with their last update time
     const existingSymbolsMap = new Map();
     existingCompanies?.forEach(company => {
-      existingSymbolsMap.set(company.stock_symbol, new Date(company.updated_at));
+      existingSymbolsMap.set(company.ticker_symbol, new Date(company.updated_at));
     });
     
     // Calculate the cutoff date for updates (default to 7 days)
@@ -281,11 +281,11 @@ For successful imports with the free tier:
     
     // Separate companies for insert vs update based on what we actually fetched
     const companiesToInsert = transformedCompanies.filter(c => 
-      c.stock_symbol && fetchedSymbols.has(c.stock_symbol) && !existingSymbolsMap.has(c.stock_symbol)
+      c.ticker_symbol && fetchedSymbols.has(c.ticker_symbol) && !existingSymbolsMap.has(c.ticker_symbol)
     );
     
     const companiesToUpdate = transformedCompanies.filter(c => 
-      c.stock_symbol && fetchedSymbols.has(c.stock_symbol) && existingSymbolsMap.has(c.stock_symbol)
+      c.ticker_symbol && fetchedSymbols.has(c.ticker_symbol) && existingSymbolsMap.has(c.ticker_symbol)
     );
     
     console.log(`Found ${companiesToInsert.length} new companies to insert`);

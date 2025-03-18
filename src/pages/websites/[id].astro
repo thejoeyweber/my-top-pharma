@@ -23,31 +23,70 @@ import { getWebsiteScreenshotUrl, getCompanyLogoUrl } from '../../utils/assetUti
 
 // Helper function to create a URL-safe version of domain
 const getDomainSlug = (domain: string): string => {
+  if (!domain) return '';
   return domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
 };
 
 // Generate static paths for all websites
 export async function getStaticPaths() {
-  const { data: dbWebsites } = await supabase
+  const { data: websites } = await supabase
     .from('websites')
-    .select('id, domain');
+    .select('id, slug, domain');
+  
+  if (!websites || websites.length === 0) {
+    return [];
+  }
+  
+  return websites.map(website => {
+    // Use the slug field (which should be populated now thanks to the migration)
+    // If for some reason slug is missing, generate one from the domain
+    const slugParam = website.slug || getDomainSlug(website.domain);
     
-  return (dbWebsites || []).map(website => ({
-    params: { id: getDomainSlug(website.domain) },
-    props: { websiteId: website.id }
-  }));
+    return {
+      params: { id: slugParam },
+      props: { websiteId: website.id }
+    };
+  });
 }
 
-// Get website ID from params or props
+// Get website info from params and props
 const { id } = Astro.params;
 const { websiteId } = Astro.props;
 
-// Fetch website data directly from Supabase
-const { data: dbWebsite, error: websiteError } = await supabase
-  .from('websites')
-  .select('*')
-  .eq('id', websiteId)
-  .single();
+// Fetch website data directly from Supabase using either:
+// 1. websiteId from props (if available from getStaticPaths)
+// 2. slug from URL parameter (id)
+// 3. fallback to ID (if it's actually an ID)
+let websiteResponse;
+
+// First try with the provided ID from props if available (most reliable)
+if (websiteId) {
+  websiteResponse = await supabase
+    .from('websites')
+    .select('*')
+    .eq('id', websiteId)
+    .single();
+}
+
+// If not found or ID not provided, try looking up by slug
+if (!websiteResponse || websiteResponse.error || !websiteResponse.data) {
+  websiteResponse = await supabase
+    .from('websites')
+    .select('*')
+    .eq('slug', id)
+    .single();
+
+  // Last resort, try finding by ID (in case the ID was passed directly)
+  if (!websiteResponse || websiteResponse.error || !websiteResponse.data) {
+    websiteResponse = await supabase
+      .from('websites')
+      .select('*')
+      .eq('id', id)
+      .single();
+  }
+}
+
+const { data: dbWebsite, error: websiteError } = websiteResponse || {};
 
 // Handle website not found
 if (websiteError || !dbWebsite) {
@@ -255,7 +294,7 @@ const formatDate = (dateString?: string) => {
                 {company?.logoUrl && (
                   <img src={company.logoUrl} alt={`${company.name} logo`} class="h-6 mr-2" />
                 )}
-                <a href={`/companies/${website.companyId}`} class="text-medium text-blue-600 hover:underline font-medium">
+                <a href={`/companies/${company?.slug}`} class="text-medium text-blue-600 hover:underline font-medium">
                   {company?.name || website.companyId}
                 </a>
               </div>
@@ -685,7 +724,7 @@ const formatDate = (dateString?: string) => {
                   <p class="text-sm text-gray-500 mt-1">{company.headquarters}</p>
                   
                   <div class="mt-4">
-                    <a href={`/companies/${company.id}`} class="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800">
+                    <a href={`/companies/${company?.slug}`} class="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-800">
                       View company details
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />

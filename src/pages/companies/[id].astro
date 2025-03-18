@@ -27,27 +27,56 @@ import type { Company, Product, Website, TherapeuticArea } from '../../interface
 // Import other existing utilities
 import { getCompanyLogoUrl, getCompanyHeaderUrl, getWebsiteScreenshotUrl } from '../../utils/assetUtils';
 import { websiteCategories } from '../../utils/dataUtils';
+import { generateSlug } from '../../utils/stringUtils';
 
 // Generate static paths for all companies
 export async function getStaticPaths() {
   const { data: dbCompanies } = await supabase
     .from('companies')
-    .select('id');
+    .select('id, slug, name');
     
   return (dbCompanies || []).map(company => ({
-    params: { id: company.id },
+    params: { 
+      id: company.slug
+    },
+    props: { companyId: company.id }
   }));
 }
 
-// Get company ID from URL parameters
+// Get company ID or slug from URL parameters
 const { id } = Astro.params;
+const { companyId } = Astro.props;
 
-// Fetch company data directly from Supabase
-const { data: dbCompany, error: companyError } = await supabase
-  .from('companies')
-  .select('*')
-  .eq('id', id)
-  .single();
+// Fetch company data directly from Supabase - first try by ID from props, then by slug
+let companyResponse;
+
+if (companyId) {
+  companyResponse = await supabase
+    .from('companies')
+    .select('*')
+    .eq('id', companyId)
+    .single();
+}
+
+// If not found or ID not provided, try to fetch by slug
+if (!companyResponse || companyResponse.error || !companyResponse.data) {
+  companyResponse = await supabase
+    .from('companies')
+    .select('*')
+    .eq('slug', id)
+    .single();
+    
+  // Last resort, try to fetch by ID as fallback
+  if (companyResponse.error || !companyResponse.data) {
+    companyResponse = await supabase
+      .from('companies')
+      .select('*')
+      .eq('id', id)
+      .single();
+  }
+}
+
+const { data: dbCompany, error: companyError } = companyResponse;
 
 // Handle company not found
 if (companyError || !dbCompany) {
@@ -153,16 +182,20 @@ const tabs = [
 
 // Pre-compute product therapeutic areas to avoid async calls in the template
 const productTherapeuticAreas = {};
-if (products) {
+if (products && products.length > 0) {
   for (const product of products) {
-    if (product.therapeuticAreas) {
-      productTherapeuticAreas[product.id] = await getTherapeuticAreaName(product.therapeuticAreas);
+    if (product?.therapeuticAreas) {
+      productTherapeuticAreas[product.id] = product.therapeuticAreas.map(id => getTherapeuticAreaName(id));
     }
   }
 }
 
 // Format market cap for display
-const formatMarketCap = (marketCap: number) => {
+const formatMarketCap = (marketCap: number | null | undefined) => {
+  if (marketCap === null || marketCap === undefined) {
+    return 'N/A';
+  }
+  
   if (marketCap >= 1) {
     return `$${marketCap.toFixed(1)}B`;
   } else {
@@ -174,7 +207,7 @@ const formatMarketCap = (marketCap: number) => {
 const breadcrumbs = [
   { label: 'Home', href: '/' },
   { label: 'Companies', href: '/companies' },
-  { label: company.name, href: `/companies/${company.id}`, isActive: true },
+  { label: company.name, href: `/companies/${company.slug}`, isActive: true },
 ];
 
 // Prepare financial data
@@ -225,7 +258,7 @@ const financialColumns = [
 <DashboardLayout
   title={`${company.name} | Top Pharma`}
   description={`Company profile for ${company.name} - View detailed information, products, financials, and news.`}
-  currentPath={`/companies/${company.id}`}
+  currentPath={`/companies/${company.slug}`}
   breadcrumbs={breadcrumbs}
 >
   <div class="space-y-6">
@@ -269,14 +302,13 @@ const financialColumns = [
                   </svg>
                   <span>{company.headquarters}</span>
                 
-                  {company.stockSymbol && (
-                    <>
-                      <span class="mx-2">•</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  {company.tickerSymbol && (
+                    <div class="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                       </svg>
-                      <span>{company.stockSymbol} ({company.stockExchange})</span>
-                    </>
+                      <span>{company.tickerSymbol} ({company.stockExchange})</span>
+                    </div>
                   )}
                   
                   <span class="mx-2">•</span>
@@ -309,12 +341,12 @@ const financialColumns = [
               />
               <KeyMetric 
                 label="Employees" 
-                value={company.employees.toLocaleString()}
+                value={company.employees ? company.employees.toLocaleString() : 'N/A'}
                 size="sm"
               />
               <KeyMetric 
                 label="Products" 
-                value={company.products.length}
+                value={products ? products.length : 0}
                 size="sm"
               />
               <KeyMetric 
@@ -357,7 +389,7 @@ const financialColumns = [
                   <div class="absolute top-0 left-4 h-full w-0.5 bg-gray-200"></div>
                   
                   <div class="space-y-6">
-                    {company.milestones.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(milestone => (
+                    {company.milestones && company.milestones.length > 0 ? company.milestones.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(milestone => (
                       <div class="relative pl-10">
                         <div class="absolute left-0 top-1.5 h-8 w-8 rounded-full border-2 border-[color:var(--color-primary-500)] bg-white flex items-center justify-center">
                           {milestone.type === 'acquisition' && (
@@ -391,7 +423,9 @@ const financialColumns = [
                           <p class="mt-1 text-sm text-gray-600">{milestone.description}</p>
                         </div>
                       </div>
-                    ))}
+                    )) : (
+                      <p class="text-gray-500">No milestones available for this company.</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -431,7 +465,7 @@ const financialColumns = [
                           )}
                         </div>
                         <div class="flex-1">
-                          <a href={`/companies/${related.id}`} class="text-sm font-medium text-gray-900 hover:text-primary-600">
+                          <a href={`/companies/${related.slug}`} class="text-sm font-medium text-gray-900 hover:text-primary-600">
                             {related.name}
                           </a>
                           <p class="text-xs text-gray-500 capitalize">{related.relationship}</p>
@@ -478,61 +512,65 @@ const financialColumns = [
                 </div>
               </div>
               
-              <!-- Products Table -->
-              <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                  <thead class="bg-gray-50">
-                    <tr>
-                      <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">Name</th>
-                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
-                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
-                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Therapeutic Areas</th>
-                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Approval Date</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-gray-200 bg-white">
-                    {products.map(product => (
+              {!products || products.length === 0 ? (
+                <p class="text-gray-500">No products found for this company.</p>
+              ) : (
+                <!-- Products Table -->
+                <div class="overflow-x-auto">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
                       <tr>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
-                          <a href={`/products/${product.id}`} class="text-[color:var(--color-primary-600)] hover:text-[color:var(--color-primary-900)] hover:underline">
-                            {product.name}
-                          </a>
-                        </td>
-                        <td class="px-3 py-4 text-sm text-gray-500">{product.description}</td>
-                        <td class="px-3 py-4 text-sm">
-                          <span class:list={[
-                            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-                            product.status === "Approved" 
-                              ? "bg-green-100 text-green-800" 
-                              : product.status === "Phase 3"
-                                ? "bg-blue-100 text-blue-800"
-                                : product.status === "Phase 2"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : "bg-yellow-100 text-yellow-800"
-                          ]}>
-                            {product.status}
-                          </span>
-                        </td>
-                        <td class="px-3 py-4 text-sm text-gray-500">
-                          <div class="flex flex-wrap gap-1">
-                            {productTherapeuticAreas[product.id]?.map(area => (
-                              <span class="inline-flex items-center rounded-full bg-[color:var(--color-primary-50)] px-2 py-0.5 text-xs font-medium text-[color:var(--color-primary-700)]">
-                                {area}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td class="px-3 py-4 text-sm text-gray-500">
-                          {product.approvalDate 
-                            ? new Date(product.approvalDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-                            : '-'
-                          }
-                        </td>
+                        <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">Name</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Therapeutic Areas</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Approval Date</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 bg-white">
+                      {products.map(product => (
+                        <tr>
+                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900">
+                            <a href={`/products/${product.id}`} class="text-[color:var(--color-primary-600)] hover:text-[color:var(--color-primary-900)] hover:underline">
+                              {product.name}
+                            </a>
+                          </td>
+                          <td class="px-3 py-4 text-sm text-gray-500">{product.description}</td>
+                          <td class="px-3 py-4 text-sm">
+                            <span class:list={[
+                              "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+                              product.status === "Approved" 
+                                ? "bg-green-100 text-green-800" 
+                                : product.status === "Phase 3"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : product.status === "Phase 2"
+                                    ? "bg-purple-100 text-purple-800"
+                                    : "bg-yellow-100 text-yellow-800"
+                            ]}>
+                              {product.status}
+                            </span>
+                          </td>
+                          <td class="px-3 py-4 text-sm text-gray-500">
+                            <div class="flex flex-wrap gap-1">
+                              {productTherapeuticAreas[product.id]?.map(area => (
+                                <span class="inline-flex items-center rounded-full bg-[color:var(--color-primary-50)] px-2 py-0.5 text-xs font-medium text-[color:var(--color-primary-700)]">
+                                  {area}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td class="px-3 py-4 text-sm text-gray-500">
+                            {product.approvalDate 
+                              ? new Date(product.approvalDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                              : '-'
+                            }
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </Card>
         </div>
@@ -572,10 +610,13 @@ const financialColumns = [
                             
                             <div class="flex justify-between items-center">
                               <a 
-                                href={`/websites/${website.domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase()}`} 
-                                class="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                                href={`/websites/${website.slug}`} 
+                                class="text-sm font-medium text-blue-600 hover:text-blue-900 hover:underline flex items-center"
                               >
                                 View details
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
                               </a>
                               
                               <a 
@@ -951,9 +992,9 @@ const financialColumns = [
                 <div class="flex justify-between items-center mb-4">
                   <h2 class="text-lg font-medium text-[color:var(--color-gray-900)]">
                     Stock Performance
-                    {company.stockSymbol && (
+                    {company.tickerSymbol && (
                       <span class="text-sm font-normal ml-2 text-[color:var(--color-gray-500)]">
-                        {company.stockSymbol} • {company.stockExchange}
+                        {company.tickerSymbol} • {company.stockExchange}
                       </span>
                     )}
                   </h2>

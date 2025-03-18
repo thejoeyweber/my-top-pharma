@@ -173,7 +173,7 @@ function formatCurrency(value: number | undefined): string {
                       {sampleMockCompanies.map(company => (
                         <tr>
                           <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{company.name}</td>
-                          <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{company.stockSymbol}</td>
+                          <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{company.tickerSymbol}</td>
                           <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(company.marketCap * 1e9)}</td>
                         </tr>
                       ))}
@@ -202,7 +202,7 @@ function formatCurrency(value: number | undefined): string {
                         {sampleDbCompanies.map(company => (
                           <tr>
                             <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{company.name}</td>
-                            <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{company.stockSymbol}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{company.tickerSymbol}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{formatCurrency(company.marketCap * 1e9)}</td>
                           </tr>
                         ))}

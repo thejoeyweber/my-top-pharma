@@ -96,7 +96,7 @@ const tabs = [
                           </div>
                           <div class="ml-4">
                             <div class="text-sm font-medium text-gray-900">
-                              <a href={`/companies/${company.id}`} class="hover:text-primary-600">{company.name}</a>
+                              <a href={`/companies/${company.slug}`} class="hover:text-primary-600">{company.name}</a>
                             </div>
                           </div>
                         </div>
@@ -106,7 +106,7 @@ const tabs = [
                       </td>
                       <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button type="button" class="text-primary-600 hover:text-primary-900 mr-4" data-company-id={company.id}>Unfollow</button>
-                        <a href={`/companies/${company.id}`} class="text-gray-600 hover:text-gray-900">View</a>
+                        <a href={`/companies/${company.slug}`} class="text-gray-600 hover:text-gray-900">View</a>
                       </td>
                     </tr>
                   ))}

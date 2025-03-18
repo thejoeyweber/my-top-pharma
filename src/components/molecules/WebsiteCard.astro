@@ -46,6 +46,21 @@ const formatUrl = (url: string): string => {
   if (!url) return '';
   return url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
 };
+
+// Get URL-safe domain for routing when slug is not available
+const getDomainSlug = (domain: string): string => {
+  if (!domain) return '';
+  return domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+};
+
+// Get the proper link URL for the website detail page
+const getWebsiteDetailUrl = (): string => {
+  if (website.slug) {
+    return `/websites/${website.slug}`;
+  }
+  // Fallback: create a slug from domain
+  return `/websites/${getDomainSlug(formatUrl(website.url))}`;
+};
 ---
 
 <Card class="h-full">
@@ -84,7 +99,7 @@ const formatUrl = (url: string): string => {
       
       <div class="text-right">
         <a 
-          href={`/websites/${website.id}`}
+          href={getWebsiteDetailUrl()}
           class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
         >
           View Details
