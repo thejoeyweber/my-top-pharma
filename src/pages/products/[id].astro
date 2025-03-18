@@ -221,545 +221,338 @@ const formatDate = (dateString: string) => {
   breadcrumbs={breadcrumbs}
 >
   <div class="space-y-6">
-    <!-- Product Header Section -->
-    <div class="bg-white shadow rounded-lg overflow-hidden border border-gray-200">
-      <div class="p-6">
-        <div class="sm:flex sm:items-center sm:justify-between">
-          <div>
-            <div class="flex items-center">
-              <h1 class="text-2xl font-bold text-gray-900">{product.name}</h1>
-              <span class="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={
-                product.stage === 'marketed' || product.stage === 'approved' 
-                  ? 'background-color:var(--color-green-100, #dcfce7); color:var(--color-green-800, #166534)' 
-                  : product.stage === 'submitted'
-                  ? 'background-color:var(--color-yellow-100, #fef9c3); color:var(--color-yellow-800, #854d0e)'
-                  : 'background-color:var(--color-blue-100, #dbeafe); color:var(--color-blue-800, #1e40af)'
-              }>
-                {getStageName(product.stage)}
-              </span>
+    <!-- Product Header Section - Updated to match company header structure -->
+    <div class="relative">
+      <!-- Header Background Image -->
+      <div class="h-48 w-full bg-gradient-to-r from-green-600 to-green-700 relative overflow-hidden shadow-md">
+        {/* We could add a background image with product branding here if available */}
+      </div>
+      
+      <!-- Product Info Card -->
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden -mt-24 mb-8">
+          <div class="p-6 sm:p-8">
+            <div class="flex flex-col md:flex-row items-start md:items-center">
+              <!-- Product Logo/Image -->
+              <div class="w-24 h-24 bg-white rounded-lg shadow-md flex items-center justify-center overflow-hidden mr-6 mb-4 md:mb-0">
+                {product.imageUrl ? (
+                  <img src={getProductImageUrl(product.id)} alt={product.name} class="max-w-full max-h-full p-2" />
+                ) : (
+                  <span class="text-3xl font-bold text-green-600">{product.name.charAt(0)}</span>
+                )}
+              </div>
+              
+              <!-- Product Basic Info -->
+              <div class="flex-grow">
+                <div class="flex items-center justify-between flex-wrap">
+                  <div>
+                    <h1 class="text-2xl font-bold text-gray-900 mr-4">{product.name}</h1>
+                    {product.genericName && (
+                      <p class="text-gray-500 text-sm">{product.genericName}</p>
+                    )}
+                  </div>
+                  
+                  <div class="flex space-x-3 mt-2 md:mt-0">
+                    {product.website && (
+                      <Button 
+                        href={product.website.startsWith('http') ? product.website : `https://${product.website}`} 
+                        target="_blank"
+                        variant="outline"
+                        size="sm"
+                      >
+                        <span class="flex items-center">
+                          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                          Website
+                        </span>
+                      </Button>
+                    )}
+                    
+                    <FollowButton 
+                      entityId={product.id} 
+                      entityType="product"
+                      size="sm"
+                    />
+                  </div>
+                </div>
+                
+                <div class="mt-2 flex flex-wrap items-center text-sm text-gray-500">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mr-2">
+                    {getStageName(product.stage)}
+                  </span>
+                  {product.moleculeType && (
+                    <span class="mr-4">{product.moleculeType}</span>
+                  )}
+                </div>
+              </div>
             </div>
-            {product.genericName && (
-              <p class="mt-1 text-sm text-gray-500 italic">{product.genericName}</p>
-            )}
-            <p class="mt-1 max-w-2xl text-sm text-gray-500">
-              {product.moleculeType} • {product.indications && product.indications.length > 0 ? product.indications.join(', ') : 'No indications listed'}
-            </p>
           </div>
-          {product.website && (
-            <div class="mt-5 sm:mt-0">
-              <a
-                href={product.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[color:var(--color-primary-500)]"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-                Visit Website
-              </a>
+          
+          {/* Company attribution */}
+          {company && (
+            <div class="bg-gray-50 px-6 sm:px-8 py-3 border-t border-gray-200">
+              <div class="flex items-center text-gray-700">
+                <span class="text-sm mr-2">Developed by:</span>
+                <a href={`/companies/${company.slug}`} class="text-primary-600 hover:text-primary-800 font-medium text-sm">
+                  {company.name}
+                </a>
+              </div>
             </div>
           )}
         </div>
-        
-        {company && (
-          <div class="mt-4 flex items-center">
-            <div class="flex items-center text-sm text-gray-600">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              <span class="mr-1">Developed by:</span>
-              <a href={`/companies/${company.slug}`} class="font-medium text-[color:var(--color-primary-600)] hover:underline">
-                {company.name}
-              </a>
-            </div>
-          </div>
-        )}
       </div>
     </div>
     
     <!-- Tabs Navigation -->
-    <TabGroup tabs={tabs} activeTab={activeTab} tabPanelId="product-tab-content" />
-    
-    <!-- Tab Content -->
-    <div id="tab-content">
-      <!-- Overview Tab -->
-      <div id="product-tab-content-overview" role="tabpanel" aria-labelledby="tab-overview">
-        <div class="space-y-6">
-          <!-- Basic product information card -->
-          <Card>
-            <div class="p-6">
-              <h2 class="text-lg font-medium text-gray-900 mb-4">Product Description</h2>
-              <p class="text-gray-600">{product.description}</p>
-              
-              <div class="mt-6">
-                <h3 class="text-sm font-medium text-gray-900 mb-2">Therapeutic Areas</h3>
-                <div class="flex flex-wrap gap-2">
-                  {product.therapeuticAreas && product.therapeuticAreas.map(area => (
-                    <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-[color:var(--color-primary-50)] text-[color:var(--color-primary-700)]">
-                      {getTherapeuticAreaName(area)}
-                    </span>
-                  ))}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+      <TabGroup tabs={tabs} activeTab={activeTab} tabPanelId="product-tab-content" />
+      
+      <!-- Tab Content -->
+      <div class="mt-6">
+        <!-- Overview Tab -->
+        <div id="product-tab-content-overview" role="tabpanel" aria-labelledby="tab-overview" class="space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Key Metrics/Facts Column -->
+            <div class="col-span-1">
+              <Card>
+                <div class="p-4">
+                  <h3 class="text-lg font-medium text-gray-900 mb-4">Key Facts</h3>
+                  <div class="space-y-4">
+                    <div class="flex">
+                      <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                      </div>
+                      <div class="ml-3">
+                        <p class="text-sm font-medium text-gray-500">Status</p>
+                        <p class="text-sm text-gray-900">{getStageName(product.stage)}</p>
+                      </div>
+                    </div>
+                    {product.year && (
+                      <div class="flex">
+                        <div class="flex-shrink-0">
+                          <svg class="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <div class="ml-3">
+                          <p class="text-sm font-medium text-gray-500">Year</p>
+                          <p class="text-sm text-gray-900">{product.year}</p>
+                        </div>
+                      </div>
+                    )}
+                    {product.moleculeType && (
+                      <div class="flex">
+                        <div class="flex-shrink-0">
+                          <svg class="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                          </svg>
+                        </div>
+                        <div class="ml-3">
+                          <p class="text-sm font-medium text-gray-500">Type</p>
+                          <p class="text-sm text-gray-900">{product.moleculeType}</p>
+                        </div>
+                      </div>
+                    )}
+                    {/* Could add more key metrics here */}
+                  </div>
                 </div>
-              </div>
+              </Card>
               
-              <div class="mt-6">
-                <h3 class="text-sm font-medium text-gray-900 mb-2">Indications</h3>
-                <ul class="list-disc pl-5 text-gray-600">
-                  {product.indications && product.indications.map(indication => (
-                    <li>{indication}</li>
-                  ))}
-                </ul>
-              </div>
+              {therapeuticAreas.length > 0 && (
+                <Card class="mt-6">
+                  <div class="p-4">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Therapeutic Areas</h3>
+                    <div class="flex flex-wrap gap-2">
+                      {therapeuticAreas.map(area => (
+                        <a 
+                          href={`/therapeutic-areas/${area.slug}`} 
+                          class="inline-flex items-center rounded-full bg-blue-100 px-3 py-0.5 text-sm font-medium text-blue-800 hover:bg-blue-200"
+                        >
+                          {area.name}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </Card>
+              )}
             </div>
-          </Card>
-          
-          <!-- Official Websites Section -->
-          <Card>
-            <div class="p-6">
-              <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-medium text-gray-900">Official Websites</h2>
-                <a href="#tab-websites" class="text-sm text-blue-600 hover:text-blue-800" onclick="switchTab('websites')">
-                  View all
-                </a>
-              </div>
+            
+            <!-- Product Description -->
+            <div class="col-span-2">
+              <Card>
+                <div class="p-4">
+                  <h3 class="text-lg font-medium text-gray-900 mb-4">About {product.name}</h3>
+                  {product.description ? (
+                    <p class="text-gray-600">{product.description}</p>
+                  ) : (
+                    <p class="text-gray-500 italic">No product description available</p>
+                  )}
+                </div>
+              </Card>
               
-              {websites.length === 0 ? (
-                <p class="text-gray-500">No official websites found for this product.</p>
-              ) : (
+              <!-- Indications -->
+              <Card class="mt-6">
+                <div class="p-4">
+                  <h3 class="text-lg font-medium text-gray-900 mb-4">Indications</h3>
+                  {product.indications && product.indications.length > 0 ? (
+                    <ul class="list-disc pl-5 space-y-1 text-gray-700">
+                      {product.indications.map(indication => (
+                        <li>{indication}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p class="text-gray-500 italic">No indications listed.</p>
+                  )}
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Websites Tab -->
+        <div id="product-tab-content-websites" role="tabpanel" aria-labelledby="tab-websites" class="space-y-6 hidden">
+          <Card>
+            <div class="p-4">
+              <h3 class="text-lg font-medium text-gray-900 mb-4">Official Websites</h3>
+              {websites.length > 0 ? (
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {websites.slice(0, 3).map(website => (
-                    <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                  {websites.map(website => (
+                    <div class="border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                       <div class="p-4">
                         <div class="flex justify-between items-start">
-                          <h4 class="font-medium text-gray-900 mb-1">{website.domain}</h4>
+                          <h3 class="font-medium text-gray-900">{website.domain}</h3>
                           <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
-                            {getCategoryLabel(website.category)}
+                            {website.category}
                           </span>
                         </div>
-                        
-                        <div class="flex justify-between items-center mt-3">
-                          <a 
-                            href={`/websites/${website.slug}`} 
-                            class="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                          >
+                        <div class="mt-2 flex justify-between items-center">
+                          <a href={`/websites/${website.slug}`} class="text-sm font-medium text-blue-600 hover:text-blue-800">
                             View details
                           </a>
-                          
-                          <a 
-                            href={`https://${website.domain}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                            Visit site
+                          <a href={`https://${website.domain}`} target="_blank" rel="noopener noreferrer" class="text-sm text-gray-500 hover:text-gray-700">
+                            Visit site →
                           </a>
                         </div>
                       </div>
                     </div>
                   ))}
-                  
-                  {websites.length > 3 && (
-                    <div class="bg-gray-50 rounded-lg border border-gray-200 shadow-sm overflow-hidden flex items-center justify-center">
-                      <a href="#tab-websites" class="p-4 text-blue-600 hover:text-blue-800 font-medium text-center" onclick="switchTab('websites')">
-                        View {websites.length - 3} more websites
-                      </a>
-                    </div>
-                  )}
+                </div>
+              ) : (
+                <div class="text-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                  </svg>
+                  <h3 class="mt-2 text-lg font-medium text-gray-900">No official websites found</h3>
+                  <p class="mt-1 text-gray-500">No official websites found for this product.</p>
                 </div>
               )}
             </div>
           </Card>
-          
-          <!-- Websites Tab Content -->
-          <div id="tab-content-websites" role="tabpanel" aria-labelledby="tab-websites" class="space-y-6 hidden">
-            <Card>
-              <div class="p-6">
-                <h2 class="text-xl font-medium text-gray-900 mb-4">Product Websites</h2>
-                
-                {websites.length === 0 ? (
-                  <div class="bg-gray-50 rounded-lg p-6 text-center">
-                    <p class="text-gray-500">No official websites found for this product.</p>
-                    <p class="text-sm text-gray-400 mt-1">This product may be featured on the company's main website.</p>
-                  </div>
-                ) : (
-                  <div class="space-y-6">
-                    {Object.entries(websitesByCategory).map(([category, websites]) => (
-                      <div class="space-y-3">
-                        <h3 class="text-lg font-medium text-gray-900">{getCategoryLabel(category)}</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {websites.map(website => (
-                            <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-                              <div class="flex flex-col md:flex-row">
-                                {website.screenshotUrl && (
-                                  <div class="md:w-1/3 relative h-40 md:h-auto">
-                                    <img 
-                                      src={getProductImageUrl(website.domain)} 
-                                      alt={`Screenshot of ${website.domain}`}
-                                      class="absolute inset-0 w-full h-full object-cover"
-                                    />
-                                  </div>
-                                )}
-                                <div class={`p-4 ${website.screenshotUrl ? 'md:w-2/3' : 'w-full'}`}>
-                                  <div class="flex justify-between items-start">
-                                    <h4 class="font-medium text-gray-900 mb-1">{website.domain}</h4>
-                                    <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
-                                      {getCategoryLabel(website.category)}
-                                    </span>
-                                  </div>
-                                  
-                                  {website.siteName && (
-                                    <p class="text-sm text-gray-500 mb-2">{website.siteName}</p>
-                                  )}
-                                  
-                                  <p class="text-sm text-gray-700 line-clamp-2 mb-3">
-                                    {website.description || 'No description available.'}
-                                  </p>
-                                  
-                                  <div class="flex justify-between items-center mt-auto">
-                                    <a 
-                                      href={`/websites/${website.slug}`} 
-                                      class="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                                    >
-                                      View details
-                                    </a>
-                                    
-                                    <a 
-                                      href={`https://${website.domain}`} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer" 
-                                      class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                      </svg>
-                                      Visit site
-                                    </a>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </Card>
-            
-            <!-- Company Website Information -->
-            {company && (
-              <Card>
-                <div class="p-6">
-                  <h2 class="text-xl font-medium text-gray-900 mb-4">Company Website</h2>
-                  <div class="flex items-center mb-4">
-                    {company.logoUrl && (
-                      <img src={company.logoUrl} alt={`${company.name} logo`} class="h-8 mr-3" />
-                    )}
-                    <h3 class="text-lg font-medium text-gray-900">{company.name}</h3>
-                  </div>
-                  
-                  <p class="text-gray-700 mb-4">
-                    This product may also be featured on the company's main website or other corporate sites.
-                  </p>
-                  
-                  <div class="flex flex-wrap gap-3">
-                    <a 
-                      href={`/companies/${company.slug}`} 
-                      class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" class="-ml-0.5 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                      View company details
-                    </a>
-                    
-                    {company.website && (
-                      <a 
-                        href={`https://${company.website}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="-ml-0.5 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                        Visit company website
-                      </a>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            )}
-          </div>
-          
-          <!-- Quick Regulatory Summary -->
-          {product.approvals && product.approvals.length > 0 && (
-            <Card>
-              <div class="p-6">
-                <h2 class="text-lg font-medium text-gray-900 mb-4">Regulatory Status</h2>
+        </div>
+        
+        <!-- Regulatory Tab -->
+        <div id="product-tab-content-regulatory" role="tabpanel" aria-labelledby="tab-regulatory" class="space-y-6 hidden">
+          <Card>
+            <div class="p-4">
+              <h3 class="text-lg font-medium text-gray-900 mb-4">Regulatory Information</h3>
+              {product.approvals && product.approvals.length > 0 ? (
                 <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                   <table class="min-w-full divide-y divide-gray-300">
                     <thead class="bg-gray-50">
                       <tr>
-                        <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Region</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Indication</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Region</th>
                         <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Agency</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Date</th>
                         <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Date</th>
+                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Indication</th>
                       </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 bg-white">
                       {product.approvals.map(approval => (
                         <tr>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">{approval.region}</td>
-                          <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{approval.indication}</td>
-                          <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{approval.agency}</td>
-                          <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{formatDate(approval.date)}</td>
-                          <td class="whitespace-nowrap px-3 py-4 text-sm">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={
-                              approval.status === 'approved' 
-                                ? 'background-color:var(--color-green-100, #dcfce7); color:var(--color-green-800, #166534)' 
-                                : approval.status === 'rejected'
-                                ? 'background-color:var(--color-red-100, #fee2e2); color:var(--color-red-800, #991b1b)'
-                                : 'background-color:var(--color-yellow-100, #fef9c3); color:var(--color-yellow-800, #854d0e)'
-                            }>
-                              {approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </Card>
-          )}
-          
-          <!-- Related Products -->
-          {relatedProducts.length > 0 && (
-            <Card>
-              <div class="p-6">
-                <h2 class="text-lg font-medium text-gray-900 mb-3">Related Products</h2>
-                <div class="space-y-3">
-                  {relatedProducts.map(relatedProduct => (
-                    <ProductCard product={relatedProduct} isCompact={true} />
-                  ))}
-                </div>
-              </div>
-            </Card>
-          )}
-        </div>
-      </div>
-      
-      <!-- Regulatory Tab -->
-      <div id="product-tab-content-regulatory" role="tabpanel" aria-labelledby="tab-regulatory" class="hidden">
-        <Card>
-          <div class="p-6">
-            <h2 class="text-lg font-medium text-gray-900 mb-6">Regulatory Information</h2>
-            
-            {(product.approvals && product.approvals.length > 0) ? (
-              <div class="space-y-6">
-                <h3 class="text-base font-medium text-gray-900">Approval History</h3>
-                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                  <table class="min-w-full divide-y divide-gray-300">
-                    <thead class="bg-gray-50">
-                      <tr>
-                        <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Date</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Region</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Agency</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Indication</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
-                        <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                          <span class="sr-only">Details</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200 bg-white">
-                      {product.approvals
-                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                        .map(approval => (
-                        <tr>
-                          <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">{formatDate(approval.date)}</td>
                           <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{approval.region}</td>
                           <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{approval.agency}</td>
-                          <td class="px-3 py-4 text-sm text-gray-500">{approval.indication}</td>
-                          <td class="whitespace-nowrap px-3 py-4 text-sm">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={
-                              approval.status === 'approved' 
-                                ? 'background-color:var(--color-green-100, #dcfce7); color:var(--color-green-800, #166534)' 
-                                : approval.status === 'rejected'
-                                ? 'background-color:var(--color-red-100, #fee2e2); color:var(--color-red-800, #991b1b)'
-                                : 'background-color:var(--color-yellow-100, #fef9c3); color:var(--color-yellow-800, #854d0e)'
-                            }>
-                              {approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}
+                          <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              {approval.status}
                             </span>
                           </td>
-                          <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                            <a href="#" class="text-[color:var(--color-primary-600)] hover:text-[color:var(--color-primary-900)]">
-                              View<span class="sr-only">, {approval.indication}</span>
-                            </a>
-                          </td>
+                          <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{formatDate(approval.date)}</td>
+                          <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{approval.indication}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                
-                <div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                  <div class="bg-white overflow-hidden shadow rounded-lg border border-gray-200">
-                    <div class="px-4 py-5 sm:p-6">
-                      <dl>
-                        <dt class="text-sm font-medium text-gray-500 truncate">Total Approvals</dt>
-                        <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                          {product.approvals.filter(a => a.status === 'approved').length}
-                        </dd>
-                      </dl>
-                    </div>
-                  </div>
-                  <div class="bg-white overflow-hidden shadow rounded-lg border border-gray-200">
-                    <div class="px-4 py-5 sm:p-6">
-                      <dl>
-                        <dt class="text-sm font-medium text-gray-500 truncate">Pending Approvals</dt>
-                        <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                          {product.approvals.filter(a => a.status === 'pending').length}
-                        </dd>
-                      </dl>
-                    </div>
-                  </div>
-                  <div class="bg-white overflow-hidden shadow rounded-lg border border-gray-200">
-                    <div class="px-4 py-5 sm:p-6">
-                      <dl>
-                        <dt class="text-sm font-medium text-gray-500 truncate">Regions with Approval</dt>
-                        <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                          {new Set(product.approvals.filter(a => a.status === 'approved').map(a => a.region)).size}
-                        </dd>
-                      </dl>
-                    </div>
-                  </div>
+              ) : (
+                <div class="text-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  <h3 class="mt-2 text-lg font-medium text-gray-900">No regulatory information</h3>
+                  <p class="mt-1 text-gray-500">No regulatory approvals or submissions found for this product.</p>
                 </div>
-              </div>
-            ) : (
-              <div class="text-center py-12">
-                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              )}
+            </div>
+          </Card>
+        </div>
+        
+        <!-- Development Timeline Tab -->
+        <div id="product-tab-content-timeline" role="tabpanel" aria-labelledby="tab-timeline" class="space-y-6 hidden">
+          <Card>
+            <div class="p-4">
+              <h3 class="text-lg font-medium text-gray-900 mb-4">Development Timeline</h3>
+              {/* Timeline component goes here - use placeholder for now */}
+              <div class="text-center py-6">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
-                <h3 class="mt-2 text-sm font-medium text-gray-900">No regulatory information</h3>
-                <p class="mt-1 text-sm text-gray-500">
-                  This product does not have any regulatory approvals or submissions yet.
-                </p>
-              </div>
-            )}
-          </div>
-        </Card>
-      </div>
-      
-      <!-- Timeline Tab -->
-      <div id="product-tab-content-timeline" role="tabpanel" aria-labelledby="tab-timeline" class="hidden">
-        <Card>
-          <div class="p-6">
-            <h2 class="text-lg font-medium text-gray-900 mb-6">Development Timeline</h2>
-            
-            <Timeline events={product.timeline} currentStage={product.stage} />
-            
-            <div class="mt-8 bg-gray-50 p-4 rounded-md border border-gray-200">
-              <h3 class="text-sm font-medium text-gray-900 mb-2">Development Stage Legend</h3>
-              <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
-                <div class="flex items-center">
-                  <span class="h-2 w-2 bg-gray-500 rounded-full mr-2"></span>
-                  <span class="text-xs text-gray-700">Preclinical</span>
-                </div>
-                <div class="flex items-center">
-                  <span class="h-2 w-2 bg-blue-500 rounded-full mr-2"></span>
-                  <span class="text-xs text-gray-700">Phase 1</span>
-                </div>
-                <div class="flex items-center">
-                  <span class="h-2 w-2 bg-indigo-500 rounded-full mr-2"></span>
-                  <span class="text-xs text-gray-700">Phase 2</span>
-                </div>
-                <div class="flex items-center">
-                  <span class="h-2 w-2 bg-purple-500 rounded-full mr-2"></span>
-                  <span class="text-xs text-gray-700">Phase 3</span>
-                </div>
-                <div class="flex items-center">
-                  <span class="h-2 w-2 bg-yellow-500 rounded-full mr-2"></span>
-                  <span class="text-xs text-gray-700">Submitted</span>
-                </div>
-                <div class="flex items-center">
-                  <span class="h-2 w-2 bg-green-500 rounded-full mr-2"></span>
-                  <span class="text-xs text-gray-700">Approved</span>
-                </div>
-                <div class="flex items-center">
-                  <span class="h-2 w-2 bg-emerald-500 rounded-full mr-2"></span>
-                  <span class="text-xs text-gray-700">Marketed</span>
-                </div>
+                <h3 class="mt-2 text-lg font-medium text-gray-900">No development timeline</h3>
+                <p class="mt-1 text-gray-500">Development timeline information is not available for this product.</p>
               </div>
             </div>
-          </div>
-        </Card>
-      </div>
-      
-      <!-- Patents Tab -->
-      <div id="product-tab-content-patents" role="tabpanel" aria-labelledby="tab-patents" class="hidden">
-        <Card>
-          <div class="p-6">
-            <h2 class="text-lg font-medium text-gray-900 mb-6">Patent Information</h2>
-            
-            {product.patents && product.patents.length > 0 ? (
-              <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                <table class="min-w-full divide-y divide-gray-300">
-                  <thead class="bg-gray-50">
-                    <tr>
-                      <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Patent Number</th>
-                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Description</th>
-                      <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Expiry Date</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-gray-200 bg-white">
-                    {product.patents.map(patent => (
-                      <tr>
-                        <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-[color:var(--color-primary-600)] sm:pl-6">{patent.number}</td>
-                        <td class="px-3 py-4 text-sm text-gray-500">{patent.description}</td>
-                        <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{formatDate(patent.expiryDate)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div class="text-center py-12">
-                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          </Card>
+        </div>
+        
+        <!-- Patents Tab -->
+        <div id="product-tab-content-patents" role="tabpanel" aria-labelledby="tab-patents" class="space-y-6 hidden">
+          <Card>
+            <div class="p-4">
+              <h3 class="text-lg font-medium text-gray-900 mb-4">Patent Information</h3>
+              {/* Patent information would go here - use placeholder for now */}
+              <div class="text-center py-6">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <h3 class="mt-2 text-sm font-medium text-gray-900">No patent information</h3>
-                <p class="mt-1 text-sm text-gray-500">
-                  No patent information is available for this product.
-                </p>
+                <h3 class="mt-2 text-lg font-medium text-gray-900">No patent information</h3>
+                <p class="mt-1 text-gray-500">Patent information is not available for this product.</p>
               </div>
-            )}
-          </div>
-        </Card>
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   </div>
 </DashboardLayout>
 
 <script>
-// Add tab switching function
-function switchTab(tabId) {
-  // Find the tab link and simulate a click
-  const tabLink = document.querySelector(`[href="#${tabId}"]`);
-  if (tabLink) {
-    tabLink.click();
-  }
-}
-
-// Add this function to the global scope
-document.addEventListener('DOMContentLoaded', () => {
-  window.switchTab = switchTab;
-});
+  // Handle "View more websites" link
+  document.addEventListener('DOMContentLoaded', () => {
+    const viewMoreWebsitesBtn = document.querySelector('.view-more-websites');
+    
+    if (viewMoreWebsitesBtn) {
+      viewMoreWebsitesBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        
+        // Find tab link for websites tab and click it
+        const websitesTab = document.querySelector('[data-tab-id="websites"]');
+        if (websitesTab) {
+          websitesTab.click();
+        }
+      });
+    }
+  });
 </script> 

@@ -7,14 +7,19 @@
 import Card from '../atoms/Card.astro';
 import Button from '../atoms/Button.astro';
 import { getProductImageUrl } from '../../utils/assetUtils';
-import { supabase } from '../../lib/supabase';
 import type { Product, Company, TherapeuticArea } from '../../interfaces/entities';
 
 interface Props {
   product: Product;
+  company?: Company | null;
+  therapeuticAreaNames?: string[];
 }
 
-const { product } = Astro.props;
+const { 
+  product, 
+  company = null, 
+  therapeuticAreaNames = []
+} = Astro.props;
 
 // Helper functions
 const getStageName = (stage: string): string => {
@@ -42,41 +47,6 @@ const getStageColor = (stage: string): string => {
   };
   return colorMap[stage] || 'gray';
 };
-
-// Fetch company data if companyId is provided
-let company: Company | null = null;
-if (product.companyId) {
-  const { data } = await supabase
-    .from('companies')
-    .select('*')
-    .eq('id', product.companyId)
-    .single();
-  
-  if (data) {
-    company = {
-      id: data.id,
-      name: data.name,
-      description: data.description || '',
-      logoUrl: data.logo_url || '',
-      websiteUrl: data.website_url || '',
-      headquarters: data.headquarters || '',
-      therapeuticAreas: []
-    };
-  }
-}
-
-// Fetch therapeutic areas if available
-let therapeuticAreaNames: string[] = [];
-if (product.therapeuticAreas && product.therapeuticAreas.length > 0) {
-  const { data } = await supabase
-    .from('therapeutic_areas')
-    .select('name')
-    .in('id', product.therapeuticAreas);
-  
-  if (data) {
-    therapeuticAreaNames = data.map(ta => ta.name);
-  }
-}
 
 // Get product image
 const productImage = product.imageUrl || getProductImageUrl(product.name);

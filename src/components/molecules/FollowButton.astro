@@ -3,7 +3,7 @@
  * Follow Button Component
  * 
  * A button component that allows users to follow/unfollow entities like companies, products, etc.
- * This is a UI mockup with no actual backend functionality.
+ * This uses localStorage to persist follow states without authentication.
  */
 
 import Button from '../atoms/Button.astro';
@@ -26,6 +26,9 @@ const {
 
 // Generate a unique ID for this button instance
 const buttonId = `follow-button-${entityType}-${entityId}`;
+
+// Generate the localStorage key for this entity
+const storageKey = `pharma_followed_${entityType}_${entityId}`;
 ---
 
 <div class:list={["follow-button-container", className]} data-entity-id={entityId} data-entity-type={entityType}>
@@ -54,18 +57,47 @@ const buttonId = `follow-button-${entityType}-${entityId}`;
   </Button>
 </div>
 
-<script define:vars={{ buttonId, entityId, entityType, isFollowing }}>
-  // Client-side script for handling follow/unfollow actions
+<script define:vars={{ buttonId, entityId, entityType, storageKey }}>
+  // Client-side script for handling follow/unfollow actions with localStorage
   document.addEventListener('DOMContentLoaded', () => {
     const button = document.getElementById(buttonId);
     
     if (button) {
+      // Initialize state from localStorage on page load
+      const storedState = localStorage.getItem(storageKey);
+      const isCurrentlyFollowing = storedState === 'true';
+      
+      // Update initial button appearance based on localStorage
+      if (isCurrentlyFollowing) {
+        button.classList.add('following');
+        button.classList.add('bg-white');
+        button.classList.remove('bg-primary-600');
+        button.classList.remove('text-white');
+        button.classList.add('text-gray-700');
+        button.classList.add('border-gray-300');
+        
+        const textSpan = button.querySelector('.follow-text');
+        if (textSpan) {
+          textSpan.textContent = 'Following';
+        }
+        
+        const iconSpan = button.querySelector('.follow-icon');
+        if (iconSpan) {
+          iconSpan.innerHTML = `
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+          `;
+        }
+      }
+      
       button.addEventListener('click', () => {
         // Toggle following state
         const isCurrentlyFollowing = button.classList.contains('following');
         
-        // In a real app, this would make an API call
-        // For the mockup, we just toggle the button state
+        // Store the new state in localStorage
+        localStorage.setItem(storageKey, (!isCurrentlyFollowing).toString());
+        
         if (isCurrentlyFollowing) {
           // Unfollow
           button.classList.remove('following');

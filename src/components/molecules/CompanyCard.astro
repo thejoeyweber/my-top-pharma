@@ -5,33 +5,29 @@
  * Displays a company's basic information in a card format.
  */
 import Button from '../atoms/Button.astro';
-import type { Company } from '../../types/companies';
+import type { Company } from '../../interfaces/entities';
 import Card from '../atoms/Card.astro';
-import { supabase } from '../../lib/supabase';
 
 interface Props {
   company: Company;
   view?: 'grid' | 'list';
   isCompact?: boolean;
+  therapeuticAreaNames?: string[];
 }
 
-const { company, view = 'grid', isCompact = false } = Astro.props;
-
-// Fetch therapeutic areas if available
-let therapeuticAreaNames: string[] = [];
-if (company.therapeuticAreas && company.therapeuticAreas.length > 0) {
-  const { data } = await supabase
-    .from('therapeutic_areas')
-    .select('name')
-    .in('id', company.therapeuticAreas);
-  
-  if (data) {
-    therapeuticAreaNames = data.map(ta => ta.name);
-  }
-}
+const { 
+  company, 
+  view = 'grid', 
+  isCompact = false, 
+  therapeuticAreaNames = []
+} = Astro.props;
 
 // Format market cap to readable format
-const formatMarketCap = (marketCap: number): string => {
+const formatMarketCap = (marketCap?: number | null): string => {
+  if (marketCap === undefined || marketCap === null) {
+    return 'N/A';
+  }
+  
   if (marketCap >= 1000) {
     return `$${(marketCap / 1000).toFixed(1)}T`;
   } else {
@@ -66,7 +62,7 @@ const formatMarketCap = (marketCap: number): string => {
         <div class="flex justify-between items-end">
           <div>
             <span class="text-xs font-medium text-gray-500">Market Cap</span>
-            <p class="text-base font-medium text-gray-900">{formatMarketCap(company.marketCapBillions)}</p>
+            <p class="text-base font-medium text-gray-900">{formatMarketCap(company.marketCap)}</p>
           </div>
           
           <!-- Therapeutic Areas -->
