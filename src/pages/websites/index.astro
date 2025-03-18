@@ -13,33 +13,105 @@ import SearchBar from '../../components/molecules/SearchBar.astro';
 import SortSelect from '../../components/molecules/SortSelect.astro';
 import ViewToggle from '../../components/molecules/ViewToggle.astro';
 import WebsiteCard from '../../components/molecules/WebsiteCard.astro';
+import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
 import { filterAndSortItems } from '../../utils/filterUtils';
 
-// Import website data
-import { websites, websiteCategories, regions, companies, products } from '../../utils/dataUtils';
+// Import Supabase client directly
+import { supabase } from '../../lib/supabase';
+import { dbWebsiteToWebsite } from '../../interfaces/entities/Website';
+import { dbCompanyToCompany } from '../../interfaces/entities/Company';
+import { dbProductToProduct } from '../../interfaces/entities/Product';
+import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/TherapeuticArea';
+import type { Website, Company, Product, TherapeuticArea } from '../../interfaces/entities';
 
-// Define company options for filtering (first 20 for performance)
-const companyOptions = companies.slice(0, 20).map(company => {
+// Fetch all websites from Supabase
+const { data: dbWebsites, error: websitesError } = await supabase
+  .from('websites')
+  .select('*')
+  .order('domain');
+
+if (websitesError) {
+  console.error('Error fetching websites:', websitesError);
+}
+
+// Convert database records to application entities
+const websites: Website[] = (dbWebsites || []).map(dbWebsiteToWebsite);
+
+// Fetch companies data for filtering
+const { data: dbCompanies, error: companiesError } = await supabase
+  .from('companies')
+  .select('id, name, slug')
+  .order('name')
+  .limit(20);
+
+if (companiesError) {
+  console.error('Error fetching companies:', companiesError);
+}
+
+// Convert database records to company entities for filtering
+const companies: Company[] = (dbCompanies || []).map(dbCompanyToCompany);
+
+// Fetch products data for filtering
+const { data: dbProducts, error: productsError } = await supabase
+  .from('products')
+  .select('id, name')
+  .order('name')
+  .limit(20);
+
+if (productsError) {
+  console.error('Error fetching products:', productsError);
+}
+
+// Convert database records to product entities for filtering
+const products: Product[] = (dbProducts || []).map(dbProductToProduct);
+
+// Fetch therapeutic areas for filtering
+const { data: dbTherapeuticAreas, error: taError } = await supabase
+  .from('therapeutic_areas')
+  .select('*')
+  .order('name');
+
+if (taError) {
+  console.error('Error fetching therapeutic areas:', taError);
+}
+
+// Convert database records to application entities
+const therapeuticAreas: TherapeuticArea[] = (dbTherapeuticAreas || []).map(dbTherapeuticAreaToTherapeuticArea);
+
+// Define company options for filtering
+const companyOptions = companies.map(company => {
   return { value: company.id, label: company.name };
 });
 
-// Define product options for filtering (first 20 for performance)
-const productOptions = products.slice(0, 20).map(product => {
+// Define product options for filtering
+const productOptions = products.map(product => {
   return { value: product.id, label: product.name };
 });
 
-// Define therapeutic areas for filtering
-const therapeuticAreas = [
-  { value: 'oncology', label: 'Oncology' },
-  { value: 'immunology', label: 'Immunology' },
-  { value: 'neuroscience', label: 'Neuroscience' },
-  { value: 'cardiovascular', label: 'Cardiovascular' },
-  { value: 'rare-diseases', label: 'Rare Diseases' },
-  { value: 'vaccines', label: 'Vaccines' },
-  { value: 'diabetes', label: 'Diabetes' },
-  { value: 'infectious-diseases', label: 'Infectious Diseases' },
-  { value: 'respiratory', label: 'Respiratory' },
-  { value: 'ophthalmology', label: 'Ophthalmology' },
+// Define therapeutic area options for filtering
+const therapeuticAreaOptions = therapeuticAreas.map(area => {
+  return { value: area.id, label: area.name };
+});
+
+// Define website categories for filtering
+const websiteCategories = [
+  { value: 'corporate', label: 'Corporate' },
+  { value: 'hcp', label: 'Healthcare Professional' },
+  { value: 'patient', label: 'Patient' },
+  { value: 'campaign', label: 'Campaign' },
+  { value: 'disease', label: 'Disease Awareness' },
+  { value: 'brand', label: 'Brand' },
+  { value: 'other', label: 'Other' }
+];
+
+// Define regions for filtering
+const regions = [
+  { value: 'global', label: 'Global' },
+  { value: 'us', label: 'United States' },
+  { value: 'eu', label: 'Europe' },
+  { value: 'apac', label: 'Asia Pacific' },
+  { value: 'latam', label: 'Latin America' },
+  { value: 'mea', label: 'Middle East & Africa' }
 ];
 
 // Define sort options
@@ -48,6 +120,12 @@ const sortOptions = [
   { value: 'lastCrawl', label: 'Last Updated' },
   { value: 'category', label: 'Category' },
   { value: 'region', label: 'Region' }
+];
+
+// Define breadcrumbs for navigation
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Websites', href: '/websites', active: true }
 ];
 
 // Define filter configuration
@@ -84,7 +162,7 @@ const filters = [
     id: 'therapeuticAreas',
     label: 'Therapeutic Areas',
     type: 'multi-select',
-    options: therapeuticAreas,
+    options: therapeuticAreaOptions,
     isPrimary: false,
   },
   {
@@ -98,12 +176,6 @@ const filters = [
 // Split filters into primary and advanced
 const primaryFilters = filters.filter(filter => filter.isPrimary);
 const advancedFilters = filters.filter(filter => !filter.isPrimary);
-
-// Breadcrumbs for websites page
-const breadcrumbs = [
-  { label: 'Home', href: '/' },
-  { label: 'Websites', href: '/websites', isActive: true },
-];
 
 // Client-side filtering/sorting/view state
 const searchQuery = '';
@@ -125,8 +197,18 @@ const filteredWebsites = filterAndSortItems(
 );
 
 // Get URL-safe domain for routing
-const getDomainId = (domain: string) => {
+const getDomainSlug = (domain: string): string => {
+  if (!domain) return '';
   return domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+};
+
+// Get the proper URL for a website detail page
+const getWebsiteDetailUrl = (website): string => {
+  if (website.slug) {
+    return `/websites/${website.slug}`;
+  }
+  // Fallback to domain slug if needed
+  return `/websites/${getDomainSlug(website.domain)}`;
 };
 ---
 
@@ -138,11 +220,12 @@ const getDomainId = (domain: string) => {
 >
   <div class="space-y-6">
     <!-- Page header -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">Websites Directory</h1>
-        <p class="mt-1 text-sm text-gray-500">
+        <p class="mt-1 text-sm text-gray-600">
           Explore pharmaceutical-owned websites
+          <DataSourceVisualizer contentType="websites" />
         </p>
       </div>
       <div class="flex items-center gap-4">
@@ -221,7 +304,7 @@ const getDomainId = (domain: string) => {
               <MultiSelect
                 label="Therapeutic Areas"
                 name="therapeuticAreas"
-                options={therapeuticAreas}
+                options={therapeuticAreaOptions}
                 placeholder="Select therapeutic areas..."
               />
             </div>
@@ -326,7 +409,7 @@ const getDomainId = (domain: string) => {
                           </div>
                         </td>
                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          <a href={`/companies/${website.companyId}`} class="text-blue-600 hover:underline">{companyName}</a>
+                          <a href={`/companies/${companies.find(c => c.id === website.companyId)?.slug}`} class="text-blue-600 hover:underline">{companyName}</a>
                         </td>
                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{categoryLabel}</td>
                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{website.region || 'N/A'}</td>
@@ -334,7 +417,7 @@ const getDomainId = (domain: string) => {
                           {website.lastCrawl ? new Date(website.lastCrawl).toLocaleDateString() : 'N/A'}
                         </td>
                         <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                          <a href={`/websites/${getDomainId(website.domain)}`} class="text-blue-600 hover:text-blue-900 mr-4">View</a>
+                          <a href={getWebsiteDetailUrl(website)} class="text-blue-600 hover:text-blue-900 mr-4">View</a>
                           <a href={`https://${website.domain}`} target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 inline-flex items-center">
                             Visit
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 ml-1">

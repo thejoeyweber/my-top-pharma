@@ -1,6 +1,5 @@
 import type { APIRoute } from 'astro';
-import { supabase } from '../../utils/supabase';
-import { supabaseAdmin } from '../../lib/supabase-admin';
+import { supabase, supabaseAdmin } from '../../lib/supabase';
 import type { ImportHistoryEntry } from '../../types/admin';
 
 // Define the type for the data ingestion log response with joined tables
@@ -22,6 +21,10 @@ interface DataIngestionLogWithJoins {
 
 export const GET: APIRoute = async () => {
   try {
+    if (!supabaseAdmin) {
+      throw new Error('Supabase admin client not initialized');
+    }
+    
     // Get all data ingestion logs with related data source info
     const { data, error } = await supabaseAdmin
       .from('data_ingestion_logs')

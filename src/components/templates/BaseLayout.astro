@@ -2,8 +2,8 @@
 /**
  * BaseLayout Template
  * 
- * The main layout template for most pages in the Top Pharma application.
- * Includes header, footer, and main content area.
+ * Standard page layout with header, main content area, and footer.
+ * Use this for most non-dashboard pages.
  */
 
 import Layout from '../../layouts/Layout.astro';
@@ -11,9 +11,10 @@ import Header from '../organisms/Header.astro';
 import Footer from '../organisms/Footer.astro';
 import Breadcrumb from '../molecules/Breadcrumb.astro';
 
-interface Props {
+export interface Props {
   title?: string;
   description?: string;
+  ogImage?: string;
   currentPath?: string;
   breadcrumbs?: {
     label: string;
@@ -21,39 +22,47 @@ interface Props {
     isActive?: boolean;
   }[];
   hasHero?: boolean;
+  showDevTools?: boolean;
 }
 
 const { 
   title,
   description,
+  ogImage,
   currentPath = Astro.url.pathname,
   breadcrumbs = [],
-  hasHero = false
+  hasHero = false,
+  showDevTools = import.meta.env.DEV
 } = Astro.props;
 ---
 
-<Layout title={title} description={description}>
-  <div class="min-h-screen flex flex-col">
-    <Header currentPath={currentPath} />
-    
-    {/* Hero Slot - Full Bleed Content */}
-    {hasHero && (
-      <div class="w-full z-10 mt-16">
-        <slot name="hero" />
-      </div>
-    )}
-    
-    <main class:list={["flex-grow", hasHero ? "" : "pt-16"]}>
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <!-- Breadcrumbs -->
-        {breadcrumbs.length > 0 && (
+<Layout 
+  title={title} 
+  description={description}
+  ogImage={ogImage}
+  showDevTools={showDevTools}
+>
+  <Header currentPath={currentPath} />
+  
+  {/* Hero Slot - Full Bleed Content */}
+  {hasHero && (
+    <div class="w-full z-10">
+      <slot name="hero" />
+    </div>
+  )}
+  
+  <main class="flex-grow">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Breadcrumbs */}
+      {breadcrumbs.length > 0 && (
+        <div class="mb-6">
           <Breadcrumb items={breadcrumbs} />
-        )}
-        
-        <slot />
-      </div>
-    </main>
-    
-    <Footer />
-  </div>
+        </div>
+      )}
+      
+      <slot />
+    </div>
+  </main>
+  
+  <Footer />
 </Layout> 

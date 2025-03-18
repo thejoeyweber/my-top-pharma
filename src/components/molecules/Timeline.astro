@@ -13,7 +13,7 @@ interface Props {
   currentStage?: ProductStage;
 }
 
-const { events, title, currentStage } = Astro.props;
+const { events = [], title, currentStage } = Astro.props;
 
 // Sort events in reverse chronological order (most recent first)
 const sortedEvents = [...events].sort((a, b) => {

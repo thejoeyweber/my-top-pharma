@@ -1,180 +1,137 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { supabase } from '../../../lib/supabase';
+
+// Check connection
+let connectionStatus = 'Unknown';
+try {
+  const { error } = await supabase.from('companies').select('id', { head: true });
+  connectionStatus = error ? 'Disconnected' : 'Connected';
+} catch (e) {
+  connectionStatus = 'Error';
+}
+
+// Breadcrumbs
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Admin', href: '/admin' },
+  { label: 'Documentation', href: '/admin/docs' },
+  { label: 'Supabase Integration', href: '/admin/docs/data-sources', isActive: true },
+];
 ---
 
-<AdminLayout title="Data Source Documentation">
+<AdminLayout title="Supabase Integration" breadcrumbs={breadcrumbs}>
   <div class="max-w-4xl mx-auto py-8 px-4">
-    <h1 class="text-3xl font-bold mb-6">Data Source Abstraction Layer</h1>
+    <h1 class="text-3xl font-bold mb-6">Supabase Integration</h1>
+    
+    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-8">
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <div class="ml-3">
+          <p class="text-sm text-blue-700">
+            Current Status: <span class={`font-medium ${connectionStatus === 'Connected' ? 'text-green-600' : 'text-red-600'}`}>{connectionStatus}</span>
+          </p>
+        </div>
+      </div>
+    </div>
     
     <div class="prose max-w-none">
-      <p class="lead">
-        The Data Source Abstraction Layer provides a consistent interface for accessing data
-        from various sources, making it easy to switch between different data providers
-        without changing the application code.
-      </p>
-      
       <h2>Overview</h2>
-      
       <p>
-        The Data Source Abstraction Layer is built around the <code>DataSource</code> interface,
-        which defines a standard set of methods for retrieving data. This interface is implemented
-        by various data source classes, such as <code>MockDataSource</code> and <code>SupabaseDataSource</code>.
+        This application uses <a href="https://supabase.com" target="_blank" rel="noopener noreferrer">Supabase</a> 
+        as its primary database and backend service provider. Supabase offers PostgreSQL databases with 
+        real-time capabilities, authentication, storage, and more.
       </p>
       
+      <h2>Configuration</h2>
       <p>
-        The <code>DataSourceFactory</code> class manages the creation and access to these data sources,
-        allowing the application to switch between them as needed.
+        Supabase connection details are configured through environment variables. The application 
+        supports both local and remote Supabase instances:
       </p>
       
-      <h2>Architecture</h2>
+      <h3>Remote (Production) Supabase</h3>
+      <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key</code></pre>
       
-      <div class="bg-white p-6 rounded-lg shadow mb-6">
-        <h3 class="text-lg font-semibold mb-4">Core Components</h3>
-        
-        <ul class="space-y-4">
-          <li>
-            <strong>DataSource Interface</strong>: Defines the standard methods for retrieving data.
-            <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>interface DataSource {
-  healthCheck(): Promise<boolean>;
-  getCompanyById(id: string): Promise<Company | null>;
-  getCompanies(options?: QueryOptions): Promise<PaginatedResult<Company>>;
-  // ... other methods
-}</code></pre>
-          </li>
-          
-          <li>
-            <strong>Data Source Implementations</strong>: Classes that implement the DataSource interface.
-            <ul class="ml-6 mt-2 space-y-2">
-              <li><code>MockDataSource</code>: Uses hardcoded data for testing and development.</li>
-              <li><code>SupabaseDataSource</code>: Connects to a Supabase database for production data.</li>
-            </ul>
-          </li>
-          
-          <li>
-            <strong>DataSourceFactory</strong>: Manages the creation and access to data sources.
-            <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>// Get the active data source
-const dataSource = DataSourceFactory.getInstance().getDataSource();
+      <h3>Local Development Supabase</h3>
+      <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>PUBLIC_LOCAL_SUPABASE_URL=http://localhost:54321
+PUBLIC_LOCAL_SUPABASE_ANON_KEY=your-local-anon-key
+PUBLIC_LOCAL_SUPABASE_SERVICE_ROLE_KEY=your-local-service-role-key</code></pre>
+      
+      <h3>Switching Between Environments</h3>
+      <p>
+        You can toggle between local and remote Supabase instances using:
+      </p>
+      <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>PUBLIC_USE_LOCAL_DATABASE=true or false</code></pre>
+      
+      <h2>Usage in Components</h2>
+      <p>To use Supabase in your code, import the client from the lib directory:</p>
+      
+      <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>import { supabase } from '../lib/supabase';</code></pre>
+      
+      <h3>Basic Query Example</h3>
+      <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>// Fetch companies
+const { data, error } = await supabase
+  .from('companies')
+  .select('*')
+  .order('name');
 
-// Switch to a different data source
-DataSourceFactory.getInstance().setActiveDataSource('supabase');</code></pre>
-          </li>
-          
-          <li>
-            <strong>Entity Interfaces</strong>: Define the structure of data entities.
-            <ul class="ml-6 mt-2 space-y-2">
-              <li><code>Company</code>: Represents a pharmaceutical company.</li>
-              <li><code>Product</code>: Represents a pharmaceutical product.</li>
-              <li><code>Website</code>: Represents a pharmaceutical website.</li>
-              <li><code>TherapeuticArea</code>: Represents a therapeutic area.</li>
-            </ul>
-          </li>
+if (error) {
+  console.error('Error fetching companies:', error);
+  return [];
+}
+
+return data;</code></pre>
+      
+      <h3>Type-Safe Table Helper</h3>
+      <p>
+        For type-safe table access, use the <code>db</code> helper function:
+      </p>
+      
+      <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>import { db } from '../lib/supabase';
+
+// Type-safe table access
+const { data, error } = await db('companies').select('*');</code></pre>
+      
+      <h2>Admin Functions</h2>
+      <p>
+        For privileged operations that bypass Row Level Security (RLS), use the admin client:
+      </p>
+      
+      <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>import { supabaseAdmin } from '../lib/supabase';
+
+// Admin operations (server-side only)
+const { data, error } = await supabaseAdmin
+  .from('companies')
+  .insert(newCompany);</code></pre>
+      
+      <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mt-8">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm text-yellow-700">
+              <strong>Important:</strong> Never use <code>supabaseAdmin</code> in client-side code or expose admin keys to the browser.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <h2>Additional Resources</h2>
+      <ul>
+        <li><a href="https://supabase.com/docs" target="_blank">Supabase Documentation</a></li>
+        <li><a href="https://supabase.com/docs/reference/javascript/introduction" target="_blank">JavaScript Client Reference</a></li>
+        <li><a href="/admin/data-sources/connection-test">Test Supabase Connection</a></li>
+        <li><a href="/admin/data-sources/dashboard">Supabase Dashboard</a></li>
         </ul>
-      </div>
-      
-      <h2>Using the Data Source Abstraction Layer</h2>
-      
-      <div class="bg-white p-6 rounded-lg shadow mb-6">
-        <h3 class="text-lg font-semibold mb-4">Basic Usage</h3>
-        
-        <p>To use the Data Source Abstraction Layer in your code, import the <code>getDataSource</code> function:</p>
-        
-        <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>import { getDataSource } from '../dataSources';
-
-// Get the active data source
-const dataSource = getDataSource();
-
-// Use the data source to retrieve data
-const companies = await dataSource.getCompanies();
-const company = await dataSource.getCompanyById('pfizer');
-const products = await dataSource.getProductsForCompany('pfizer');</code></pre>
-        
-        <h3 class="text-lg font-semibold mt-6 mb-4">Query Options</h3>
-        
-        <p>Most data retrieval methods accept a <code>QueryOptions</code> parameter that allows you to filter, sort, and paginate the results:</p>
-        
-        <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>// Get companies with filtering, sorting, and pagination
-const options = {
-  filters: { name: 'Pfizer' },
-  sort: { field: 'name', direction: 'asc' },
-  pagination: { page: 1, limit: 10 }
-};
-
-const companies = await dataSource.getCompanies(options);</code></pre>
-        
-        <h3 class="text-lg font-semibold mt-6 mb-4">Paginated Results</h3>
-        
-        <p>Methods that return multiple items return a <code>PaginatedResult</code> object:</p>
-        
-        <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>// PaginatedResult structure
-{
-  data: [/* array of items */],
-  pagination: {
-    total: 100,  // Total number of items
-    page: 1,     // Current page
-    limit: 10,   // Items per page
-    pages: 10    // Total number of pages
-  }
-}</code></pre>
-      </div>
-      
-      <h2>Extending the Data Source Abstraction Layer</h2>
-      
-      <div class="bg-white p-6 rounded-lg shadow mb-6">
-        <h3 class="text-lg font-semibold mb-4">Creating a New Data Source</h3>
-        
-        <p>To create a new data source, implement the <code>DataSource</code> interface:</p>
-        
-        <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>import type { DataSource, QueryOptions, PaginatedResult } from '../interfaces/DataSource';
-import type { Company, Product, Website, TherapeuticArea } from '../interfaces/entities';
-
-export class MyCustomDataSource implements DataSource {
-  async healthCheck(): Promise<boolean> {
-    // Implement health check
-    return true;
-  }
-  
-  async getCompanyById(id: string): Promise<Company | null> {
-    // Implement company retrieval
-    return null;
-  }
-  
-  // Implement other methods...
-}</code></pre>
-        
-        <h3 class="text-lg font-semibold mt-6 mb-4">Registering a New Data Source</h3>
-        
-        <p>Register your new data source with the <code>DataSourceFactory</code>:</p>
-        
-        <pre class="bg-gray-100 p-3 rounded mt-2 overflow-x-auto"><code>import { DataSourceFactory } from '../dataSources';
-import { MyCustomDataSource } from './MyCustomDataSource';
-
-// Register the new data source
-DataSourceFactory.getInstance().registerDataSource(
-  'custom', 
-  new MyCustomDataSource()
-);</code></pre>
-      </div>
-      
-      <h2>Admin Tools</h2>
-      
-      <div class="bg-white p-6 rounded-lg shadow">
-        <h3 class="text-lg font-semibold mb-4">Available Admin Pages</h3>
-        
-        <ul class="space-y-2">
-          <li>
-            <a href="/admin/data-sources/connection-test" class="text-blue-600 hover:text-blue-800">
-              Connection Test
-            </a>
-            - Test the connection to the active data source.
-          </li>
-          <li>
-            <a href="/admin/data-sources/config" class="text-blue-600 hover:text-blue-800">
-              Data Source Configuration
-            </a>
-            - Configure and switch between data sources.
-          </li>
-        </ul>
-      </div>
     </div>
   </div>
 </AdminLayout> 

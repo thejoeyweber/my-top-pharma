@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../../types/supabase';
-import { supabaseAdmin } from '../../lib/supabase-admin';
+import { supabaseAdmin } from '../../lib/supabase';
 import { FEATURES, setFeatureFlag } from '../../utils/featureFlags';
 import type { FMPCompanyProfile, ScreenOptions } from '../../lib/fmp';
 import { createFMPClient } from '../../lib/fmpEnhanced';
@@ -83,7 +83,7 @@ function transformCompany(profile: FMPCompanyProfile) {
     employee_count: employeeCount, 
     revenue_usd: null, // Not available in FMP basic data
     public_company: true,
-    stock_symbol: profile.symbol || null,
+    ticker_symbol: profile.symbol || null,
     stock_exchange: profile.exchange || null,
     founded_year: foundedYear
   };
@@ -140,8 +140,8 @@ For successful imports with the free tier:
     const supabase = supabaseAdmin;
     const { data: existingCompanies, error: existingError } = await supabase
       .from('companies')
-      .select('stock_symbol, updated_at')
-      .in('stock_symbol', allSymbols);
+      .select('ticker_symbol, updated_at')
+      .in('ticker_symbol', allSymbols);
     
     if (existingError) {
       console.error('Error fetching existing companies:', existingError);
@@ -151,7 +151,7 @@ For successful imports with the free tier:
     // Create a map of existing companies by symbol with their last update time
     const existingSymbolsMap = new Map();
     existingCompanies?.forEach(company => {
-      existingSymbolsMap.set(company.stock_symbol, new Date(company.updated_at));
+      existingSymbolsMap.set(company.ticker_symbol, new Date(company.updated_at));
     });
     
     // Calculate the cutoff date for updates (default to 7 days)
@@ -281,11 +281,11 @@ For successful imports with the free tier:
     
     // Separate companies for insert vs update based on what we actually fetched
     const companiesToInsert = transformedCompanies.filter(c => 
-      c.stock_symbol && fetchedSymbols.has(c.stock_symbol) && !existingSymbolsMap.has(c.stock_symbol)
+      c.ticker_symbol && fetchedSymbols.has(c.ticker_symbol) && !existingSymbolsMap.has(c.ticker_symbol)
     );
     
     const companiesToUpdate = transformedCompanies.filter(c => 
-      c.stock_symbol && fetchedSymbols.has(c.stock_symbol) && existingSymbolsMap.has(c.stock_symbol)
+      c.ticker_symbol && fetchedSymbols.has(c.ticker_symbol) && existingSymbolsMap.has(c.ticker_symbol)
     );
     
     console.log(`Found ${companiesToInsert.length} new companies to insert`);
@@ -303,207 +303,4 @@ For successful imports with the free tier:
         errorCount += companiesToInsert.length;
       } else {
         addedCount = insertedData?.length || 0;
-        console.log(`Successfully inserted ${addedCount} companies`);
-      }
-    }
-    
-    // Update existing companies
-    for (const company of companiesToUpdate) {
-      const { error: updateError } = await supabase
-        .from('companies')
-        .update(company)
-        .eq('stock_symbol', company.stock_symbol);
-      
-      if (updateError) {
-        console.error(`Error updating company ${company.stock_symbol}:`, updateError);
-        errorCount++;
-      } else {
-        updatedCount++;
-      }
-    }
-    
-    // Prepare summary for return
-    return {
-      totalFound: result.totalFound,
-      processed: profiles.length,
-      added: addedCount,
-      updated: updatedCount,
-      errors: errorCount,
-      retries: retryCount,
-      apiCalls: fmpClient.getRequestCount(),
-      industries: result.industries,
-      skipped: skippedCount
-    };
-  } catch (error) {
-    console.error('Error in processImport:', error);
-    throw error;
-  }
-}
-
-export const POST: APIRoute = async ({ request }) => {
-  try {
-    // Validate API key
-    if (!API_KEY) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Missing FMP API key',
-          details: 'Check .env.local file for PUBLIC_FMP_API_KEY'
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Get Supabase credentials with enhanced logging
-    const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
-    const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
-    const serviceRoleKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
-    
-    if (!supabaseUrl || !supabaseKey) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Missing Supabase credentials',
-          details: 'Check .env.local file for PUBLIC_SUPABASE_URL and PUBLIC_SUPABASE_ANON_KEY',
-          missingValues: {
-            PUBLIC_SUPABASE_URL: !supabaseUrl,
-            PUBLIC_SUPABASE_ANON_KEY: !supabaseKey
-          }
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    if (!serviceRoleKey) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Missing Supabase service role key',
-          details: 'Check .env.local file for SUPABASE_SERVICE_ROLE_KEY. This is required for admin operations that bypass RLS.'
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Get data source information for logging
-    let dataSourceId = null;
-    let endpointId = null;
-    
-    try {
-      const { data: sourceData } = await supabaseAdmin
-        .from('data_sources')
-        .select('id')
-        .eq('name', 'Financial Modeling Prep')
-        .single();
-      
-      if (sourceData) {
-        dataSourceId = sourceData.id;
-        
-        // Get endpoint ID for the import
-        const { data: endpointData } = await supabaseAdmin
-          .from('data_source_endpoints')
-          .select('id')
-          .eq('data_source_id', dataSourceId)
-          .eq('name', 'Company Profile')
-          .single();
-        
-        if (endpointData) {
-          endpointId = endpointData.id;
-        }
-      }
-    } catch (error) {
-      console.warn('Could not find data source or endpoint:', error);
-      // Continue anyway, we'll just log without these IDs
-    }
-    
-    // Parse request body for import configuration
-    const requestConfig = await request.json().catch(() => ({}));
-    
-    // Get import configuration with defaults
-    const config: ImportConfig = {
-      batchSize: requestConfig.batchSize || 5,
-      maxCompanies: requestConfig.maxCompanies || undefined,
-      industries: requestConfig.industries || [
-        'Biotechnology',
-        'Drug Manufacturers - Specialty & Generic',
-        'Drug Manufacturers - General'
-      ],
-      includeInactive: requestConfig.includeInactive || false,
-      requestDelay: requestConfig.requestDelay || 3000, // Longer default delay to avoid rate limiting
-      updateIntervalDays: requestConfig.updateIntervalDays || 7
-    };
-    
-    // Generate an import ID for tracking
-    const importId = uuidv4();
-    
-    // Create import log entry
-    if (dataSourceId && endpointId) {
-      await supabaseAdmin
-        .from('data_ingestion_logs')
-        .insert({
-          data_source_id: dataSourceId,
-          endpoint_id: endpointId,
-          started_at: new Date().toISOString(),
-          status: 'processing',
-          records_processed: 0,
-          records_added: 0,
-          records_updated: 0,
-          records_skipped: 0,
-          error_message: null
-        });
-    }
-    
-    // Process import
-    const result = await processImport(config);
-    
-    // Update import log with results
-    if (dataSourceId && endpointId) {
-      await supabaseAdmin
-        .from('data_ingestion_logs')
-        .update({
-          completed_at: new Date().toISOString(),
-          status: result.errors > 0 ? 'completed_with_errors' : 'completed',
-          records_processed: result.processed,
-          records_added: result.added,
-          records_updated: result.updated,
-          records_skipped: result.skipped,
-          error_message: result.errors > 0 ? `${result.errors} errors occurred during import` : null
-        })
-        .eq('data_source_id', dataSourceId)
-        .eq('endpoint_id', endpointId)
-        .eq('status', 'processing');
-    }
-    
-    // If we successfully imported companies, enable the feature flag
-    if (result.added > 0 || result.updated > 0) {
-      await setFeatureFlag(FEATURES.USE_DATABASE_COMPANIES, true);
-    }
-    
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Companies imported successfully',
-        summary: {
-          totalFound: result.totalFound,
-          processed: result.processed,
-          added: result.added,
-          updated: result.updated,
-          skipped: result.skipped,
-          errors: result.errors,
-          retries: result.retries,
-          apiCalls: result.apiCalls
-        },
-        importId
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    console.error('Error in import API route:', error);
-    
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        details: error instanceof Error ? error.stack : null
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-}; 
+        console.log(`

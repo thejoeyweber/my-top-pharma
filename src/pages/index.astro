@@ -3,74 +3,114 @@ import BaseLayout from '../components/templates/BaseLayout.astro';
 import Button from '../components/atoms/Button.astro';
 import Card from '../components/atoms/Card.astro';
 
-// Mock data for featured companies
-const featuredCompanies = [
-  {
-    id: 1,
-    name: 'Pfizer',
-    description: 'A leading global pharmaceutical company with a diverse portfolio of medicines and vaccines.',
-    logo: '/images/mock/pfizer.svg',
-    headquarters: 'New York, USA',
-    marketCap: '$240B',
-    therapeuticAreas: ['Oncology', 'Vaccines', 'Immunology'],
-  },
-  {
-    id: 2,
-    name: 'Roche',
-    description: 'A pioneer in pharmaceuticals and diagnostics focused on advancing science to improve people\'s lives.',
-    logo: '/images/mock/roche.svg',
-    headquarters: 'Basel, Switzerland',
-    marketCap: '$320B',
-    therapeuticAreas: ['Oncology', 'Neuroscience', 'Rare Diseases'],
-  },
-  {
-    id: 3,
-    name: 'Novartis',
-    description: 'A global healthcare company based in Switzerland that provides solutions to address evolving needs of patients worldwide.',
-    logo: '/images/mock/novartis.svg',
-    headquarters: 'Basel, Switzerland',
-    marketCap: '$210B',
-    therapeuticAreas: ['Ophthalmology', 'Cardiovascular', 'Neuroscience'],
-  },
-];
+// Import Supabase client directly
+import { supabase } from '../lib/supabase';
+import { dbCompanyToCompany } from '../interfaces/entities/Company';
+import { dbProductToProduct } from '../interfaces/entities/Product';
+import type { Company, Product } from '../interfaces/entities';
 
-// Mock data for trending products
-const trendingProducts = [
-  {
-    id: 1,
-    name: 'Comirnaty',
-    company: 'Pfizer/BioNTech',
-    description: 'COVID-19 mRNA vaccine.',
-    status: 'Approved',
-    year: '2020',
-  },
-  {
-    id: 2,
-    name: 'Keytruda',
-    company: 'Merck',
-    description: 'Immunotherapy for various cancer types.',
-    status: 'Approved',
-    year: '2014',
-  },
-  {
-    id: 3,
-    name: 'Humira',
-    company: 'AbbVie',
-    description: 'Treatment for various autoimmune diseases.',
-    status: 'Approved',
-    year: '2002',
-  },
-];
+// Fetch counts for stats section
+const [
+  { count: companiesCount },
+  { count: productsCount },
+  { count: websitesCount },
+  { count: therapeuticAreasCount }
+] = await Promise.all([
+  supabase.from('companies').select('*', { count: 'exact', head: true }),
+  supabase.from('products').select('*', { count: 'exact', head: true }),
+  supabase.from('websites').select('*', { count: 'exact', head: true }),
+  supabase.from('therapeutic_areas').select('*', { count: 'exact', head: true }),
+]);
 
-// Mock data for therapeutic areas
-const therapeuticAreas = [
-  { id: 1, name: 'Oncology', count: 245 },
-  { id: 2, name: 'Immunology', count: 187 },
-  { id: 3, name: 'Neuroscience', count: 156 },
-  { id: 4, name: 'Rare Diseases', count: 132 },
-  { id: 5, name: 'Cardiovascular', count: 118 },
-  { id: 6, name: 'Infectious Diseases', count: 103 },
-];
+// Fetch featured companies from Supabase
+const { data: dbFeaturedCompanies, error: companiesError } = await supabase
+  .from('companies')
+  .select('*')
+  .order('name')
+  .limit(3);
+
+if (companiesError) {
+  console.error('Error fetching featured companies:', companiesError);
+}
+
+// Convert database records to application entities
+const featuredCompanies: Company[] = (dbFeaturedCompanies || []).map(dbCompanyToCompany);
+
+// Fetch therapeutic areas for company display
+async function getCompanyTherapeuticAreas(companyId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('company_therapeutic_areas')
+    .select('therapeutic_areas(name)')
+    .eq('company_id', companyId);
+  
+  if (error || !data) {
+    return [];
+  }
+  
+  return data.map(item => item.therapeutic_areas?.name).filter(Boolean);
+}
+
+// Fetch trending products from Supabase
+const { data: dbTrendingProducts, error: productsError } = await supabase
+  .from('products')
+  .select('*, companies(name)')
+  .eq('stage', 'market')
+  .order('updated_at', { ascending: false })
+  .limit(4);
+
+if (productsError) {
+  console.error('Error fetching trending products:', productsError);
+}
+
+// Convert database records to application entities and add company name
+const trendingProducts = (dbTrendingProducts || []).map(dbProduct => {
+  const product = dbProductToProduct(dbProduct);
+  return {
+    ...product,
+    company: dbProduct.companies?.name || 'Unknown'
+  };
+});
+
+// Fetch recent website updates
+const { data: dbRecentWebsites, error: websitesError } = await supabase
+  .from('websites')
+  .select('*, companies(name)')
+  .order('updated_at', { ascending: false })
+  .limit(3);
+
+if (websitesError) {
+  console.error('Error fetching recent websites:', websitesError);
+}
+
+// Prepare website data for display
+const recentWebsites = (dbRecentWebsites || []).map(website => ({
+  id: website.id,
+  domain: website.domain,
+  company: website.companies?.name || 'Unknown',
+  category: website.category,
+  lastUpdated: website.updated_at ? new Date(website.updated_at).toLocaleDateString() : 'Unknown',
+  screenshotUrl: website.screenshot_url
+}));
+
+// Fetch therapeutic areas with counts
+const { data: therapeuticAreasData } = await supabase
+  .from('therapeutic_areas')
+  .select('id, name')
+  .order('name')
+  .limit(6);
+
+// Map therapeutic areas with counts
+const therapeuticAreas = (therapeuticAreasData || []).map(area => ({
+  id: area.id,
+  name: area.name,
+  slug: area.id, // Using ID as slug for now
+  count: Math.floor(Math.random() * 150) + 50 // Placeholder count, replace with real count when available
+}));
+
+// Format numbers with commas and plus sign
+const formatNumber = (num) => {
+  return num ? `${num.toLocaleString()}+` : '0+';
+};
 
 // No breadcrumbs for home page to keep it clean
 ---
@@ -117,9 +157,9 @@ const therapeuticAreas = [
     <!-- Light effect overlay -->
     <div class="absolute inset-0 bg-gradient-to-t from-transparent to-primary-900/30 backdrop-blur-[2px]"></div>
     
-    <!-- Hero content with glassmorphism -->
+    <!-- Hero content with glassmorphism - increased top padding -->
     <div class="relative z-10">
-      <div class="max-w-7xl mx-auto pt-28 pb-36 px-4 sm:px-6 lg:px-8">
+      <div class="max-w-7xl mx-auto pt-36 pb-36 px-4 sm:px-6 lg:px-8">
         <div class="md:flex md:items-center md:justify-between">
           <div class="md:w-1/2 md:pr-8">
             <h1 class="text-4xl md:text-5xl font-display font-bold tracking-tight text-white drop-shadow-md">
@@ -181,24 +221,24 @@ const therapeuticAreas = [
     </div>
   </div>
 
-  <!-- Stats Section -->
+  <!-- Stats Section - Now using real data from Supabase -->
   <div class="bg-white py-12">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="grid grid-cols-2 gap-5 sm:grid-cols-4">
         <div class="text-center">
-          <p class="text-4xl font-bold text-primary-600">2,800+</p>
+          <p class="text-4xl font-bold text-primary-600">{formatNumber(companiesCount)}</p>
           <p class="mt-2 text-sm font-medium text-gray-500">Companies</p>
         </div>
         <div class="text-center">
-          <p class="text-4xl font-bold text-primary-600">14,000+</p>
+          <p class="text-4xl font-bold text-primary-600">{formatNumber(productsCount)}</p>
           <p class="mt-2 text-sm font-medium text-gray-500">Products</p>
         </div>
         <div class="text-center">
-          <p class="text-4xl font-bold text-primary-600">9,200+</p>
+          <p class="text-4xl font-bold text-primary-600">{formatNumber(websitesCount)}</p>
           <p class="mt-2 text-sm font-medium text-gray-500">Websites</p>
         </div>
         <div class="text-center">
-          <p class="text-4xl font-bold text-primary-600">120+</p>
+          <p class="text-4xl font-bold text-primary-600">{formatNumber(therapeuticAreasCount)}</p>
           <p class="mt-2 text-sm font-medium text-gray-500">Therapeutic Areas</p>
         </div>
       </div>
@@ -240,7 +280,7 @@ const therapeuticAreas = [
                 ))}
               </div>
               <div class="mt-6">
-                <Button href={`/companies/${company.id}`} variant="outline" size="sm" class="w-full">
+                <Button href={`/companies/${company.slug}`} variant="outline" size="sm" class="w-full">
                   View Profile
                 </Button>
               </div>

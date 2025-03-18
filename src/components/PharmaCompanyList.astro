@@ -2,20 +2,30 @@
 /**
  * Pharma Company List
  * 
- * This component displays a list of pharmaceutical companies from the database.
- * It demonstrates how to query and display data from the Supabase companies table.
+ * This component displays a list of pharmaceutical companies directly from Supabase.
  */
 
-import { getAllCompanies } from '../utils/companyData';
+import type { Company } from '../interfaces/entities/Company';
+import { supabase } from '../lib/supabase';
 
-// Fetch companies using the standardized data access
-const companies = await getAllCompanies();
+// Fetch companies directly from Supabase
+let companies: Company[] = [];
+let errorMessage: string | null = null;
 
-// Handle potential errors
-let errorMessage = '';
-if (!companies) {
-  console.error('Error fetching companies');
-  errorMessage = 'Failed to load companies';
+try {
+  const { data, error } = await supabase
+    .from('companies')
+    .select('*')
+    .order('name');
+
+  if (error) {
+    throw error;
+  }
+
+  companies = data as Company[];
+} catch (err) {
+  console.error('Error fetching companies:', err);
+  errorMessage = err instanceof Error ? err.message : 'Failed to fetch companies';
 }
 ---
 
@@ -31,7 +41,7 @@ if (!companies) {
   {!companies || companies.length === 0 ? (
     <div class="text-gray-500">
       <p>No companies found. Please run the data ingestion script first:</p>
-      <pre class="bg-gray-100 p-2 rounded mt-2">npm run ingest-companies</pre>
+      <pre class="bg-gray-100 p-2 rounded mt-2">npm run data:import-companies</pre>
     </div>
   ) : (
     <div class="overflow-x-auto">
@@ -53,10 +63,10 @@ if (!companies) {
                   {company.name}
                 </a>
               </td>
-              <td class="py-2 px-4 border-b">{company.stock_symbol || '-'}</td>
-              <td class="py-2 px-4 border-b">{company.stock_exchange || '-'}</td>
+              <td class="py-2 px-4 border-b">{company.tickerSymbol || '-'}</td>
+              <td class="py-2 px-4 border-b">{company.exchange || '-'}</td>
               <td class="py-2 px-4 border-b">{company.headquarters || '-'}</td>
-              <td class="py-2 px-4 border-b">{company.founded_year || '-'}</td>
+              <td class="py-2 px-4 border-b">{company.foundedYear || '-'}</td>
             </tr>
           ))}
         </tbody>

@@ -19,15 +19,19 @@ const { href, label, icon, isActive = false } = Astro.props;
 <a 
   href={href} 
   class:list={[
-    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+    "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 relative",
     isActive 
-      ? "bg-primary-50 text-primary-700" 
-      : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+      ? "bg-primary-50 text-primary-700 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-primary-500 before:rounded-l" 
+      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
   ]}
   aria-current={isActive ? "page" : undefined}
 >
   {icon && (
-    <span class="text-gray-500" aria-hidden="true" set:html={icon}></span>
+    <span class={`flex-shrink-0 ${isActive ? 'text-primary-600' : 'text-gray-500'} transition-colors duration-200`} aria-hidden="true" set:html={icon}></span>
   )}
-  {label}
+  <span class="truncate">{label}</span>
+  
+  {isActive && (
+    <span class="absolute right-2 w-1.5 h-1.5 rounded-full bg-primary-500"></span>
+  )}
 </a> 

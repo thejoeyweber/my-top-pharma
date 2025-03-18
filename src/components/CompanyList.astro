@@ -2,36 +2,42 @@
 /**
  * Company List Component
  * 
- * Displays a list of pharmaceutical companies fetched from our API endpoint.
- * Uses server-side rendering for initial data and client-side updates.
+ * Displays a list of pharmaceutical companies fetched directly from Supabase.
+ * Uses server-side rendering for initial data.
  */
 
-// Import types
-import type { Company } from '../utils/companyData';
-import { getAllCompanies } from '../utils/companyData';
+// Import canonical types
+import type { Company } from '../interfaces/entities/Company';
+import { supabase } from '../lib/supabase';
 import { formatMarketCap } from '../utils/stringUtils';
 
-// Fetch companies using the standardized data access
-const companies = await getAllCompanies();
+// Fetch companies directly from Supabase
+let companies: Company[] = [];
+let error: string | null = null;
 
-// Format market cap for display
-function formatMarketCap(marketCap: number | string): string {
-  const num = typeof marketCap === 'string' ? parseFloat(marketCap) : marketCap;
-  if (isNaN(num)) return 'N/A';
+try {
+  const { data, error: supabaseError } = await supabase
+    .from('companies')
+    .select('*')
+    .order('name');
+    
+  if (supabaseError) {
+    throw supabaseError;
+  }
   
-  if (num >= 1e12) return `$${(num / 1e12).toFixed(1)}T`;
-  if (num >= 1e9) return `$${(num / 1e9).toFixed(1)}B`;
-  if (num >= 1e6) return `$${(num / 1e6).toFixed(1)}M`;
-  return `$${num.toLocaleString()}`;
+  companies = data as Company[];
+} catch (err) {
+  console.error('Error fetching companies:', err);
+  error = err instanceof Error ? err.message : 'Failed to fetch companies';
 }
 ---
 
 <div class="company-list">
-  {!companies ? (
+  {error ? (
     <div class="text-center py-8">
-      <p class="text-gray-500">Loading companies...</p>
+      <p class="text-red-500">Error: {error}</p>
     </div>
-  ) : companies.length === 0 ? (
+  ) : !companies || companies.length === 0 ? (
     <div class="text-center py-8">
       <p class="text-gray-500">No companies found</p>
     </div>
@@ -41,30 +47,30 @@ function formatMarketCap(marketCap: number | string): string {
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold">{company.name}</h3>
-            <span class="text-sm text-gray-500">{company.stock_symbol}</span>
+            <span class="text-sm text-gray-500">{company.tickerSymbol}</span>
           </div>
           
           <div class="space-y-2">
             <p class="text-sm">
               <span class="font-medium">Market Cap:</span>
-              <span class="ml-2">{formatMarketCap(company.market_cap || 0)}</span>
-            </p>
-            
-            <p class="text-sm">
-              <span class="font-medium">Industry:</span>
-              <span class="ml-2">{company.industry || 'N/A'}</span>
+              <span class="ml-2">{formatMarketCap(company.marketCapBillions ? company.marketCapBillions * 1e9 : 0)}</span>
             </p>
             
             <p class="text-sm">
               <span class="font-medium">Exchange:</span>
-              <span class="ml-2">{company.stock_exchange || 'N/A'}</span>
+              <span class="ml-2">{company.exchange || 'N/A'}</span>
+            </p>
+            
+            <p class="text-sm">
+              <span class="font-medium">Headquarters:</span>
+              <span class="ml-2">{company.headquarters || 'N/A'}</span>
             </p>
           </div>
           
-          {company.website && (
+          {company.websiteUrl && (
             <div class="mt-4">
               <a 
-                href={company.website}
+                href={company.websiteUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 class="text-blue-500 hover:text-blue-600 text-sm"

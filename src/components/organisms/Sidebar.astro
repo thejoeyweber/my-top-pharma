@@ -7,6 +7,7 @@
  */
 
 import SidebarLink from '../atoms/SidebarLink.astro';
+import { ViewTransitions } from 'astro:transitions';
 
 interface Props {
   currentPath?: string;
@@ -98,40 +99,41 @@ const navigation = [
     ]
   }
 ];
-
-// Function to check if a link is active
-const isActive = (href: string) => {
-  if (href === '/') {
-    return currentPath === href;
-  }
-  return currentPath.startsWith(href);
-};
 ---
 
-<!-- Sidebar component -->
-<aside 
-  id="sidebar"
-  class:list={[
-    "fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 flex-shrink-0 border-r border-gray-200 bg-white transition-transform duration-300 ease-in-out",
-    isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-  ]}
-  aria-label="Sidebar"
->
-  <div class="flex h-full flex-col overflow-y-auto px-3 py-4">
-    <!-- Navigation sections -->
-    <nav class="flex-1 space-y-6">
+<ViewTransitions />
+
+<aside class="sidebar" transition:persist>
+  <div 
+    class:list={[
+      "fixed inset-y-0 left-0 z-20 flex h-full w-64 flex-col border-r border-gray-200 bg-white pt-5 pb-4 transition-transform duration-300 ease-in-out md:translate-x-0",
+      isOpen ? "translate-x-0" : "-translate-x-full"
+    ]}
+  >
+    <!-- Logo with blue-purple gradient matching hero section -->
+    <div class="flex items-center px-4 mb-6">
+      <div class="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-md px-3 py-1.5 flex items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-teal-400">
+          <path d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+        </svg>
+        <span class="text-lg font-medium tracking-tight text-white"><span class="text-teal-400">t</span>op pharma</span>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="flex-1 space-y-4 px-2 py-1 overflow-y-auto">
       {navigation.map((section) => (
         <div>
-          <h3 class="px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+          <h3 class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
             {section.label}
           </h3>
-          <div class="mt-2 space-y-1">
+          <div class="mt-3 space-y-1">
             {section.links.map((link) => (
-              <SidebarLink 
+              <SidebarLink
                 href={link.href}
                 label={link.label}
                 icon={link.icon}
-                isActive={isActive(link.href)}
+                isActive={currentPath === link.href || currentPath.startsWith(`${link.href}/`)}
               />
             ))}
           </div>
@@ -139,93 +141,80 @@ const isActive = (href: string) => {
       ))}
     </nav>
 
-    <!-- User section at bottom -->
-    <div class="mt-auto border-t border-gray-200 pt-4">
-      <div class="px-3">
-        <a href="/login" class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5 text-gray-500">
-            <path fill-rule="evenodd" d="M7.5 3.75A1.5 1.5 0 0 0 6 5.25v13.5a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5V15a.75.75 0 0 1 1.5 0v3.75a3 3 0 0 1-3 3h-6a3 3 0 0 1-3-3V5.25a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3V9A.75.75 0 0 1 15 9V5.25a1.5 1.5 0 0 0-1.5-1.5h-6Zm10.72 4.72a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1 0 1.06l-3 3a.75.75 0 1 1-1.06-1.06l1.72-1.72H9a.75.75 0 0 1 0-1.5h10.94l-1.72-1.72a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+    <!-- Footer -->
+    <div class="px-3 py-3 mt-auto border-t border-gray-200">
+      <div class="flex items-center space-x-3">
+        <div class="flex-shrink-0">
+          <div class="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-semibold">
+            U
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-900 truncate">User</p>
+          <p class="text-xs text-gray-500 truncate">user@example.com</p>
+        </div>
+        <button class="p-1 text-gray-400 hover:text-gray-600 rounded-full">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+            <path fill-rule="evenodd" d="M7.5 3.75A1.5 1.5 0 006 5.25v13.5a1.5 1.5 0 001.5 1.5h6a1.5 1.5 0 001.5-1.5V15a.75.75 0 011.5 0v3.75a3 3 0 01-3 3h-6a3 3 0 01-3-3V5.25a3 3 0 013-3h6a3 3 0 013 3V9A.75.75 0 0115 9V5.25a1.5 1.5 0 00-1.5-1.5h-6zm10.72 4.72a.75.75 0 011.06 0l3 3a.75.75 0 010 1.06l-3 3a.75.75 0 11-1.06-1.06l1.72-1.72H9a.75.75 0 010-1.5h10.94l-1.72-1.72a.75.75 0 010-1.06z" clip-rule="evenodd" />
           </svg>
-          Sign In / Sign Up
-        </a>
+        </button>
       </div>
     </div>
   </div>
+
+  <!-- Mobile overlay -->
+  <div 
+    id="sidebar-overlay"
+    class:list={[
+      "fixed inset-0 z-10 bg-gray-900/50 transition-opacity md:hidden",
+      isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+    ]}
+    aria-hidden="true"
+  ></div>
 </aside>
 
-<!-- Toggle/collapse button for narrow screens that's only shown in the bottom corner when sidebar is hidden -->
-<button
-  type="button"
-  id="sidebar-toggle-float"
-  aria-controls="sidebar"
-  aria-expanded="false"
-  class="fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary-600 text-white shadow-lg lg:hidden"
->
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-6 w-6">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-  </svg>
-</button>
-
 <script>
-  // Toggle sidebar visibility when the toggle button is clicked
+  // Sidebar toggle functionality
   document.addEventListener('DOMContentLoaded', () => {
-    const toggleButton = document.getElementById('sidebar-toggle');
-    const toggleButtonFloat = document.getElementById('sidebar-toggle-float');
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
+    const sidebarCloseButtonMobile = document.getElementById('sidebar-close-button-mobile');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+    const sidebar = document.querySelector('.sidebar > div:first-child');
     
-    // Function to toggle sidebar visibility
-    const toggleSidebar = () => {
-      sidebar?.classList.toggle('-translate-x-full');
-      overlay?.classList.toggle('hidden');
-
-      // Update aria-expanded attribute
-      const isExpanded = !sidebar?.classList.contains('-translate-x-full');
-      toggleButton?.setAttribute('aria-expanded', isExpanded.toString());
-      toggleButtonFloat?.setAttribute('aria-expanded', isExpanded.toString());
+    // Helper function to close the sidebar on mobile
+    const closeSidebar = () => {
+      sidebar?.classList.remove('translate-x-0');
+      sidebar?.classList.add('-translate-x-full');
+      sidebarOverlay?.classList.add('opacity-0', 'pointer-events-none');
+      sidebarOverlay?.classList.remove('opacity-100');
     };
     
-    // Toggle sidebar when the button in header is clicked
-    toggleButton?.addEventListener('click', toggleSidebar);
+    // Close sidebar when overlay is clicked
+    sidebarOverlay?.addEventListener('click', closeSidebar);
     
-    // Toggle sidebar when floating button is clicked
-    toggleButtonFloat?.addEventListener('click', toggleSidebar);
+    // Close sidebar when close button is clicked
+    sidebarCloseButtonMobile?.addEventListener('click', closeSidebar);
     
-    // Close sidebar when clicking the overlay
-    overlay?.addEventListener('click', () => {
-      sidebar?.classList.add('-translate-x-full');
-      overlay?.classList.add('hidden');
-      
-      // Update aria-expanded attribute
-      toggleButton?.setAttribute('aria-expanded', 'false');
-      toggleButtonFloat?.setAttribute('aria-expanded', 'false');
-    });
+    // Listen for viewport width changes to properly handle the sidebar display
+    const mediaQuery = window.matchMedia('(min-width: 768px)');
     
-    // Close sidebar when ESC key is pressed
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !sidebar?.classList.contains('-translate-x-full')) {
-        sidebar?.classList.add('-translate-x-full');
-        overlay?.classList.add('hidden');
-        
-        // Update aria-expanded attribute
-        toggleButton?.setAttribute('aria-expanded', 'false');
-        toggleButtonFloat?.setAttribute('aria-expanded', 'false');
-      }
-    });
-
-    // Close sidebar when clicking on a link (for mobile)
-    const sidebarLinks = sidebar?.querySelectorAll('a');
-    sidebarLinks?.forEach(link => {
-      link.addEventListener('click', () => {
-        if (window.innerWidth < 1024) { // lg breakpoint
+    const handleViewportChange = (e) => {
+      if (e.matches) {
+        // On medium and larger screens, ensure sidebar is visible
+        sidebar?.classList.remove('-translate-x-full');
+        sidebar?.classList.add('translate-x-0');
+      } else {
+        // On smaller screens, hide sidebar by default
+        if (!sidebar?.classList.contains('translate-x-0')) {
           sidebar?.classList.add('-translate-x-full');
-          overlay?.classList.add('hidden');
-          
-          // Update aria-expanded attribute
-          toggleButton?.setAttribute('aria-expanded', 'false');
-          toggleButtonFloat?.setAttribute('aria-expanded', 'false');
+          sidebar?.classList.remove('translate-x-0');
         }
-      });
-    });
+      }
+    };
+    
+    // Initial check
+    handleViewportChange(mediaQuery);
+    
+    // Listen for changes
+    mediaQuery.addEventListener('change', handleViewportChange);
   });
 </script> 

@@ -2,41 +2,83 @@
 /**
  * Therapeutic Areas Index Page
  * 
- * Displays a list of all therapeutic areas available in the system,
- * with stats for each area.
+ * Displays a list of all therapeutic areas with statistics (number of companies, products, websites).
  */
+import { ViewTransitions } from 'astro:transitions';
 import DashboardLayout from '../../components/templates/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
+import Button from '../../components/atoms/Button.astro';
 import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
-import { getCompaniesByTherapeuticArea } from '../../utils/dataUtils';
-import { getProductsByTherapeuticArea, getWebsitesByTherapeuticArea } from '../../utils/crossReferenceUtils';
-import { getAllTherapeuticAreas } from '../../utils/therapeuticAreaUtils';
 
-// Get all therapeutic areas
-const therapeuticAreas = await getAllTherapeuticAreas();
+// Import Supabase client directly
+import { supabase } from '../../lib/supabase';
+import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/TherapeuticArea';
+import type { TherapeuticArea } from '../../interfaces/entities';
 
-// Get stats for each therapeutic area
-const areasWithStats = therapeuticAreas.map(area => {
-  const companies = getCompaniesByTherapeuticArea(area.id);
-  const products = getProductsByTherapeuticArea(area.id);
-  const websites = getWebsitesByTherapeuticArea(area.id);
-  
-  return {
-    ...area,
-    companyCount: companies.length,
-    productCount: products.length,
-    websiteCount: websites.length,
-    total: companies.length + products.length + websites.length
-  };
-});
+// Fetch all therapeutic areas
+const { data: dbTherapeuticAreas, error: taError } = await supabase
+  .from('therapeutic_areas')
+  .select('*')
+  .order('name');
 
-// Sort areas by total count
-const sortedAreas = [...areasWithStats].sort((a, b) => b.total - a.total);
+if (taError) {
+  console.error('Error fetching therapeutic areas:', taError);
+}
 
-// Breadcrumbs for navigation
+// Convert database records to application entities
+const therapeuticAreas: TherapeuticArea[] = (dbTherapeuticAreas || []).map(dbTherapeuticAreaToTherapeuticArea);
+
+// Get statistics for each therapeutic area
+const areaStats = await Promise.all(
+  therapeuticAreas.map(async (area) => {
+    // Count companies associated with this therapeutic area
+    const { count: companyCount } = await supabase
+      .from('company_therapeutic_areas')
+      .select('*', { count: 'exact', head: true })
+      .eq('therapeutic_area_id', area.id);
+    
+    // Count products associated with this therapeutic area
+    const { count: productCount } = await supabase
+      .from('product_therapeutic_areas')
+      .select('*', { count: 'exact', head: true })
+      .eq('therapeutic_area_id', area.id);
+    
+    // Count websites associated with companies in this therapeutic area
+    // Get companies in this therapeutic area
+    const { data: companyRelations } = await supabase
+      .from('company_therapeutic_areas')
+      .select('company_id')
+      .eq('therapeutic_area_id', area.id);
+    
+    const companyIds = (companyRelations || []).map(rel => rel.company_id);
+    
+    let websiteCount = 0;
+    if (companyIds.length > 0) {
+      const { count } = await supabase
+        .from('websites')
+        .select('*', { count: 'exact', head: true })
+        .in('company_id', companyIds);
+      
+      websiteCount = count || 0;
+    }
+    
+    return {
+      ...area,
+      companyCount: companyCount || 0,
+      productCount: productCount || 0,
+      websiteCount: websiteCount || 0,
+      totalCount: (companyCount || 0) + (productCount || 0) + (websiteCount || 0)
+    };
+  })
+);
+
+// Sort therapeutic areas by total count
+const sortedAreas = areaStats.sort((a, b) => b.totalCount - a.totalCount);
+
+// Set up breadcrumbs
 const breadcrumbs = [
-  { label: 'Home', href: '/' },
-  { label: 'Therapeutic Areas', href: '/therapeutic-areas', isActive: true },
+  { label: "Home", href: "/" },
+  { label: "Therapeutic Areas", href: "/therapeutic-areas", active: true }
 ];
 ---
 
@@ -46,11 +88,13 @@ const breadcrumbs = [
   currentPath="/therapeutic-areas"
   breadcrumbs={breadcrumbs}
 >
+  <ViewTransitions />
+  
   <div class="space-y-6">
     <!-- Page header -->
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Therapeutic Areas</h1>
+        <h1 class="text-2xl font-bold text-gray-900" transition:name="therapeutic-areas-title">Therapeutic Areas</h1>
         <p class="mt-1 text-lg text-gray-500">
           Browse all therapeutic areas in the pharmaceutical industry
           <DataSourceVisualizer contentType="therapeutic_areas" />
@@ -66,7 +110,12 @@ const breadcrumbs = [
             <a href={`/therapeutic-areas/${area.slug}`} class="group">
               <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden hover:border-blue-300 hover:shadow-md transition-all duration-200">
                 <div class="p-6">
-                  <h2 class="text-xl font-medium text-gray-900 group-hover:text-blue-600">{area.name}</h2>
+                  <h2 
+                    class="text-xl font-medium text-gray-900 group-hover:text-blue-600" 
+                    transition:name={`therapeutic-area-${area.slug}-title`}
+                  >
+                    {area.name}
+                  </h2>
                   
                   <div class="mt-4 grid grid-cols-3 gap-2 text-center">
                     <div>

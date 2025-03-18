@@ -7,21 +7,19 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "create-migration": "node scripts/create-migration.js",
+    "test": "vitest run",
+    "db:create-migration": "node scripts/create-migration.js",
     "db:push": "node scripts/db-push.js",
     "db:types": "node scripts/generate-types.js",
-    "ingest-companies": "node scripts/ingest-companies.js",
-    "test-fmp": "node scripts/test-fmp-connection.js",
-    "convert-companies": "node scripts/convertCompanies.js",
-    "convert-products": "node scripts/convertProducts.js",
-    "convert-websites": "node scripts/convertWebsites.js",
-    "convert-admin": "node scripts/convertAdmin.js",
-    "convert-user": "node scripts/convertUser.js",
-    "convert-all": "npm run convert-companies ; npm run convert-products ; npm run convert-websites ; npm run convert-admin ; npm run convert-user",
-    "convert-data": "node scripts/convertData.js",
-    "cleanup-ts-data": "node scripts/cleanupTsData.js",
-    "migrate:companies": "npx tsx scripts/migrate-companies-to-local-db.ts",
-    "migrate:therapeutic-areas": "npx tsx scripts/migrate-therapeutic-areas-to-local-db.ts"
+    "db:merge-migrations": "node scripts/migration-utils/merge-migrations.js",
+    "db:migrate-to-sql": "node scripts/migration-utils/migrate-to-sql-based-approach.js",
+    "data:ingest-companies": "node scripts/ingest-companies.js",
+    "data:import-companies": "npx tsx scripts/import-fmp-companies.ts",
+    "data:import-therapeutic-areas": "node scripts/import-therapeutic-areas.js",
+    "data:import-therapeutic-areas-ts": "npx tsx scripts/import-therapeutic-areas.ts",
+    "data:test-fmp": "node scripts/test-fmp-connection.js",
+    "data:normalize-json": "npx tsx src/utils/normalizeJsonData.ts",
+    "data:migrate-to-content-collections": "npx tsx scripts/migrate-to-content-collections.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
@@ -34,7 +32,7 @@
     "chart.js": "^4.4.8",
     "csv-parse": "^5.6.0",
     "dotenv": "^16.4.7",
-    "node-fetch": "^2.7.0",
+    "node-fetch": "^3.3.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwindcss": "^4.0.11",
@@ -45,6 +43,7 @@
     "supabase": "^2.19.7",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.3",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.8"
   }
 }

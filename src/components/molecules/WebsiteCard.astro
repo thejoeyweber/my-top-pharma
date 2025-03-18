@@ -1,182 +1,110 @@
 ---
 /**
- * Website Card Component
+ * WebsiteCard Component
  * 
- * Displays a website's basic information in a card format,
- * with grid and list view options.
+ * Displays a website's information in a card format.
  */
-import Button from '../atoms/Button.astro';
-import type { Website } from '../../types/websites';
-import { websiteCategories, companies } from '../../utils/dataUtils';
-import { getWebsiteScreenshotUrl } from '../../utils/assetUtils';
+import Card from '../atoms/Card.astro';
+import { supabase } from '../../lib/supabase';
+import type { Website } from '../../interfaces/entities';
 
 interface Props {
   website: Website;
-  view?: 'grid' | 'list';
-  isCompact?: boolean;
 }
 
-const { 
-  website,
-  view = 'grid',
-  isCompact = false
-} = Astro.props;
+const { website } = Astro.props;
 
-// Find website category label
-const categoryObj = websiteCategories.find(cat => cat.value === website.category);
-const categoryLabel = categoryObj ? categoryObj.label : website.category;
+// Fetch company info if available
+let companyName = '';
+if (website.companyId) {
+  const { data } = await supabase
+    .from('companies')
+    .select('name')
+    .eq('id', website.companyId)
+    .single();
+  
+  if (data) {
+    companyName = data.name;
+  }
+}
 
-// Find company info
-const company = companies.find(c => c.id === website.companyId);
-const companyName = company ? company.name : website.companyId;
+// Fetch therapeutic areas if available
+let therapeuticAreaNames: string[] = [];
+if (website.therapeuticAreas && website.therapeuticAreas.length > 0) {
+  const { data } = await supabase
+    .from('therapeutic_areas')
+    .select('name')
+    .in('id', website.therapeuticAreas);
+  
+  if (data) {
+    therapeuticAreaNames = data.map(ta => ta.name);
+  }
+}
 
-// Get domain ID for routing
-const getDomainId = (domain: string) => {
+// Format URL for display
+const formatUrl = (url: string): string => {
+  if (!url) return '';
+  return url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+};
+
+// Get URL-safe domain for routing when slug is not available
+const getDomainSlug = (domain: string): string => {
+  if (!domain) return '';
   return domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
 };
 
-// Format date for display (MM/DD/YYYY)
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-};
-
-// Get category icon
-const getCategoryIcon = (category: string) => {
-  switch (category) {
-    case 'corporate':
-      return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M3 2.25a.75.75 0 0 0 0 1.5v16.5h-.75a.75.75 0 0 0 0 1.5H15v-18a.75.75 0 0 0 0-1.5H3ZM6.75 19.5v-2.25a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-.75.75h-3a.75.75 0 0 1-.75-.75ZM6 6.75A.75.75 0 0 1 6.75 6h.75a.75.75 0 0 1 0 1.5h-.75A.75.75 0 0 1 6 6.75ZM6.75 9a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 0-1.5h-.75ZM6 12.75a.75.75 0 0 1 .75-.75h.75a.75.75 0 0 1 0 1.5h-.75a.75.75 0 0 1-.75-.75ZM10.5 6a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 0-1.5h-.75Zm-.75 3.75A.75.75 0 0 1 10.5 9h.75a.75.75 0 0 1 0 1.5h-.75a.75.75 0 0 1-.75-.75ZM10.5 12a.75.75 0 0 0 0 1.5h.75a.75.75 0 0 0 0-1.5h-.75ZM16.5 6.75v15h5.25a.75.75 0 0 0 0-1.5H21v-12a.75.75 0 0 0 0-1.5h-4.5Zm1.5 4.5a.75.75 0 0 1 .75-.75h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75h-.008a.75.75 0 0 1-.75-.75v-.008Zm.75 2.25a.75.75 0 0 0-.75.75v.008c0 .414.336.75.75.75h.008a.75.75 0 0 0 .75-.75v-.008a.75.75 0 0 0-.75-.75h-.008ZM18 17.25a.75.75 0 0 1 .75-.75h.008a.75.75 0 0 1 .75.75v.008a.75.75 0 0 1-.75.75h-.008a.75.75 0 0 1-.75-.75v-.008Z" clip-rule="evenodd" /></svg>';
-    case 'hcp':
-      return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M8.25 6.75a3.75 3.75 0 1 1 7.5 0 3.75 3.75 0 0 1-7.5 0ZM15.75 9.75a3 3 0 1 1 6 0 3 3 0 0 1-6 0ZM2.25 9.75a3 3 0 1 1 6 0 3 3 0 0 1-6 0ZM6.31 15.117A6.745 6.745 0 0 1 12 12a6.745 6.745 0 0 1 6.709 7.498.75.75 0 0 1-.372.568A12.696 12.696 0 0 1 12 21.75c-2.305 0-4.47-.612-6.337-1.684a.75.75 0 0 1-.372-.568 6.787 6.787 0 0 1 1.019-4.38Z" clip-rule="evenodd" /><path d="M5.082 14.254a8.287 8.287 0 0 0-1.308 5.135 9.687 9.687 0 0 1-1.764-.44l-.115-.04a.563.563 0 0 1-.373-.487l-.01-.121a3.75 3.75 0 0 1 3.57-4.047ZM20.226 19.389a8.287 8.287 0 0 0-1.308-5.135 3.75 3.75 0 0 1 3.57 4.047l-.01.121a.563.563 0 0 1-.373.486l-.115.04c-.567.2-1.156.349-1.764.441Z" /></svg>';
-    case 'patient':
-      return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" /></svg>';
-    case 'campaign':
-      return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M12.75 12.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM7.5 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM8.25 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM9.75 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM10.5 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM12.75 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM14.25 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM15 17.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM16.5 15.75a.75.75 0 100-1.5.75.75 0 000 1.5zM15 12.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM16.5 13.5a.75.75 0 100-1.5.75.75 0 000 1.5z" /><path fill-rule="evenodd" d="M6.75 2.25A.75.75 0 017.5 3v1.5h9V3A.75.75 0 0118 3v1.5h.75a3 3 0 013 3v11.25a3 3 0 01-3 3H5.25a3 3 0 01-3-3V7.5a3 3 0 013-3H6V3a.75.75 0 01.75-.75zm13.5 9a1.5 1.5 0 00-1.5-1.5H5.25a1.5 1.5 0 00-1.5 1.5v7.5a1.5 1.5 0 001.5 1.5h13.5a1.5 1.5 0 001.5-1.5v-7.5z" clip-rule="evenodd" /></svg>';
-    case 'ir':
-      return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M10.464 8.746c.227-.18.497-.311.786-.394v2.795a2.252 2.252 0 01-.786-.393c-.394-.313-.546-.681-.546-1.004 0-.323.152-.691.546-1.004zM12.75 15.662v-2.824c.347.085.664.228.921.421.427.32.579.686.579.991 0 .305-.152.671-.579.991a2.534 2.534 0 01-.921.42z" /><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 6a.75.75 0 00-1.5 0v.816a3.836 3.836 0 00-1.72.756c-.712.566-1.112 1.35-1.112 2.178 0 .829.4 1.612 1.113 2.178.502.4 1.102.647 1.719.756v2.978a2.536 2.536 0 01-.921-.421l-.879-.66a.75.75 0 00-.9 1.2l.879.66c.533.4 1.169.645 1.821.75V18a.75.75 0 001.5 0v-.81a4.124 4.124 0 001.821-.749c.745-.559 1.179-1.344 1.179-2.191 0-.847-.434-1.632-1.179-2.191a4.122 4.122 0 00-1.821-.75V8.354c.29.082.559.213.786.393l.415.33a.75.75 0 00.933-1.175l-.415-.33a3.836 3.836 0 00-1.719-.755V6z" clip-rule="evenodd" /></svg>';
-    case 'clinical-trials':
-      return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M2.25 6a3 3 0 0 1 3-3h13.5a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V6Zm3.97.97a.75.75 0 0 1 1.06 0l2.25 2.25a.75.75 0 0 1 0 1.06l-2.25 2.25a.75.75 0 0 1-1.06-1.06l1.72-1.72-1.72-1.72a.75.75 0 0 1 0-1.06Zm4.28 4.28a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 0 1.5h-3a.75.75 0 0 1-.75-.75Z" clip-rule="evenodd" /></svg>';
-    case 'disease-education':
-      return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M11.25 4.533A9.707 9.707 0 0 0 6 3a9.735 9.735 0 0 0-3.25.555.75.75 0 0 0-.5.707v14.25a.75.75 0 0 0 1 .707A8.237 8.237 0 0 1 6 18.75c1.995 0 3.823.707 5.25 1.886V4.533ZM12.75 20.636A8.214 8.214 0 0 1 18 18.75c.966 0 1.89.166 2.75.47a.75.75 0 0 0 1-.708V4.262a.75.75 0 0 0-.5-.707A9.735 9.735 0 0 0 18 3a9.707 9.707 0 0 0-5.25 1.533v16.103Z" /></svg>';
-    case 'product':
-      return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M12.516 2.17a.75.75 0 0 0-1.032 0 11.209 11.209 0 0 1-7.877 3.08.75.75 0 0 0-.722.515A12.74 12.74 0 0 0 2.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 0 0 .374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 0 0-.722-.516l-.143.001c-2.996 0-5.717-1.17-7.734-3.08Zm3.094 8.016a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z" clip-rule="evenodd" /></svg>';
-    default:
-      return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M21.721 12.752a9.711 9.711 0 0 0-.945-5.003 12.754 12.754 0 0 1-4.339 2.708 18.991 18.991 0 0 1-.214 4.772 17.165 17.165 0 0 0 5.498-2.477ZM14.634 15.55a17.324 17.324 0 0 0 .332-4.647c-.952.227-1.945.347-2.966.347-1.021 0-2.014-.12-2.966-.347a17.515 17.515 0 0 0 .332 4.647 17.385 17.385 0 0 0 5.268 0ZM9.772 17.119a18.963 18.963 0 0 0 4.456 0A17.182 17.182 0 0 1 12 21.724a17.18 17.18 0 0 1-2.228-4.605ZM7.777 15.23a18.87 18.87 0 0 1-.214-4.774 12.753 12.753 0 0 1-4.34-2.708 9.711 9.711 0 0 0-.944 5.004 17.165 17.165 0 0 0 5.498 2.477ZM21.356 14.752a9.765 9.765 0 0 1-7.478 6.817 18.64 18.64 0 0 0 1.988-4.718 18.627 18.627 0 0 0 5.49-2.098ZM2.644 14.752c1.682.971 3.53 1.688 5.49 2.099a18.64 18.64 0 0 0 1.988 4.718 9.765 9.765 0 0 1-7.478-6.816ZM13.878 2.43a9.755 9.755 0 0 1 6.116 3.986 11.267 11.267 0 0 1-3.746 2.504 18.63 18.63 0 0 0-2.37-6.49ZM12 2.276a17.152 17.152 0 0 1 2.805 7.121c-.897.23-1.837.353-2.805.353-.968 0-1.908-.122-2.805-.353A17.151 17.151 0 0 1 12 2.276ZM10.122 2.43a18.629 18.629 0 0 0-2.37 6.49 11.266 11.266 0 0 1-3.746-2.504 9.754 9.754 0 0 1 6.116-3.985Z" /></svg>';
+// Get the proper link URL for the website detail page
+const getWebsiteDetailUrl = (): string => {
+  if (website.slug) {
+    return `/websites/${website.slug}`;
   }
+  // Fallback: create a slug from domain
+  return `/websites/${getDomainSlug(formatUrl(website.url))}`;
 };
-
-const categoryIcon = getCategoryIcon(website.category);
-const domainId = getDomainId(website.domain);
 ---
 
-{view === 'grid' ? (
-  <div class="bg-white rounded-lg shadow border border-gray-200 hover:shadow-md transition-shadow duration-300 overflow-hidden h-full flex flex-col">
-    <div class="p-4 flex-grow">
-      <div class="flex justify-between items-start mb-3">
-        <div class="flex items-center">
-          <span class="text-blue-600 mr-2" set:html={categoryIcon} />
-          <h3 class="font-semibold text-lg text-gray-900 line-clamp-1">{website.domain}</h3>
-        </div>
-        {website.region && (
-          <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
-            {website.region}
-          </span>
-        )}
-      </div>
-      
-      {website.siteName && (
-        <h4 class="text-gray-700 mb-1 text-sm">{website.siteName}</h4>
-      )}
-      
-      <div class="flex items-center text-sm text-gray-600 mb-2">
-        <span class="font-medium">Company:</span>
-        <a href={`/companies/${website.companyId}`} class="ml-1 text-blue-600 hover:underline">{companyName}</a>
-      </div>
-
-      <div class="flex items-center text-sm text-gray-600 mb-3">
-        <span class="font-medium">Category:</span>
-        <span class="ml-1">{categoryLabel}</span>
-      </div>
-      
-      {!isCompact && website.description && (
-        <p class="text-gray-600 text-sm mb-4 line-clamp-2">{website.description}</p>
-      )}
-      
-      <div class="mt-auto pt-2">
-        {website.lastCrawl && (
-          <div class="text-xs text-gray-500">
-            Last updated: {formatDate(website.lastCrawl)}
-          </div>
-        )}
-      </div>
-    </div>
-    <div class="p-3 border-t border-gray-100 bg-gray-50 flex justify-between">
-      <a href={`/websites/${domainId}`} class="text-blue-600 text-sm font-medium hover:text-blue-800">
-        View details
+<Card class="h-full">
+  <div class="p-4 flex flex-col h-full">
+    <div class="mb-3">
+      <h3 class="text-lg font-semibold text-gray-900 mb-1">{website.title}</h3>
+      <a href={website.url} target="_blank" rel="noopener noreferrer" class="text-sm text-blue-600 hover:underline">
+        {formatUrl(website.url)}
       </a>
-      <a href={`https://${website.domain}`} target="_blank" rel="noopener noreferrer" class="text-blue-600 text-sm font-medium hover:text-blue-800 flex items-center">
-        Visit site
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 ml-1">
-          <path fill-rule="evenodd" d="M4.25 5.5a.75.75 0 0 0-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-4a.75.75 0 0 1 1.5 0v4A2.25 2.25 0 0 1 12.75 17h-8.5A2.25 2.25 0 0 1 2 14.75v-8.5A2.25 2.25 0 0 1 4.25 4h5a.75.75 0 0 1 0 1.5h-5Z" clip-rule="evenodd" />
-          <path fill-rule="evenodd" d="M6.194 12.753a.75.75 0 0 0 1.06.053L16.5 4.44v2.81a.75.75 0 0 0 1.5 0v-4.5a.75.75 0 0 0-.75-.75h-4.5a.75.75 0 0 0 0 1.5h2.553l-9.056 8.194a.75.75 0 0 0-.053 1.06Z" clip-rule="evenodd" />
-        </svg>
-      </a>
-    </div>
-  </div>
-) : (
-  <div class="bg-white rounded-lg shadow border border-gray-200 hover:shadow-md transition-shadow duration-300 overflow-hidden flex flex-row p-4 gap-4">
-    <div class="flex-grow">
-      <div class="flex justify-between items-start mb-2">
-        <div class="flex items-center">
-          <span class="text-blue-600 mr-2" set:html={categoryIcon} />
-          <h3 class="font-semibold text-lg text-gray-900">{website.domain}</h3>
-          {website.siteName && (
-            <span class="ml-2 text-gray-600 text-sm">({website.siteName})</span>
+      </div>
+      
+    {companyName && (
+      <div class="mb-3">
+        <span class="text-xs font-medium text-gray-500">Company</span>
+        <p class="text-sm font-medium text-gray-800">{companyName}</p>
+      </div>
+    )}
+    
+    <p class="text-sm text-gray-600 mb-4 flex-grow line-clamp-3">{website.description || 'No description available'}</p>
+    
+    <div class="mt-auto">
+      {therapeuticAreaNames.length > 0 && (
+        <div class="flex flex-wrap gap-1 mb-3">
+          {therapeuticAreaNames.slice(0, 3).map(area => (
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+              {area}
+            </span>
+          ))}
+          {therapeuticAreaNames.length > 3 && (
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+              +{therapeuticAreaNames.length - 3}
+            </span>
           )}
         </div>
-      </div>
-      
-      <div class="flex items-center text-sm text-gray-600 mb-2 gap-4">
-        <div class="flex items-center">
-          <span class="font-medium">Company:</span>
-          <a href={`/companies/${website.companyId}`} class="ml-1 text-blue-600 hover:underline">{companyName}</a>
-        </div>
-        <div class="flex items-center">
-          <span class="font-medium">Category:</span>
-          <span class="ml-1">{categoryLabel}</span>
-        </div>
-        {website.region && (
-          <div class="flex items-center">
-            <span class="font-medium">Region:</span>
-            <span class="ml-1">{website.region}</span>
-          </div>
-        )}
-      </div>
-      
-      {!isCompact && website.description && (
-        <p class="text-gray-600 text-sm mb-2 line-clamp-1">{website.description}</p>
       )}
-    </div>
-    
-    <div class="flex flex-col items-end justify-between ml-4">
-      <div class="flex space-x-3">
-        <a href={`/websites/${domainId}`} class="text-blue-600 text-sm font-medium hover:text-blue-800">
-          View details
-        </a>
-        <a href={`https://${website.domain}`} target="_blank" rel="noopener noreferrer" class="text-blue-600 text-sm font-medium hover:text-blue-800 flex items-center">
-          Visit site
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 ml-1">
-            <path fill-rule="evenodd" d="M4.25 5.5a.75.75 0 0 0-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-4a.75.75 0 0 1 1.5 0v4A2.25 2.25 0 0 1 12.75 17h-8.5A2.25 2.25 0 0 1 2 14.75v-8.5A2.25 2.25 0 0 1 4.25 4h5a.75.75 0 0 1 0 1.5h-5Z" clip-rule="evenodd" />
-            <path fill-rule="evenodd" d="M6.194 12.753a.75.75 0 0 0 1.06.053L16.5 4.44v2.81a.75.75 0 0 0 1.5 0v-4.5a.75.75 0 0 0-.75-.75h-4.5a.75.75 0 0 0 0 1.5h2.553l-9.056 8.194a.75.75 0 0 0-.053 1.06Z" clip-rule="evenodd" />
-          </svg>
+      
+      <div class="text-right">
+        <a 
+          href={getWebsiteDetailUrl()}
+          class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+        >
+          View Details
         </a>
       </div>
-      
-      {website.lastCrawl && (
-        <div class="text-xs text-gray-500 mt-2">
-          Last updated: {formatDate(website.lastCrawl)}
-        </div>
-      )}
     </div>
   </div>
-)} 
+</Card> 
