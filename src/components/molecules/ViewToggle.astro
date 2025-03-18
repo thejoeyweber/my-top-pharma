@@ -3,6 +3,7 @@
  * ViewToggle Component
  * 
  * A toggle button group for switching between different view modes (grid/list).
+ * Uses server-side rendering with URL parameters.
  */
 
 interface ViewOption {
@@ -13,9 +14,10 @@ interface ViewOption {
 
 interface Props {
   options?: ViewOption[];
-  initialValue?: string;
+  activeOption?: string;
   name?: string;
   class?: string;
+  onChange?: (value: string) => string;
 }
 
 // Default view options if none provided
@@ -38,84 +40,34 @@ const defaultOptions: ViewOption[] = [
 
 const {
   options = defaultOptions,
-  initialValue = 'grid',
+  activeOption = 'grid',
   name = 'view',
   class: className = "",
+  onChange
 } = Astro.props;
 ---
 
-<div class:list={["view-toggle", className]} data-view-toggle>
+<div class:list={["view-toggle", className]}>
   <span class="sr-only">View options</span>
   <div class="inline-flex rounded-md shadow-sm" role="group">
     {options.map((option, index) => (
-      <button
-        type="button"
+      <a
+        href={onChange ? onChange(option.value) : `?${name}=${option.value}`}
         class:list={[
           "view-toggle-btn py-1.5 px-3 text-sm font-medium focus:z-10 focus:ring-2 focus:ring-primary-500 focus:outline-none",
           index === 0 ? "rounded-l-md" : "",
           index === options.length - 1 ? "rounded-r-md" : "",
-          option.value === initialValue
+          option.value === activeOption
             ? "bg-primary-600 text-white hover:bg-primary-700"
             : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-300",
-          index > 0 && option.value !== initialValue ? "-ml-px" : "",
+          index > 0 && option.value !== activeOption ? "-ml-px" : "",
         ]}
         aria-label={option.label}
         title={option.label}
-        data-view-value={option.value}
+        aria-current={option.value === activeOption ? "page" : undefined}
       >
         <span set:html={option.icon} />
-      </button>
+      </a>
     ))}
   </div>
-  <input type="hidden" name={name} value={initialValue} data-view-input />
-</div>
-
-<script is:inline>
-  // Function to initialize the view toggle functionality
-  function initViewToggle() {
-    const viewToggles = document.querySelectorAll('[data-view-toggle]');
-    
-    viewToggles.forEach(toggle => {
-      const buttons = toggle.querySelectorAll('.view-toggle-btn');
-      const input = toggle.querySelector('[data-view-input]') as HTMLInputElement;
-      
-      buttons.forEach(button => {
-        button.addEventListener('click', () => {
-          const value = button.getAttribute('data-view-value');
-          if (!value) return;
-          
-          // Update the hidden input value
-          if (input) {
-            input.value = value;
-          }
-          
-          // Update button styles
-          buttons.forEach(btn => {
-            const btnValue = btn.getAttribute('data-view-value');
-            if (btnValue === value) {
-              btn.classList.remove('bg-white', 'text-gray-700', 'hover:bg-gray-50', 'border', 'border-gray-300');
-              btn.classList.add('bg-primary-600', 'text-white', 'hover:bg-primary-700');
-            } else {
-              btn.classList.remove('bg-primary-600', 'text-white', 'hover:bg-primary-700');
-              btn.classList.add('bg-white', 'text-gray-700', 'hover:bg-gray-50', 'border', 'border-gray-300');
-            }
-          });
-          
-          // Dispatch a custom event that can be listened for to update the view
-          const event = new CustomEvent('view:changed', { 
-            detail: { value },
-            bubbles: true 
-          });
-          toggle.dispatchEvent(event);
-        });
-      });
-    });
-  }
-
-  // Initialize immediately if the DOM is already loaded
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initViewToggle);
-  } else {
-    initViewToggle();
-  }
-</script> 
+</div> 

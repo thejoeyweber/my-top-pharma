@@ -5,41 +5,48 @@
  * Displays a website's information in a card format.
  */
 import Card from '../atoms/Card.astro';
-import { supabase } from '../../lib/supabase';
+// Remove direct Supabase import
+// import { supabase } from '../../lib/supabase';
 import type { Website } from '../../interfaces/entities';
 
 interface Props {
   website: Website;
+  companyName?: string; // Add company name as a prop
+  therapeuticAreaNames?: string[]; // Add therapeutic area names as a prop
 }
 
-const { website } = Astro.props;
+const { 
+  website, 
+  companyName = '', 
+  therapeuticAreaNames = [] // Use empty array as default 
+} = Astro.props;
 
-// Fetch company info if available
-let companyName = '';
-if (website.companyId) {
-  const { data } = await supabase
-    .from('companies')
-    .select('name')
-    .eq('id', website.companyId)
-    .single();
-  
-  if (data) {
-    companyName = data.name;
-  }
-}
+// Remove Supabase fetching code for company
+// let companyName = '';
+// if (website.companyId) {
+//   const { data } = await supabase
+//     .from('companies')
+//     .select('name')
+//     .eq('id', website.companyId)
+//     .single();
+//   
+//   if (data) {
+//     companyName = data.name;
+//   }
+// }
 
-// Fetch therapeutic areas if available
-let therapeuticAreaNames: string[] = [];
-if (website.therapeuticAreas && website.therapeuticAreas.length > 0) {
-  const { data } = await supabase
-    .from('therapeutic_areas')
-    .select('name')
-    .in('id', website.therapeuticAreas);
-  
-  if (data) {
-    therapeuticAreaNames = data.map(ta => ta.name);
-  }
-}
+// Remove Supabase fetching code for therapeutic areas
+// let therapeuticAreaNames: string[] = [];
+// if (website.therapeuticAreas && website.therapeuticAreas.length > 0) {
+//   const { data } = await supabase
+//     .from('therapeutic_areas')
+//     .select('name')
+//     .in('id', website.therapeuticAreas);
+//   
+//   if (data) {
+//     therapeuticAreaNames = data.map(ta => ta.name);
+//   }
+// }
 
 // Format URL for display
 const formatUrl = (url: string): string => {
@@ -47,19 +54,13 @@ const formatUrl = (url: string): string => {
   return url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
 };
 
-// Get URL-safe domain for routing when slug is not available
-const getDomainSlug = (domain: string): string => {
-  if (!domain) return '';
-  return domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
-};
-
 // Get the proper link URL for the website detail page
+// Using proper slug and removing the fallback logic
 const getWebsiteDetailUrl = (): string => {
-  if (website.slug) {
-    return `/websites/${website.slug}`;
+  if (!website.slug) {
+    console.error(`Website is missing slug: ${website.url}`);
   }
-  // Fallback: create a slug from domain
-  return `/websites/${getDomainSlug(formatUrl(website.url))}`;
+  return `/websites/${website.slug}`;
 };
 ---
 

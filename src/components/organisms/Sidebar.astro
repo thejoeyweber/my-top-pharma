@@ -16,6 +16,14 @@ interface Props {
 
 const { currentPath = '/', isOpen = false } = Astro.props;
 
+// Check if a link is active using the same method as Header
+const isActive = (href: string) => {
+  if (href === '/') {
+    return currentPath === href;
+  }
+  return currentPath.startsWith(href);
+};
+
 // Navigation structure with sections and links
 const navigation = [
   {
@@ -133,7 +141,7 @@ const navigation = [
                 href={link.href}
                 label={link.label}
                 icon={link.icon}
-                isActive={currentPath === link.href || currentPath.startsWith(`${link.href}/`)}
+                isActive={isActive(link.href)}
               />
             ))}
           </div>
@@ -216,5 +224,65 @@ const navigation = [
     
     // Listen for changes
     mediaQuery.addEventListener('change', handleViewportChange);
+  });
+
+  // Handle active link states during client-side navigation
+  document.addEventListener('astro:page-load', () => {
+    const currentPath = window.location.pathname;
+    const sidebarLinks = document.querySelectorAll('.sidebar a');
+    
+    // Same active check logic as the component
+    const isActive = (href) => {
+      if (href === '/') {
+        return currentPath === href;
+      }
+      return currentPath.startsWith(href);
+    };
+    
+    // Update each link's active state
+    sidebarLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      if (!href) return;
+      
+      if (isActive(href)) {
+        // Add active classes
+        link.classList.add('bg-primary-50', 'text-primary-700', 'before:absolute', 'before:left-0', 'before:top-0', 'before:bottom-0', 'before:w-1', 'before:bg-primary-500', 'before:rounded-l');
+        link.classList.remove('text-gray-600', 'hover:bg-gray-50', 'hover:text-gray-900');
+        link.setAttribute('aria-current', 'page');
+        
+        // Find and update icon color
+        const icon = link.querySelector('span[aria-hidden="true"]');
+        if (icon) {
+          icon.classList.remove('text-gray-500');
+          icon.classList.add('text-primary-600');
+        }
+        
+        // Add the active indicator dot
+        const dotExists = link.querySelector('.absolute.right-2');
+        if (!dotExists) {
+          const dot = document.createElement('span');
+          dot.className = 'absolute right-2 w-1.5 h-1.5 rounded-full bg-primary-500';
+          link.appendChild(dot);
+        }
+      } else {
+        // Remove active classes
+        link.classList.remove('bg-primary-50', 'text-primary-700', 'before:absolute', 'before:left-0', 'before:top-0', 'before:bottom-0', 'before:w-1', 'before:bg-primary-500', 'before:rounded-l');
+        link.classList.add('text-gray-600', 'hover:bg-gray-50', 'hover:text-gray-900');
+        link.removeAttribute('aria-current');
+        
+        // Reset icon color
+        const icon = link.querySelector('span[aria-hidden="true"]');
+        if (icon) {
+          icon.classList.add('text-gray-500');
+          icon.classList.remove('text-primary-600');
+        }
+        
+        // Remove active indicator dot
+        const dot = link.querySelector('.absolute.right-2');
+        if (dot) {
+          link.removeChild(dot);
+        }
+      }
+    });
   });
 </script> 

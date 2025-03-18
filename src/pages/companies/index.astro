@@ -12,33 +12,84 @@ import MultiSelect from '../../components/molecules/MultiSelect.astro';
 import RangeSlider from '../../components/molecules/RangeSlider.astro';
 import SortSelect from '../../components/molecules/SortSelect.astro';
 import ViewToggle from '../../components/molecules/ViewToggle.astro';
+import CompanyCard from '../../components/molecules/CompanyCard.astro';
 import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
+// Import filterUtils but use server-side filtering primarily
 import { filterAndSortItems } from '../../utils/filterUtils';
+import { logError } from '../../utils/errorUtils';
 
 // Import Supabase client directly
 import { supabase } from '../../lib/supabase';
 import { dbCompanyToCompany } from '../../interfaces/entities/Company';
-import type { Company } from '../../interfaces/entities';
+import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/TherapeuticArea';
+import type { Company, TherapeuticArea } from '../../interfaces/entities';
 
-// Fetch companies directly from Supabase
-const { data: dbCompanies, error } = await supabase
-  .from('companies')
-  .select('*')
-  .order('name');
+// Get URL query parameters for filtering and sorting
+const url = new URL(Astro.request.url);
+const params = url.searchParams;
+
+// Extract filter and sort parameters
+const sortParam = params.get('sort') || 'name_asc';
+const viewMode = params.get('view') || 'grid';
+const search = params.get('search') || '';
+const selectedRegions = params.get('regions')?.split(',') || [];
+const selectedTAs = params.get('tas')?.split(',') || [];
+const minMarketCap = params.get('minMarketCap') ? parseInt(params.get('minMarketCap')) : 0;
+const maxMarketCap = params.get('maxMarketCap') ? parseInt(params.get('maxMarketCap')) : 2000;
+
+// Parse sort parameter
+const [sortField, sortDirection] = sortParam.split('_');
+
+// Build Supabase query with filtering and sorting
+let query = supabase.from('companies').select('*');
+
+// Apply search filter if provided
+if (search) {
+  query = query.ilike('name', `%${search}%`);
+}
+
+// Apply region filter if provided
+if (selectedRegions.length > 0) {
+  query = query.in('headquarters', selectedRegions);
+}
+
+// Apply market cap filter - note: market_cap is stored in billions in database
+if (minMarketCap > 0) {
+  query = query.gte('market_cap', minMarketCap);
+}
+if (maxMarketCap < 2000) { // Only apply max if it's less than the default max
+  query = query.lte('market_cap', maxMarketCap);
+}
+
+// Apply sorting
+if (sortField === 'name') {
+  query = query.order('name', { ascending: sortDirection === 'asc' });
+} else if (sortField === 'marketCap') {
+  query = query.order('market_cap', { ascending: sortDirection === 'asc' });
+} else if (sortField === 'founded') {
+  query = query.order('founded', { ascending: sortDirection === 'asc' });
+}
+
+// Execute the query
+const { data: dbCompanies, error } = await query;
 
 // Handle potential errors
 if (error) {
-  console.error('Error fetching companies:', error);
+  logError('Error fetching companies:', error);
 }
 
 // Convert database records to application entities
 const companies = (dbCompanies || []).map(dbCompanyToCompany);
 
 // Fetch therapeutic areas for filtering
-const { data: therapeuticAreasData } = await supabase
+const { data: therapeuticAreasData, error: taError } = await supabase
   .from('therapeutic_areas')
   .select('*')
   .order('name');
+
+if (taError) {
+  logError('Error fetching therapeutic areas:', taError);
+}
 
 // Create therapeutic areas options for filtering
 const therapeuticAreas = (therapeuticAreasData || []).map(area => ({
@@ -46,752 +97,286 @@ const therapeuticAreas = (therapeuticAreasData || []).map(area => ({
   label: area.name
 }));
 
+// Filter companies by therapeutic areas (need to do this separately due to relation tables)
+let filteredCompanies = companies;
+if (selectedTAs.length > 0) {
+  // Fetch company-therapeutic area relations
+  const { data: companyTAs, error: ctaError } = await supabase
+    .from('company_therapeutic_areas')
+    .select('company_id, therapeutic_area_id')
+    .in('therapeutic_area_id', selectedTAs);
+    
+  if (ctaError) {
+    logError('Error fetching company-therapeutic area relations:', ctaError);
+  }
+  
+  // Get unique company IDs that have the selected therapeutic areas
+  const companyIds = [...new Set((companyTAs || []).map(cta => cta.company_id))];
+  
+  // Filter companies by those IDs
+  filteredCompanies = companies.filter(company => companyIds.includes(company.id));
+}
+
+// Get therapeutic area names for each company
+const companyTaNames = new Map<string, string[]>();
+
+// Fetch all company-therapeutic area relations
+const { data: allCompanyTAs, error: allCtaError } = await supabase
+  .from('company_therapeutic_areas')
+  .select('company_id, therapeutic_area_id');
+  
+if (allCtaError) {
+  logError('Error fetching all company-therapeutic area relations:', allCtaError);
+}
+
+// Group by company
+const companyTaMap = new Map<string, string[]>();
+(allCompanyTAs || []).forEach(cta => {
+  const taIds = companyTaMap.get(cta.company_id) || [];
+  companyTaMap.set(cta.company_id, [...taIds, cta.therapeutic_area_id]);
+});
+
+// Get therapeutic area names
+const taNameMap = new Map<string, string>();
+therapeuticAreasData?.forEach(ta => {
+  taNameMap.set(ta.id, ta.name);
+});
+
+// Create the final map of company ID to therapeutic area names
+filteredCompanies.forEach(company => {
+  const taIds = companyTaMap.get(company.id) || [];
+  const taNames = taIds.map(id => taNameMap.get(id)).filter(Boolean) as string[];
+  companyTaNames.set(company.id, taNames);
+});
+
 // Define regions for filtering
 const regions = [
   { value: 'north-america', label: 'North America' },
   { value: 'europe', label: 'Europe' },
-  { value: 'asia-pacific', label: 'Asia Pacific' },
-  { value: 'latin-america', label: 'Latin America' },
-  { value: 'middle-east', label: 'Middle East & Africa' },
-];
-
-// Define company types
-const companyTypes = [
-  { value: 'public', label: 'Public' },
-  { value: 'private', label: 'Private' },
-  { value: 'nonprofit', label: 'Non-Profit' },
-  { value: 'government', label: 'Government' },
-];
-
-// Define development phases
-const developmentPhases = [
-  { value: 'discovery', label: 'Discovery' },
-  { value: 'preclinical', label: 'Preclinical' },
-  { value: 'phase1', label: 'Phase I' },
-  { value: 'phase2', label: 'Phase II' },
-  { value: 'phase3', label: 'Phase III' },
-  { value: 'approved', label: 'FDA Approved' },
-];
-
-// Define revenue ranges
-const revenueRanges = [
-  { value: '0-100M', label: 'Under $100M' },
-  { value: '100M-1B', label: '$100M - $1B' },
-  { value: '1B-10B', label: '$1B - $10B' },
-  { value: '10B-50B', label: '$10B - $50B' },
-  { value: '50B+', label: 'Over $50B' },
+  { value: 'asia', label: 'Asia' },
+  { value: 'united-states', label: 'United States' },
+  { value: 'switzerland', label: 'Switzerland' },
+  { value: 'germany', label: 'Germany' },
+  { value: 'japan', label: 'Japan' },
+  { value: 'united-kingdom', label: 'United Kingdom' },
+  { value: 'france', label: 'France' },
+  { value: 'china', label: 'China' },
+  { value: 'other', label: 'Other' }
 ];
 
 // Define sort options
 const sortOptions = [
-  { value: 'name-asc', label: 'Name (A-Z)' },
-  { value: 'name-desc', label: 'Name (Z-A)' },
-  { value: 'marketCap-desc', label: 'Market Cap (High to Low)' },
-  { value: 'marketCap-asc', label: 'Market Cap (Low to High)' },
-  { value: 'founded-desc', label: 'Founded (Newest First)' },
-  { value: 'founded-asc', label: 'Founded (Oldest First)' },
-  { value: 'employees-desc', label: 'Employees (High to Low)' },
-  { value: 'employees-asc', label: 'Employees (Low to High)' },
-  { value: 'revenue-desc', label: 'Revenue (High to Low)' },
-  { value: 'revenue-asc', label: 'Revenue (Low to High)' },
+  { value: 'name_asc', label: 'Name (A to Z)' },
+  { value: 'name_desc', label: 'Name (Z to A)' },
+  { value: 'marketCap_desc', label: 'Market Cap (High to Low)' },
+  { value: 'marketCap_asc', label: 'Market Cap (Low to High)' },
+  { value: 'founded_desc', label: 'Founded (Newest First)' },
+  { value: 'founded_asc', label: 'Founded (Oldest First)' }
 ];
 
-// Define filter configuration
-const filters = [
-  {
-    id: 'therapeuticAreas',
-    label: 'Therapeutic Areas',
-    type: 'multi-select',
-    options: therapeuticAreas,
-    isPrimary: true,
-  },
-  {
-    id: 'headquarters',
-    label: 'Region',
-    type: 'select',
-    options: regions,
-    isPrimary: true,
-  },
-  {
-    id: 'companyType',
-    label: 'Company Type',
-    type: 'select',
-    options: companyTypes,
-    isPrimary: true,
-  },
-  {
-    id: 'developmentPhases',
-    label: 'Development Phases',
-    type: 'multi-select',
-    options: developmentPhases,
-    isPrimary: false,
-  },
-  {
-    id: 'marketCap',
-    label: 'Market Cap (Billions USD)',
-    type: 'range',
-    min: 0,
-    max: 500,
-    step: 10,
-    isPrimary: false,
-  },
-  {
-    id: 'foundedYear',
-    label: 'Founded Year',
-    type: 'range',
-    min: 1900,
-    max: 2023,
-    step: 1,
-    isPrimary: false,
-  },
-  {
-    id: 'revenue',
-    label: 'Annual Revenue',
-    type: 'select',
-    options: revenueRanges,
-    isPrimary: false,
-  },
-  {
-    id: 'employees',
-    label: 'Employees',
-    type: 'range',
-    min: 0,
-    max: 150000,
-    step: 1000,
-    isPrimary: false,
-  },
-  {
-    id: 'hasProducts',
-    label: 'Has Approved Products',
-    type: 'checkbox',
-    isPrimary: false,
-  },
-  {
-    id: 'isClinicalStage',
-    label: 'Clinical Stage',
-    type: 'checkbox',
-    isPrimary: false,
-  },
-];
-
-// Split filters into primary and advanced
-const primaryFilters = filters.filter(filter => filter.isPrimary);
-const advancedFilters = filters.filter(filter => !filter.isPrimary);
-
-// Breadcrumbs for companies page
-const breadcrumbs = [
-  { label: 'Home', href: '/' },
-  { label: 'Companies', href: '/companies', isActive: true },
-];
+// Helper function to build URLs with updated parameters
+const updateUrlParams = (updates: Record<string, string | string[] | null>) => {
+  const newUrl = new URL(Astro.request.url);
+  
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value === null) {
+      newUrl.searchParams.delete(key);
+    } else if (Array.isArray(value)) {
+      if (value.length) {
+        newUrl.searchParams.set(key, value.join(','));
+      } else {
+        newUrl.searchParams.delete(key);
+      }
+    } else {
+      newUrl.searchParams.set(key, value);
+    }
+  });
+  
+  return newUrl.pathname + newUrl.search;
+};
 ---
 
-<DashboardLayout
-  title="Companies Directory | Top Pharma"
-  description="Browse and search pharmaceutical companies in the Top Pharma directory"
-  currentPath="/companies"
-  breadcrumbs={breadcrumbs}
->
-  <div class="space-y-6">
-    <!-- Page header -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900">Companies Directory</h1>
-        <p class="mt-1 text-sm text-gray-500">
-          Browse all pharmaceutical and biotech companies in our database
-          <DataSourceVisualizer contentType="companies" />
-        </p>
-      </div>
-      <div class="flex items-center gap-2">
-        <Button href="/companies/new" variant="primary">Add Company</Button>
+<DashboardLayout title="Pharmaceutical Companies">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Added visual header that connects to detail page design -->
+    <div class="mb-6 overflow-hidden">
+      <div class="flex border border-gray-100 rounded-lg shadow-sm overflow-hidden">
+        <div class="w-3 bg-gradient-to-b from-blue-600 to-blue-700"></div>
+        <div class="p-6 flex items-center">
+          <div class="bg-white p-3 rounded-full shadow-sm mr-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Companies</h1>
+            <p class="text-gray-600 text-sm">Browse and discover pharmaceutical companies in our database</p>
+          </div>
+        </div>
       </div>
     </div>
     
-    <!-- Filters -->
-    <FilterBar filters={filters}>
-      <!-- Primary Filters Section -->
-      <div class="mb-6 border-b border-gray-200 pb-6">
-        <h3 class="text-base font-medium text-gray-900 mb-4">Quick Filters</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <MultiSelect
-            label="Therapeutic Areas"
-            name="therapeuticAreas"
-            options={therapeuticAreas}
-            placeholder="Select therapeutic areas..."
-          />
-          
-          <div>
-            <label for="region" class="block text-sm font-medium text-gray-700 mb-1">Region</label>
-            <select
-              id="region"
-              name="region"
-              class="w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            >
-              <option value="">All Regions</option>
-              {regions.map(region => (
-                <option value={region.value}>{region.label}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label for="companyType" class="block text-sm font-medium text-gray-700 mb-1">Company Type</label>
-            <select
-              id="companyType"
-              name="companyType"
-              class="w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            >
-              <option value="">All Types</option>
-              {companyTypes.map(type => (
-                <option value={type.value}>{type.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Advanced Filters Section -->
-      <div class="mb-2">
-        <div class="flex justify-end items-center mb-4">
-          <!-- Only show the heading when filters are visible -->
-          <h3 class="text-base font-medium text-gray-900 advanced-filter-heading hidden mr-auto">Advanced Filters</h3>
-          <button 
-            type="button" 
-            class="text-sm text-primary-600 font-medium hover:text-primary-800 flex items-center gap-1"
-            data-toggle-advanced
-          >
-            <span class="show-text flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-              <span>Advanced Filters</span>
-            </span>
-            <span class="hide-text hidden flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-              </svg>
-              <span>Hide Advanced Filters</span>
-            </span>
-          </button>
-        </div>
-        
-        <div class="hidden rounded-lg bg-gray-50 p-6 border border-gray-200 w-full mt-2" data-advanced-filters>
-          <div class="space-y-8">
-            <!-- First row -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <MultiSelect
-                label="Development Phases"
-                name="developmentPhases"
-                options={developmentPhases}
-                placeholder="Select phases..."
-              />
-              
-              <div>
-                <label for="revenue" class="block text-sm font-medium text-gray-700 mb-1">Annual Revenue</label>
-                <select
-                  id="revenue"
-                  name="revenue"
-                  class="w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                >
-                  <option value="">Any Revenue</option>
-                  {revenueRanges.map(range => (
-                    <option value={range.value}>{range.label}</option>
-                  ))}
-                </select>
+    <!-- Filter Bar -->
+    <div class="mb-6">
+      <Card>
+        <div class="p-4">
+          <form id="filter-form" method="get" action="/companies">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+              <!-- Search input -->
+              <div class="w-full md:w-1/3">
+                <input 
+                  type="text" 
+                  id="search" 
+                  name="search" 
+                  value={search}
+                  placeholder="Search companies..."
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
               </div>
               
-              <div class="space-y-4 bg-white p-4 rounded-md border border-gray-200">
-                <h4 class="text-sm font-medium text-gray-900">Additional Criteria</h4>
-                <div class="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="hasProducts"
-                    name="hasProducts"
-                    value="true"
-                    class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <label for="hasProducts" class="ml-2 block text-sm text-gray-700">
-                    Has Approved Products
-                  </label>
-                </div>
+              <!-- View and Sort Options -->
+              <div class="flex items-center space-x-3">
+                <ViewToggle 
+                  options={[
+                    { value: 'grid', label: 'Grid', icon: 'grid' },
+                    { value: 'list', label: 'List', icon: 'list' }
+                  ]}
+                  activeOption={viewMode}
+                  onChange={(value) => updateUrlParams({ view: value })}
+                />
                 
-                <div class="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="isClinicalStage"
-                    name="isClinicalStage"
-                    value="true"
-                    class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <label for="isClinicalStage" class="ml-2 block text-sm text-gray-700">
-                    Clinical Stage Companies
-                  </label>
-                </div>
+                <SortSelect 
+                  options={sortOptions}
+                  selected={sortParam}
+                  onChange={(value) => updateUrlParams({ sort: value })}
+                />
               </div>
             </div>
             
-            <!-- Range sliders row -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <!-- Market Cap Range -->
-              <div class="simple-range-slider bg-white p-4 rounded-md border border-gray-200">
-                <label for="marketCapMin" class="block text-sm font-medium text-gray-700 mb-2">Market Cap (Billions USD)</label>
-                <div class="flex items-center gap-2 mb-1">
-                  <input 
-                    type="number" 
-                    id="marketCapMin" 
-                    name="marketCapMin" 
-                    min="0" 
-                    max="500" 
-                    placeholder="0"
-                    class="w-full rounded-md border border-gray-300 py-1.5 px-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            <!-- Advanced Filters (collapsible) -->
+            <details class="mt-4">
+              <summary class="cursor-pointer text-blue-600 font-medium mb-3">Advanced Filters</summary>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-md">
+                <!-- Region Filter -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Regions</label>
+                  <MultiSelect
+                    options={regions}
+                    selected={selectedRegions}
+                    name="regions"
+                    onChange={(values) => {
+                      document.querySelector('input[name="regions"]').value = values.join(',');
+                    }}
                   />
-                  <span class="text-gray-500">to</span>
-                  <input 
-                    type="number" 
-                    id="marketCapMax" 
-                    name="marketCapMax" 
-                    min="0" 
-                    max="500" 
-                    placeholder="500"
-                    class="w-full rounded-md border border-gray-300 py-1.5 px-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                  />
+                  <input type="hidden" name="regions" value={selectedRegions.join(',')} />
                 </div>
-                <div class="text-xs text-gray-500 flex justify-between">
-                  <span>$0B</span>
-                  <span>$500B</span>
-                </div>
-              </div>
-              
-              <!-- Founded Year Range -->
-              <div class="simple-range-slider bg-white p-4 rounded-md border border-gray-200">
-                <label for="foundedYearMin" class="block text-sm font-medium text-gray-700 mb-2">Founded Year</label>
-                <div class="flex items-center gap-2 mb-1">
-                  <input 
-                    type="number" 
-                    id="foundedYearMin" 
-                    name="foundedYearMin" 
-                    min="1900" 
-                    max="2023" 
-                    placeholder="1900"
-                    class="w-full rounded-md border border-gray-300 py-1.5 px-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                
+                <!-- Therapeutic Areas Filter -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Therapeutic Areas</label>
+                  <MultiSelect
+                    options={therapeuticAreas}
+                    selected={selectedTAs}
+                    name="tas"
+                    onChange={(values) => {
+                      document.querySelector('input[name="tas"]').value = values.join(',');
+                    }}
                   />
-                  <span class="text-gray-500">to</span>
-                  <input 
-                    type="number" 
-                    id="foundedYearMax" 
-                    name="foundedYearMax" 
-                    min="1900" 
-                    max="2023" 
-                    placeholder="2023"
-                    class="w-full rounded-md border border-gray-300 py-1.5 px-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                  />
+                  <input type="hidden" name="tas" value={selectedTAs.join(',')} />
                 </div>
-                <div class="text-xs text-gray-500 flex justify-between">
-                  <span>1900</span>
-                  <span>2023</span>
+                
+                <!-- Market Cap Filter -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Market Cap Range ($B)</label>
+                  <RangeSlider
+                    min={0}
+                    max={2000}
+                    step={10}
+                    minValue={minMarketCap}
+                    maxValue={maxMarketCap}
+                    unit="B"
+                    onChange={(min, max) => {
+                      document.querySelector('input[name="minMarketCap"]').value = min.toString();
+                      document.querySelector('input[name="maxMarketCap"]').value = max.toString();
+                    }}
+                  />
+                  <input type="hidden" name="minMarketCap" value={minMarketCap.toString()} />
+                  <input type="hidden" name="maxMarketCap" value={maxMarketCap.toString()} />
                 </div>
               </div>
               
-              <!-- Employees Range -->
-              <div class="simple-range-slider bg-white p-4 rounded-md border border-gray-200">
-                <label for="employeesMin" class="block text-sm font-medium text-gray-700 mb-2">Employees</label>
-                <div class="flex items-center gap-2 mb-1">
-                  <input 
-                    type="number" 
-                    id="employeesMin" 
-                    name="employeesMin" 
-                    min="0" 
-                    max="150000" 
-                    placeholder="0"
-                    class="w-full rounded-md border border-gray-300 py-1.5 px-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                  />
-                  <span class="text-gray-500">to</span>
-                  <input 
-                    type="number" 
-                    id="employeesMax" 
-                    name="employeesMax" 
-                    min="0" 
-                    max="150000" 
-                    placeholder="150000"
-                    class="w-full rounded-md border border-gray-300 py-1.5 px-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                  />
-                </div>
-                <div class="text-xs text-gray-500 flex justify-between">
-                  <span>0</span>
-                  <span>150,000</span>
-                </div>
+              <!-- Filter Action Buttons -->
+              <div class="flex justify-end mt-4 space-x-2">
+                <Button type="submit" variant="primary">Apply Filters</Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    window.location.href = "/companies";
+                  }}
+                >
+                  Reset
+                </Button>
               </div>
-            </div>
-          </div>
-          
-          <div class="mt-8 flex justify-end gap-3">
-            <Button type="button" variant="outline" size="sm" class="px-4" data-reset-filters>Reset Filters</Button>
-            <Button type="button" variant="primary" size="sm" class="px-4" data-apply-filters>Apply Filters</Button>
-          </div>
-        </div>
-      </div>
-    </FilterBar>
-    
-    <!-- Results controls -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <p class="text-sm text-gray-700">
-        Showing <span class="font-medium">{companies.length}</span> companies
-      </p>
-      
-      <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-        <SortSelect
-          options={sortOptions}
-          selectedValue="name-asc"
-        />
-        
-        <div class="flex items-center gap-4">
-          <ViewToggle initialValue="grid" />
-        </div>
-      </div>
-    </div>
-    
-    <!-- Company cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-view="grid" data-view-container="grid">
-      {companies.map(company => (
-        <Card>
-          <div class="p-6">
-            <div class="flex justify-between items-start mb-4">
-              <div>
-                <h3 class="text-lg font-semibold text-gray-900">{company.name}</h3>
-                <p class="text-sm text-gray-500">{company.headquarters}</p>
-              </div>
-              <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                ${company.marketCap}B
-              </span>
-            </div>
-            <p class="text-gray-600 mb-4 line-clamp-2">{company.description}</p>
-            <div class="flex flex-wrap gap-2 mt-3">
-              {company.therapeuticAreas.slice(0, 3).map(area => (
-                <span class="bg-primary-50 text-primary-700 text-xs px-2 py-1 rounded">
-                  {area.name}
-                </span>
-              ))}
-              {company.therapeuticAreas.length > 3 && (
-                <span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
-                  +{company.therapeuticAreas.length - 3} more
-                </span>
-              )}
-            </div>
-            <div class="mt-5">
-              <Button href={`/companies/${company.slug}`} variant="outline" size="sm">View Profile</Button>
-            </div>
-          </div>
-        </Card>
-      ))}
-    </div>
-    
-    <!-- List view (hidden by default) -->
-    <div class="hidden" data-view="list" data-view-container="list">
-      <Card>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Headquarters</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Market Cap</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Therapeutic Areas</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employees</th>
-                <th scope="col" class="relative px-6 py-3">
-                  <span class="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              {companies.map(company => (
-                <tr>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                      <div class="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center">
-                        <span class="text-gray-500 font-medium">{company.name.charAt(0)}</span>
-                      </div>
-                      <div class="ml-4">
-                        <div class="text-sm font-medium text-gray-900">{company.name}</div>
-                        <div class="text-sm text-gray-500">{company.tickerSymbol || 'Private'}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{company.headquarters}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${company.marketCap}B</td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex flex-wrap gap-1">
-                      {company.therapeuticAreas.slice(0, 2).map(area => (
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-800">
-                          {area.name}
-                        </span>
-                      ))}
-                      {company.therapeuticAreas.length > 2 && (
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                          +{company.therapeuticAreas.length - 2}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{company.employees ? company.employees.toLocaleString() : 'N/A'}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <a href={`/companies/${company.slug}`} class="text-primary-600 hover:text-primary-900">View</a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            </details>
+            
+            <!-- Maintain view and sort in form submission -->
+            <input type="hidden" name="view" value={viewMode} />
+            <input type="hidden" name="sort" value={sortParam} />
+          </form>
         </div>
       </Card>
     </div>
     
-    <!-- Pagination -->
-    <div class="flex items-center justify-between border-t border-gray-200 pt-4">
-      <div class="flex flex-1 justify-between sm:hidden">
-        <a href="#" class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Previous</a>
-        <a href="#" class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Next</a>
-      </div>
-      <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-        <div>
-          <p class="text-sm text-gray-700">
-            Showing <span class="font-medium">1</span> to <span class="font-medium">{Math.min(companies.length, 20)}</span> of <span class="font-medium">{companies.length}</span> results
-          </p>
+    <!-- Results Count -->
+    <div class="mb-4">
+      <p class="text-sm text-gray-600">
+        Showing <span class="font-medium">{filteredCompanies.length}</span> companies
+      </p>
+    </div>
+    
+    <!-- Companies Results -->
+    {filteredCompanies.length === 0 ? (
+      <Card>
+        <div class="p-8 text-center">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 class="mt-2 text-lg font-medium text-gray-900">No companies found</h3>
+          <p class="mt-1 text-sm text-gray-500">Try adjusting your filters to find what you're looking for.</p>
+          <div class="mt-6">
+            <Button 
+              href="/companies" 
+              variant="primary"
+            >
+              Reset Filters
+            </Button>
+          </div>
         </div>
-        <div>
-          <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-            <a href="#" class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
-              <span class="sr-only">Previous</span>
-              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
-              </svg>
-            </a>
-            <a href="#" aria-current="page" class="relative z-10 inline-flex items-center bg-primary-600 px-4 py-2 text-sm font-semibold text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600">1</a>
-            <a href="#" class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">2</a>
-            <a href="#" class="relative hidden items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 md:inline-flex">3</a>
-            <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 focus:outline-offset-0">...</span>
-            <a href="#" class="relative hidden items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 md:inline-flex">8</a>
-            <a href="#" class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
-              <span class="sr-only">Next</span>
-              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
-              </svg>
-            </a>
-          </nav>
-        </div>
+      </Card>
+    ) : (
+      <div class={`grid gap-4 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
+        {filteredCompanies.map(company => (
+          <CompanyCard 
+            company={company} 
+            therapeuticAreaNames={companyTaNames.get(company.id) || []}
+            view={viewMode}
+          />
+        ))}
       </div>
+    )}
+    
+    <!-- Data Source Indicator -->
+    <div class="mt-8">
+      <DataSourceVisualizer />
     </div>
   </div>
 </DashboardLayout>
 
-<style>
-  /* Custom styles for range sliders in filters */
-  .filter-range-slider {
-    padding: 0.75rem;
-    background-color: white;
-    border-radius: 0.5rem;
-    border: 1px solid #e5e7eb;
-    position: relative;
-  }
-  
-  /* Base styling for range track */
-  .filter-range-slider [data-slider-track] {
-    height: 0.25rem;
-    background-color: #e5e7eb;
-    border-radius: 9999px;
-    position: relative;
-    margin: 1.5rem 0.5rem;
-  }
-  
-  /* Active range styling */
-  .filter-range-slider [data-slider-range] {
-    background-color: var(--color-primary-500);
-    height: 0.25rem;
-    border-radius: 9999px;
-    position: absolute;
-    top: 0;
-  }
-  
-  /* Thumb styling (the handles) */
-  .filter-range-slider [data-slider-min-thumb],
-  .filter-range-slider [data-slider-max-thumb] {
-    width: 1rem;
-    height: 1rem;
-    border-radius: 50%;
-    background-color: white;
-    border: 2px solid var(--color-primary-500);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    position: absolute;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    cursor: pointer;
-    z-index: 2;
-    transition: all 0.1s ease;
-  }
-  
-  /* Hover and active states for thumbs */
-  .filter-range-slider [data-slider-min-thumb]:hover,
-  .filter-range-slider [data-slider-max-thumb]:hover {
-    transform: translate(-50%, -50%) scale(1.1);
-    background-color: var(--color-primary-50);
-  }
-  
-  .filter-range-slider [data-slider-min-thumb]:active,
-  .filter-range-slider [data-slider-max-thumb]:active {
-    transform: translate(-50%, -50%) scale(1.15);
-    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.2);
-    border-width: 1.5px;
-  }
-  
-  /* Value inputs styling */
-  .filter-range-slider [data-slider-track] + div {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    gap: 0.5rem;
-    align-items: center;
-    margin-top: 1rem;
-  }
-  
-  /* Min/max inputs */
-  .filter-range-slider [data-min-value-input],
-  .filter-range-slider [data-max-value-input] {
-    width: 100%;
-    padding: 0.375rem 0.5rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    text-align: center;
-    background-color: white;
-    transition: border-color 0.15s ease;
-  }
-  
-  .filter-range-slider [data-min-value-input]:focus,
-  .filter-range-slider [data-max-value-input]:focus {
-    outline: none;
-    border-color: var(--color-primary-500);
-    box-shadow: 0 0 0 1px var(--color-primary-500);
-  }
-  
-  /* To separator */
-  .filter-range-slider [data-slider-track] + div span {
-    color: #6b7280;
-    font-size: 0.875rem;
-  }
-  
-  /* Tick marks for the track */
-  .filter-range-slider::after {
-    content: "";
-    position: absolute;
-    left: 1.25rem;
-    right: 1.25rem;
-    top: 2.5rem;
-    height: 4px;
-    background-image: repeating-linear-gradient(
-      to right,
-      #d1d5db,
-      #d1d5db 1px,
-      transparent 1px,
-      transparent 20%
-    );
-    pointer-events: none;
-    opacity: 0.5;
-  }
-
-  /* Simple range slider styles */
-  .simple-range-slider input[type="number"] {
-    -moz-appearance: textfield;
-  }
-  
-  .simple-range-slider input[type="number"]::-webkit-outer-spin-button,
-  .simple-range-slider input[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-</style>
-
 <script>
-  // Client-side view toggling and advanced filters
+  // Client-side enhancement for form submission
   document.addEventListener('DOMContentLoaded', () => {
-    // View toggle functionality
-    const viewToggle = document.querySelector('[data-view-toggle]');
-    const gridView = document.querySelector('[data-view="grid"]');
-    const listView = document.querySelector('[data-view="list"]');
-    
-    viewToggle?.addEventListener('view:changed', (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const viewMode = customEvent.detail.value;
-      
-      if (viewMode === 'grid') {
-        gridView?.classList.remove('hidden');
-        listView?.classList.add('hidden');
-      } else if (viewMode === 'list') {
-        gridView?.classList.add('hidden');
-        listView?.classList.remove('hidden');
-      }
-    });
-    
-    // Advanced filters toggle
-    const advancedToggleBtn = document.querySelector('[data-toggle-advanced]');
-    const advancedFilters = document.querySelector('[data-advanced-filters]');
-    const showText = advancedToggleBtn?.querySelector('.show-text');
-    const hideText = advancedToggleBtn?.querySelector('.hide-text');
-    const filterHeading = document.querySelector('.advanced-filter-heading');
-    
-    advancedToggleBtn?.addEventListener('click', () => {
-      advancedFilters?.classList.toggle('hidden');
-      showText?.classList.toggle('hidden');
-      hideText?.classList.toggle('hidden');
-      filterHeading?.classList.toggle('hidden');
-    });
-    
-    // Simple range slider validation
-    const rangeInputs = document.querySelectorAll('.simple-range-slider input[type="number"]');
-    rangeInputs.forEach(input => {
-      input.addEventListener('change', (e) => {
-        const target = e.target as HTMLInputElement;
-        const value = parseInt(target.value);
-        const min = parseInt(target.min);
-        const max = parseInt(target.max);
-        
-        // Ensure value is within min/max bounds
-        if (value < min) target.value = min.toString();
-        if (value > max) target.value = max.toString();
-        
-        // For min inputs, ensure they don't exceed the max value
-        if (target.id.endsWith('Min')) {
-          const maxInput = document.getElementById(target.id.replace('Min', 'Max')) as HTMLInputElement;
-          if (maxInput && parseInt(target.value) > parseInt(maxInput.value)) {
-            maxInput.value = target.value;
-          }
-        }
-        
-        // For max inputs, ensure they don't go below the min value
-        if (target.id.endsWith('Max')) {
-          const minInput = document.getElementById(target.id.replace('Max', 'Min')) as HTMLInputElement;
-          if (minInput && parseInt(target.value) < parseInt(minInput.value)) {
-            minInput.value = target.value;
-          }
-        }
-      });
-    });
-    
-    console.log('View toggle and advanced filters functionality ready');
-  });
-
-  // Listen for view:changed events from the ViewToggle component
-  document.addEventListener('view:changed', (event) => {
-    const viewValue = event.detail?.value;
-    if (!viewValue) return;
-    
-    // Get containers that should respond to view changes
-    const gridContainer = document.querySelector('[data-view-container="grid"]');
-    const listContainer = document.querySelector('[data-view-container="list"]');
-    
-    if (gridContainer && listContainer) {
-      if (viewValue === 'grid') {
-        gridContainer.classList.remove('hidden');
-        listContainer.classList.add('hidden');
-      } else {
-        gridContainer.classList.add('hidden');
-        listContainer.classList.remove('hidden');
-      }
-    }
+    // No JavaScript needed for basic functionality
+    // Form submits naturally via GET method
   });
 </script> 

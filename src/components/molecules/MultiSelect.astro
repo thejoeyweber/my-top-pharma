@@ -3,7 +3,7 @@
  * MultiSelect Component
  * 
  * A dropdown component that allows users to select multiple options.
- * Includes searchable functionality and selected items display.
+ * Designed for server-side filtering via form submission.
  */
 
 interface Option {
@@ -13,194 +13,112 @@ interface Option {
 
 interface Props {
   options: Option[];
-  label: string;
+  selected: string[];
   name: string;
-  id?: string;
+  label?: string;
   placeholder?: string;
-  selectedValues?: string[];
   class?: string;
+  onChange?: (values: string[]) => void;
 }
 
 const {
   options,
-  label,
+  selected = [],
   name,
-  id = name,
+  label,
   placeholder = "Select options...",
-  selectedValues = [],
   class: className = "",
+  onChange
 } = Astro.props;
+
+// For display in the button
+const selectedCount = selected.length;
+const displayText = selectedCount > 0 ? `${selectedCount} selected` : placeholder;
+
+// Get labels for selected values (for display)
+const selectedLabels = options
+  .filter(option => selected.includes(option.value))
+  .map(option => option.label);
 ---
 
-<div class:list={["multi-select relative", className]} data-multi-select>
-  <label for={id} class="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-  <div class="relative">
-    <button
-      type="button"
-      class="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white py-2 px-3 text-sm text-gray-500 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-      aria-haspopup="listbox"
-      aria-expanded="false"
-      data-multi-select-button
+<div class:list={["multi-select relative", className]}>
+  {label && <label class="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
+  
+  <details class="relative w-full">
+    <summary 
+      class="flex w-full items-center justify-between rounded-md border border-gray-300 bg-white py-2 px-3 text-sm text-gray-500 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 cursor-pointer"
     >
-      <span class="block truncate" data-multi-select-placeholder>
-        {selectedValues.length > 0 ? `${selectedValues.length} selected` : placeholder}
+      <span class="block truncate">
+        {displayText}
       </span>
       <span class="pointer-events-none ml-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
           <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
         </svg>
       </span>
-    </button>
+    </summary>
 
-    <div 
-      class="multi-select-options absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm hidden"
-      data-multi-select-options
-    >
-      <div class="sticky top-0 z-10 bg-white px-2 py-1.5">
-        <div class="relative">
-          <div class="absolute inset-y-0 left-0 flex items-center pl-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+    <div class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+      {options.length > 10 && (
+        <div class="sticky top-0 z-10 bg-white px-2 py-1.5">
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 flex items-center pl-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text" 
+              class="filter-input w-full rounded-md border-0 py-1.5 pl-8 pr-2 text-sm text-gray-900 focus:ring-2 focus:ring-primary-600"
+              placeholder="Search options..."
+            />
           </div>
-          <input
-            type="search" 
-            class="w-full rounded-md border-0 py-1.5 pl-8 pr-2 text-sm text-gray-900 focus:ring-2 focus:ring-primary-600"
-            placeholder="Search options..."
-            data-multi-select-search
-          />
         </div>
-      </div>
+      )}
 
-      <ul class="max-h-56 overflow-auto py-1" role="listbox" aria-label={label} data-multi-select-list>
+      <div class="max-h-56 overflow-auto py-1">
         {options.map((option) => (
-          <li
-            class:list={[
-              "relative flex items-center py-2 pl-3 pr-9 cursor-pointer select-none hover:bg-primary-50",
-              selectedValues.includes(option.value) ? "bg-primary-50" : ""
-            ]}
-            role="option"
-            data-multi-select-option
+          <label
+            class="relative flex items-center py-2 px-3 cursor-pointer select-none hover:bg-primary-50 option-item"
             data-value={option.value}
-            aria-selected={selectedValues.includes(option.value).toString()}
+            data-label={option.label}
           >
-            <span class="flex items-center">
-              <input
-                type="checkbox"
-                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600"
-                checked={selectedValues.includes(option.value)}
-                data-multi-select-checkbox
-              />
-              <span class="ml-2 truncate">{option.label}</span>
-            </span>
-          </li>
+            <input
+              type="checkbox"
+              name={`${name}[]`}
+              value={option.value}
+              checked={selected.includes(option.value)}
+              class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-600"
+              onchange={onChange && `(function() { 
+                const values = Array.from(document.querySelectorAll('input[name="${name}[]"]:checked')).map(el => el.value);
+                (${onChange.toString()})(values);
+              })()`}
+            />
+            <span class="ml-2 truncate">{option.label}</span>
+          </label>
         ))}
-      </ul>
+      </div>
     </div>
-
-    <!-- Hidden input to store selected values -->
-    <div class="hidden">
-      {selectedValues.map((value) => (
-        <input type="hidden" name={`${name}[]`} value={value} data-multi-select-value />
-      ))}
-    </div>
-  </div>
+  </details>
 </div>
 
 <script>
-  // Functionality for MultiSelect component
+  // Simple client-side filtering for the options
   document.addEventListener('DOMContentLoaded', () => {
-    const multiSelects = document.querySelectorAll('[data-multi-select]');
-    
-    multiSelects.forEach(select => {
-      const button = select.querySelector('[data-multi-select-button]');
-      const optionsContainer = select.querySelector('[data-multi-select-options]');
-      const searchInput = select.querySelector('[data-multi-select-search]');
-      const options = select.querySelectorAll('[data-multi-select-option]');
-      const placeholder = select.querySelector('[data-multi-select-placeholder]');
-      const valuesContainer = select.querySelector('[data-multi-select-value]')?.parentElement;
-      const name = valuesContainer?.querySelector('[data-multi-select-value]')?.getAttribute('name')?.replace('[]', '') || '';
-      
-      // Toggle dropdown
-      button?.addEventListener('click', () => {
-        const expanded = button.getAttribute('aria-expanded') === 'true';
-        button.setAttribute('aria-expanded', (!expanded).toString());
-        optionsContainer?.classList.toggle('hidden');
+    document.querySelectorAll('.filter-input').forEach(input => {
+      input.addEventListener('input', (e) => {
+        const value = (e.target as HTMLInputElement).value.toLowerCase();
+        const container = (e.target as HTMLElement).closest('details');
         
-        if (!expanded) {
-          searchInput?.focus();
-        }
-      });
-      
-      // Close dropdown when clicking outside
-      document.addEventListener('click', (event) => {
-        if (!select.contains(event.target as Node) && !optionsContainer?.classList.contains('hidden')) {
-          button?.setAttribute('aria-expanded', 'false');
-          optionsContainer?.classList.add('hidden');
-        }
-      });
-      
-      // Handle option selection
-      options.forEach(option => {
-        option.addEventListener('click', () => {
-          const value = option.getAttribute('data-value') || '';
-          const checkbox = option.querySelector('[data-multi-select-checkbox]') as HTMLInputElement;
-          const isSelected = option.getAttribute('aria-selected') === 'true';
-          
-          // Toggle selection
-          option.setAttribute('aria-selected', (!isSelected).toString());
-          checkbox.checked = !isSelected;
-          
-          // Update hidden inputs
-          updateHiddenInputs();
-          
-          // Update placeholder text
-          updatePlaceholder();
-        });
-      });
-      
-      // Filter options when typing in search
-      searchInput?.addEventListener('input', () => {
-        const searchValue = (searchInput as HTMLInputElement).value.toLowerCase();
-        
-        options.forEach(option => {
-          const optionText = option.textContent?.toLowerCase() || '';
-          if (optionText.includes(searchValue)) {
-            option.classList.remove('hidden');
+        container?.querySelectorAll('.option-item').forEach(item => {
+          const label = (item as HTMLElement).dataset.label?.toLowerCase() || '';
+          if (label.includes(value)) {
+            (item as HTMLElement).style.display = '';
           } else {
-            option.classList.add('hidden');
+            (item as HTMLElement).style.display = 'none';
           }
         });
       });
-      
-      // Helper function to update hidden inputs
-      function updateHiddenInputs() {
-        // Clear existing hidden inputs
-        if (valuesContainer) {
-          valuesContainer.innerHTML = '';
-          
-          // Add new hidden inputs for selected values
-          options.forEach(option => {
-            if (option.getAttribute('aria-selected') === 'true') {
-              const value = option.getAttribute('data-value') || '';
-              const input = document.createElement('input');
-              input.type = 'hidden';
-              input.name = `${name}[]`;
-              input.value = value;
-              input.setAttribute('data-multi-select-value', '');
-              valuesContainer.appendChild(input);
-            }
-          });
-        }
-      }
-      
-      // Helper function to update placeholder text
-      function updatePlaceholder() {
-        const selectedCount = select.querySelectorAll('[data-multi-select-option][aria-selected="true"]').length;
-        if (placeholder) {
-          placeholder.textContent = selectedCount > 0 ? `${selectedCount} selected` : (button?.getAttribute('data-placeholder') || 'Select options...');
-        }
-      }
     });
   });
 </script> 

@@ -11,29 +11,65 @@ import Button from '../../components/atoms/Button.astro';
 import FilterBar from '../../components/organisms/FilterBar.astro';
 import SortSelect from '../../components/molecules/SortSelect.astro';
 import ViewToggle from '../../components/molecules/ViewToggle.astro';
+import MultiSelect from '../../components/molecules/MultiSelect.astro';
 import ProductCard from '../../components/molecules/ProductCard.astro';
 import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
+import { logError } from '../../utils/errorUtils';
 
 // Import Supabase client directly
 import { supabase } from '../../lib/supabase';
 import { dbProductToProduct } from '../../interfaces/entities/Product';
 import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/TherapeuticArea';
-import type { Product, TherapeuticArea } from '../../interfaces/entities';
-import { getCompany } from '../../utils/companyDataUtils';
+import { dbCompanyToCompany } from '../../interfaces/entities/Company';
+import type { Product, TherapeuticArea, Company } from '../../interfaces/entities';
 
-// Define breadcrumbs for navigation
-const breadcrumbs = [
-  { label: 'Products', href: '/products', active: true },
-];
+// Get URL query parameters for filtering and sorting
+const url = new URL(Astro.request.url);
+const params = url.searchParams;
 
-// Fetch all products from Supabase
-const { data: dbProducts, error: productsError } = await supabase
-  .from('products')
-  .select('*')
-  .order('name');
+// Extract filter and sort parameters
+const sortParam = params.get('sort') || 'name_asc';
+const viewMode = params.get('view') || 'grid';
+const search = params.get('search') || '';
+const selectedCompanies = params.get('companies')?.split(',') || [];
+const selectedTAs = params.get('tas')?.split(',') || [];
+const selectedStages = params.get('stages')?.split(',') || [];
+
+// Parse sort parameter
+const [sortField, sortDirection] = sortParam.split('_');
+
+// Build Supabase query with filtering and sorting
+let query = supabase.from('products').select('*');
+
+// Apply search filter if provided
+if (search) {
+  query = query.ilike('name', `%${search}%`);
+}
+
+// Apply company filter if provided
+if (selectedCompanies.length > 0) {
+  query = query.in('company_id', selectedCompanies);
+}
+
+// Apply product stage filter if provided
+if (selectedStages.length > 0) {
+  query = query.in('development_stage', selectedStages);
+}
+
+// Apply sorting
+if (sortField === 'name') {
+  query = query.order('name', { ascending: sortDirection === 'asc' });
+} else if (sortField === 'stage') {
+  query = query.order('development_stage', { ascending: sortDirection === 'asc' });
+} else if (sortField === 'company') {
+  // Will need to sort in memory after fetching company data
+}
+
+// Execute the query
+const { data: dbProducts, error: productsError } = await query;
 
 if (productsError) {
-  console.error('Error fetching products:', productsError);
+  logError('Error fetching products:', productsError);
 }
 
 // Convert database records to application entities
@@ -46,545 +82,352 @@ const { data: dbTherapeuticAreas, error: taError } = await supabase
   .order('name');
 
 if (taError) {
-  console.error('Error fetching therapeutic areas:', taError);
+  logError('Error fetching therapeutic areas:', taError);
 }
 
-// Convert database records to application entities
-const therapeuticAreas: TherapeuticArea[] = (dbTherapeuticAreas || []).map(dbTherapeuticAreaToTherapeuticArea);
+// Create therapeutic areas options for filtering
+const therapeuticAreas = (dbTherapeuticAreas || []).map(ta => ({
+  value: ta.id,
+  label: ta.name
+}));
 
-// Helper function to get stage name
-const getStageName = (stage: string): string => {
-  const stageMap = {
-    'preclinical': 'Preclinical',
-    'phase1': 'Phase 1',
-    'phase2': 'Phase 2',
-    'phase3': 'Phase 3',
-    'approved': 'Approved',
-    'market': 'Marketed',
-    'discontinued': 'Discontinued'
-  };
-  return stageMap[stage] || stage;
-};
+// Filter products by therapeutic areas (need to do this separately due to relation tables)
+let filteredProducts = products;
+if (selectedTAs.length > 0) {
+  // Fetch product-therapeutic area relations
+  const { data: productTAs, error: ptaError } = await supabase
+    .from('product_therapeutic_areas')
+    .select('product_id, therapeutic_area_id')
+    .in('therapeutic_area_id', selectedTAs);
+    
+  if (ptaError) {
+    logError('Error fetching product-therapeutic area relations:', ptaError);
+  }
+  
+  // Get unique product IDs that have the selected therapeutic areas
+  const productIds = [...new Set((productTAs || []).map(pta => pta.product_id))];
+  
+  // Filter products by those IDs
+  filteredProducts = products.filter(product => productIds.includes(product.id));
+}
 
-// Define filter options
-const filters = [
-  {
-    id: 'stage',
-    label: 'Development Stage',
-    type: 'select',
-    options: [
+// Special handling for sorting by company name (client-side sort)
+if (sortField === 'company') {
+  // Fetch all companies for sorting
+  const { data: companiesData, error: companiesError } = await supabase
+    .from('companies')
+    .select('id, name');
+    
+  if (companiesError) {
+    logError('Error fetching companies for sorting:', companiesError);
+  }
+  
+  // Create a map of company IDs to names
+  const companyNameMap = new Map<string, string>();
+  (companiesData || []).forEach(company => {
+    companyNameMap.set(company.id, company.name);
+  });
+  
+  // Sort products by company name
+  filteredProducts.sort((a, b) => {
+    const companyA = companyNameMap.get(a.companyId) || '';
+    const companyB = companyNameMap.get(b.companyId) || '';
+    
+    if (sortDirection === 'asc') {
+      return companyA.localeCompare(companyB);
+    } else {
+      return companyB.localeCompare(companyA);
+    }
+  });
+}
+
+// Fetch company data for each product
+const companyMap = new Map<string, Company>();
+const companyIds = [...new Set(filteredProducts.map(product => product.companyId))];
+
+if (companyIds.length > 0) {
+  const { data: companiesData, error: companiesError } = await supabase
+    .from('companies')
+    .select('*')
+    .in('id', companyIds);
+    
+  if (companiesError) {
+    logError('Error fetching companies for products:', companiesError);
+  }
+  
+  (companiesData || []).forEach(company => {
+    companyMap.set(company.id, dbCompanyToCompany(company));
+  });
+}
+
+// Get therapeutic area names for each product
+const productTaNames = new Map<string, string[]>();
+
+// Fetch all product-therapeutic area relations
+const { data: allProductTAs, error: allPtaError } = await supabase
+  .from('product_therapeutic_areas')
+  .select('product_id, therapeutic_area_id');
+  
+if (allPtaError) {
+  logError('Error fetching all product-therapeutic area relations:', allPtaError);
+}
+
+// Group by product
+const productTaMap = new Map<string, string[]>();
+(allProductTAs || []).forEach(pta => {
+  const taIds = productTaMap.get(pta.product_id) || [];
+  productTaMap.set(pta.product_id, [...taIds, pta.therapeutic_area_id]);
+});
+
+// Get therapeutic area names
+const taNameMap = new Map<string, string>();
+dbTherapeuticAreas?.forEach(ta => {
+  taNameMap.set(ta.id, ta.name);
+});
+
+// Create the final map of product ID to therapeutic area names
+filteredProducts.forEach(product => {
+  const taIds = productTaMap.get(product.id) || [];
+  const taNames = taIds.map(id => taNameMap.get(id)).filter(Boolean) as string[];
+  productTaNames.set(product.id, taNames);
+});
+
+// Fetch all companies for filtering
+const { data: allCompaniesData, error: allCompaniesError } = await supabase
+  .from('companies')
+  .select('id, name')
+  .order('name');
+  
+if (allCompaniesError) {
+  logError('Error fetching all companies for filtering:', allCompaniesError);
+}
+
+// Create company options for filtering
+const companyOptions = (allCompaniesData || []).map(company => ({
+  value: company.id,
+  label: company.name
+}));
+
+// Define product development stages for filtering
+const stageOptions = [
+  { value: 'discovery', label: 'Discovery' },
       { value: 'preclinical', label: 'Preclinical' },
       { value: 'phase1', label: 'Phase 1' },
       { value: 'phase2', label: 'Phase 2' },
       { value: 'phase3', label: 'Phase 3' },
       { value: 'approved', label: 'Approved' },
-      { value: 'market', label: 'Marketed' },
-      { value: 'discontinued', label: 'Discontinued' },
-    ]
-  },
-  {
-    id: 'therapeuticAreas',
-    label: 'Therapeutic Areas',
-    type: 'multi-select',
-    options: therapeuticAreas.map(area => ({
-      value: area.id,
-      label: area.name
-    }))
-  },
-  {
-    id: 'moleculeType',
-    label: 'Molecule Type',
-    type: 'select',
-    options: [
-      { value: 'small-molecule', label: 'Small Molecule' },
-      { value: 'biologic', label: 'Biologic' },
-      { value: 'antibody', label: 'Monoclonal Antibody' },
-      { value: 'protein', label: 'Protein Therapeutic' },
-      { value: 'gene-therapy', label: 'Gene Therapy' },
-      { value: 'cell-therapy', label: 'Cell Therapy' },
-      { value: 'vaccine', label: 'Vaccine' },
-      { value: 'other', label: 'Other' },
-    ]
-  },
+  { value: 'marketed', label: 'Marketed' }
 ];
 
 // Define sort options
 const sortOptions = [
-  { value: 'name', label: 'Product Name (A-Z)' },
-  { value: 'stage', label: 'Development Stage' },
-  { value: 'recentApproval', label: 'Recent Approvals' },
-  { value: 'company', label: 'Company' }
+  { value: 'name_asc', label: 'Name (A to Z)' },
+  { value: 'name_desc', label: 'Name (Z to A)' },
+  { value: 'company_asc', label: 'Company (A to Z)' },
+  { value: 'company_desc', label: 'Company (Z to A)' },
+  { value: 'stage_asc', label: 'Stage (Early to Late)' },
+  { value: 'stage_desc', label: 'Stage (Late to Early)' }
 ];
 
-// Set up page metadata
-const title = "Pharmaceutical Products Directory | Top Pharma";
-const description = "Browse pharmaceutical products by development stage, therapeutic area, and more.";
-
-// Helper: Extract the earliest start date from the timeline
-const getStartDate = (product) => {
-  if (!product.timeline || product.timeline.length === 0) return '';
-  const dates = product.timeline.map(event => new Date(event.startDate).getTime());
-  return new Date(Math.min(...dates)).toISOString();
+// Helper function to build URLs with updated parameters
+const updateUrlParams = (updates: Record<string, string | string[] | null>) => {
+  const newUrl = new URL(Astro.request.url);
+  
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value === null) {
+      newUrl.searchParams.delete(key);
+    } else if (Array.isArray(value)) {
+      if (value.length) {
+        newUrl.searchParams.set(key, value.join(','));
+      } else {
+        newUrl.searchParams.delete(key);
+      }
+    } else {
+      newUrl.searchParams.set(key, value);
+    }
+  });
+  
+  return newUrl.pathname + newUrl.search;
 };
-
-// Get the stage order for sorting
-const getStageOrder = (stage) => {
-  const stageOrder = {
-    'preclinical': 1,
-    'phase1': 2,
-    'phase2': 3,
-    'phase3': 4,
-    'submitted': 5,
-    'approved': 6,
-    'marketed': 7
-  };
-  return stageOrder[stage] || 0;
-};
-
-// Sort products based on selected option
-const sortedProducts = [...products].sort((a, b) => {
-  // Default sort: name ascending
-  return a.name.localeCompare(b.name);
-});
-
-// Helper function to get company by ID
-async function getCompanyById(id: string) {
-  const result = await getCompany(id, 'id');
-  return result.data;
-}
 ---
 
-<DashboardLayout
-  title="Products Directory | Top Pharma"
-  description="Browse and search pharmaceutical products and pipeline candidates in the Top Pharma directory"
-  currentPath="/products"
-  breadcrumbs={breadcrumbs}
->
-  <div class="space-y-6">
-    <!-- Page header -->
-    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900">Products Directory</h1>
-        <p class="mt-1 text-sm text-gray-600">
-          Browse all pharmaceutical products in the directory
-          <DataSourceVisualizer contentType="products" />
-        </p>
-      </div>
-      <div class="flex items-center gap-2">
-        <Button href="/products/pipeline" variant="outline">View Pipeline</Button>
-        <Button href="/products/new" variant="primary">Add Product</Button>
+<DashboardLayout title="Pharmaceutical Products">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Added visual header that connects to detail page design -->
+    <div class="mb-6 overflow-hidden">
+      <div class="flex border border-gray-100 rounded-lg shadow-sm overflow-hidden">
+        <div class="w-3 bg-gradient-to-b from-green-600 to-green-700"></div>
+        <div class="p-6 flex items-center">
+          <div class="bg-white p-3 rounded-full shadow-sm mr-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Products</h1>
+            <p class="text-gray-600 text-sm">Explore pharmaceutical products and medications in our database</p>
+          </div>
+        </div>
       </div>
     </div>
     
-    <!-- Filters -->
-    <FilterBar filters={filters}>
-      <!-- Primary Filters Section -->
-      <div class="mb-6 border-b border-gray-200 pb-6">
-        <h3 class="text-base font-medium text-gray-900 mb-4">Quick Filters</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <label for="stage" class="block text-sm font-medium text-gray-700 mb-1">Development Stage</label>
-            <select
-              id="stage"
-              name="stage"
-              class="w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            >
-              <option value="">All Stages</option>
-              <option value="marketed,approved">Marketed & Approved</option>
-              <option value="phase3,submitted">Late Stage (Phase 3/Submitted)</option>
-              <option value="phase1,phase2">Early Clinical (Phase 1-2)</option>
-              <option value="preclinical">Preclinical</option>
-            </select>
+    <!-- Filter Bar -->
+    <div class="mb-6">
+      <Card>
+        <div class="p-4">
+          <form id="filter-form" method="get" action="/products">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+              <!-- Search input -->
+              <div class="w-full md:w-1/3">
+                <input 
+                  type="text" 
+                  id="search" 
+                  name="search" 
+                  value={search}
+                  placeholder="Search products..."
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
           </div>
           
-          <div>
-            <label for="therapeuticArea" class="block text-sm font-medium text-gray-700 mb-1">Therapeutic Area</label>
-            <select
-              id="therapeuticArea"
-              name="therapeuticArea"
-              class="w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            >
-              <option value="">All Areas</option>
-              {therapeuticAreas.map(area => (
-                <option value={area.id}>{area.name}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label for="moleculeType" class="block text-sm font-medium text-gray-700 mb-1">Molecule Type</label>
-            <select
-              id="moleculeType"
-              name="moleculeType"
-              class="w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            >
-              <option value="">All Types</option>
-              <option value="Small Molecule">Small Molecule</option>
-              <option value="Monoclonal Antibody">Monoclonal Antibody</option>
-              <option value="Biologic">Biologic</option>
-              <option value="Peptide">Peptide</option>
-            </select>
-          </div>
+              <!-- View and Sort Options -->
+              <div class="flex items-center space-x-3">
+                <ViewToggle 
+                  options={[
+                    { value: 'grid', label: 'Grid', icon: 'grid' },
+                    { value: 'list', label: 'List', icon: 'list' }
+                  ]}
+                  activeOption={viewMode}
+                  onChange={(value) => updateUrlParams({ view: value })}
+                />
+                
+                <SortSelect 
+                  options={sortOptions}
+                  selected={sortParam}
+                  onChange={(value) => updateUrlParams({ sort: value })}
+                />
         </div>
       </div>
       
-      <!-- Advanced Filters Section -->
-      <div class="mb-2">
-        <div class="flex justify-end items-center mb-4">
-          <h3 class="text-base font-medium text-gray-900 advanced-filter-heading hidden mr-auto">Advanced Filters</h3>
-          <button 
-            type="button" 
-            class="text-sm text-primary-600 font-medium hover:text-primary-800 flex items-center gap-1"
-            data-toggle-advanced
-          >
-            <span class="show-text flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-              </svg>
-              <span>Advanced Filters</span>
-            </span>
-            <span class="hide-text hidden flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-              </svg>
-              <span>Hide Advanced Filters</span>
-            </span>
-          </button>
-        </div>
-        
-        <div class="hidden rounded-lg bg-gray-50 p-6 border border-gray-200 w-full mt-2" data-advanced-filters>
-          <div class="space-y-8">
-            <!-- First row -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Advanced Filters (collapsible) -->
+            <details class="mt-4">
+              <summary class="cursor-pointer text-blue-600 font-medium mb-3">Advanced Filters</summary>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-md">
+                <!-- Company Filter -->
               <div>
-                <label for="indication" class="block text-sm font-medium text-gray-700 mb-1">Indication</label>
-                <select
-                  id="indication"
-                  name="indication"
-                  class="w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Companies</label>
+                  <MultiSelect
+                    options={companyOptions}
+                    selected={selectedCompanies}
+                    name="companies"
+                    onChange={(values) => {
+                      document.querySelector('input[name="companies"]').value = values.join(',');
+                    }}
+                  />
+                  <input type="hidden" name="companies" value={selectedCompanies.join(',')} />
+                </div>
+                
+                <!-- Therapeutic Areas Filter -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Therapeutic Areas</label>
+                  <MultiSelect
+                    options={therapeuticAreas}
+                    selected={selectedTAs}
+                    name="tas"
+                    onChange={(values) => {
+                      document.querySelector('input[name="tas"]').value = values.join(',');
+                    }}
+                  />
+                  <input type="hidden" name="tas" value={selectedTAs.join(',')} />
+                </div>
+                
+                <!-- Product Stage Filter -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Development Stage</label>
+                  <MultiSelect
+                    options={stageOptions}
+                    selected={selectedStages}
+                    name="stages"
+                    onChange={(values) => {
+                      document.querySelector('input[name="stages"]').value = values.join(',');
+                    }}
+                  />
+                  <input type="hidden" name="stages" value={selectedStages.join(',')} />
+                </div>
+              </div>
+              
+              <!-- Filter Action Buttons -->
+              <div class="flex justify-end mt-4 space-x-2">
+                <Button type="submit" variant="primary">Apply Filters</Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    window.location.href = "/products";
+                  }}
                 >
-                  <option value="">All Indications</option>
-                  <option value="Alzheimer's Disease">Alzheimer's Disease</option>
-                  <option value="Breast Cancer">Breast Cancer</option>
-                  <option value="COVID-19">COVID-19</option>
-                  <option value="Diabetes Mellitus">Diabetes Mellitus</option>
-                  <option value="Hypertension">Hypertension</option>
-                  <option value="Multiple Sclerosis">Multiple Sclerosis</option>
-                  <option value="Osteoarthritis">Osteoarthritis</option>
-                  <option value="Parkinson's Disease">Parkinson's Disease</option>
-                  <option value="Psoriasis">Psoriasis</option>
-                  <option value="Rheumatoid Arthritis">Rheumatoid Arthritis</option>
-                </select>
+                  Reset
+                </Button>
               </div>
-              
-              <div class="space-y-4 bg-white p-4 rounded-md border border-gray-200">
-                <h4 class="text-sm font-medium text-gray-900">Regulatory Status</h4>
-                <div class="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="fdaApproved"
-                    name="fdaApproved"
-                    value="true"
-                    class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <label for="fdaApproved" class="ml-2 block text-sm text-gray-700">
-                    FDA Approved
-                  </label>
-                </div>
-                
-                <div class="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="emaApproved"
-                    name="emaApproved"
-                    value="true"
-                    class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <label for="emaApproved" class="ml-2 block text-sm text-gray-700">
-                    EMA Approved
-                  </label>
-                </div>
-                
-                <div class="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="pendingApproval"
-                    name="pendingApproval"
-                    value="true"
-                    class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <label for="pendingApproval" class="ml-2 block text-sm text-gray-700">
-                    Pending Approval
-                  </label>
-                </div>
-              </div>
-              
-              <div class="space-y-4 bg-white p-4 rounded-md border border-gray-200">
-                <h4 class="text-sm font-medium text-gray-900">Other Criteria</h4>
-                <div class="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="hasPatents"
-                    name="hasPatents"
-                    value="true"
-                    class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <label for="hasPatents" class="ml-2 block text-sm text-gray-700">
-                    Has Patents
-                  </label>
-                </div>
-                
-                <div class="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="hasWebsite"
-                    name="hasWebsite"
-                    value="true"
-                    class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <label for="hasWebsite" class="ml-2 block text-sm text-gray-700">
-                    Has Website
-                  </label>
-                </div>
-              </div>
-            </div>
+            </details>
             
-            <!-- Year range -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div class="simple-range-slider bg-white p-4 rounded-md border border-gray-200">
-                <label for="yearMin" class="block text-sm font-medium text-gray-700 mb-2">Program Start Year</label>
-                <div class="flex items-center gap-2 mb-1">
-                  <input 
-                    type="number" 
-                    id="yearMin" 
-                    name="yearMin" 
-                    min="2000" 
-                    max="2023" 
-                    placeholder="2000"
-                    class="w-full rounded-md border border-gray-300 py-1.5 px-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                  />
-                  <span class="text-gray-500">to</span>
-                  <input 
-                    type="number" 
-                    id="yearMax" 
-                    name="yearMax" 
-                    min="2000" 
-                    max="2023" 
-                    placeholder="2023"
-                    class="w-full rounded-md border border-gray-300 py-1.5 px-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                  />
-                </div>
-                <div class="text-xs text-gray-500 flex justify-between">
-                  <span>2000</span>
-                  <span>2023</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="mt-8 flex justify-end gap-3">
-            <Button type="button" variant="outline" size="sm" class="px-4" data-reset-filters>Reset Filters</Button>
-            <Button type="button" variant="primary" size="sm" class="px-4" data-apply-filters>Apply Filters</Button>
-          </div>
+            <!-- Maintain view and sort in form submission -->
+            <input type="hidden" name="view" value={viewMode} />
+            <input type="hidden" name="sort" value={sortParam} />
+          </form>
         </div>
+      </Card>
       </div>
-    </FilterBar>
     
-    <!-- Results controls -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <p class="text-sm text-gray-700">
-        Showing <span class="font-medium">{products.length}</span> products
+    <!-- Results Count -->
+    <div class="mb-4">
+      <p class="text-sm text-gray-600">
+        Showing <span class="font-medium">{filteredProducts.length}</span> products
       </p>
-      
-      <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-        <SortSelect
-          options={sortOptions}
-          selectedValue="name"
-        />
-        
-        <div class="flex items-center gap-4">
-          <ViewToggle initialValue="grid" />
-        </div>
-      </div>
     </div>
     
-    <!-- Product cards (Grid View) -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-view="grid" data-view-container="grid">
-      {sortedProducts.map(product => (
-        <ProductCard product={product} view="grid" />
+    <!-- Products Results -->
+    {filteredProducts.length === 0 ? (
+      <Card>
+        <div class="p-8 text-center">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 class="mt-2 text-lg font-medium text-gray-900">No products found</h3>
+          <p class="mt-1 text-sm text-gray-500">Try adjusting your filters to find what you're looking for.</p>
+          <div class="mt-6">
+            <Button 
+              href="/products" 
+              variant="primary"
+            >
+              Reset Filters
+            </Button>
+          </div>
+        </div>
+      </Card>
+    ) : (
+      <div class={`grid gap-4 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
+        {filteredProducts.map(product => (
+          <ProductCard 
+            product={product} 
+            company={companyMap.get(product.companyId)}
+            therapeuticAreaNames={productTaNames.get(product.id) || []}
+            view={viewMode}
+          />
       ))}
     </div>
+    )}
     
-    <!-- Product table (List View) -->
-    <div class="hidden overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg" data-view="list" data-view-container="list">
-      <table class="min-w-full divide-y divide-gray-300">
-        <thead class="bg-gray-50">
-          <tr>
-            <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
-            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Stage</th>
-            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Molecule Type</th>
-            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Company</th>
-            <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Therapeutic Areas</th>
-            <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
-              <span class="sr-only">View</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-200 bg-white">
-          {sortedProducts.map(product => {
-            const company = product.companyId ? getCompanyById(product.companyId) : null;
-            // Get therapeutic area names for the current product
-            const productTherapeuticAreaNames = product.therapeuticAreas && Array.isArray(product.therapeuticAreas) 
-              ? product.therapeuticAreas.map(id => {
-                  if (!id) return '';
-                  const area = therapeuticAreasData.find(a => a.id === id);
-                  return area ? area.name : id;
-                }).filter(Boolean).join(', ')
-              : '';
-            
-            return (
-              <tr>
-                <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
-                  <div class="font-medium text-gray-900">{product.name}</div>
-                  {product.genericName && (
-                    <div class="text-gray-500 italic">{product.genericName}</div>
-                  )}
-                </td>
-                <td class="whitespace-nowrap px-3 py-4 text-sm">
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={
-                    product.stage === 'marketed' || product.stage === 'approved' 
-                      ? 'background-color:var(--color-green-100, #dcfce7); color:var(--color-green-800, #166534)' 
-                      : product.stage === 'submitted'
-                      ? 'background-color:var(--color-yellow-100, #fef9c3); color:var(--color-yellow-800, #854d0e)'
-                      : 'background-color:var(--color-blue-100, #dbeafe); color:var(--color-blue-800, #1e40af)'
-                  }>
-                    {getStageName(product.stage)}
-                  </span>
-                </td>
-                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{product.moleculeType}</td>
-                <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                  {company ? (
-                    <a href={`/companies/${company.slug}`} class="text-[color:var(--color-primary-600)] hover:underline">
-                      {company.name}
-                    </a>
-                  ) : ('N/A')}
-                </td>
-                <td class="px-3 py-4 text-sm text-gray-500">
-                  <div class="max-w-xs truncate">{productTherapeuticAreaNames}</div>
-                </td>
-                <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                  <a href={`/products/${product.id}`} class="text-[color:var(--color-primary-600)] hover:text-[color:var(--color-primary-900)]">
-                    View<span class="sr-only">, {product.name}</span>
-                  </a>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <!-- Data Source Indicator -->
+    <div class="mt-8">
+      <DataSourceVisualizer />
     </div>
   </div>
 </DashboardLayout>
 
-<style>
-  /* Simple range slider styles */
-  .simple-range-slider input[type="number"] {
-    -moz-appearance: textfield;
-  }
-  
-  .simple-range-slider input[type="number"]::-webkit-outer-spin-button,
-  .simple-range-slider input[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-</style>
-
 <script>
-  // Client-side view toggling and advanced filters
+  // Client-side enhancement for form submission
   document.addEventListener('DOMContentLoaded', () => {
-    // View toggle functionality
-    const viewToggle = document.querySelector('[data-view-toggle]');
-    const gridView = document.querySelector('[data-view="grid"]');
-    const listView = document.querySelector('[data-view="list"]');
-    
-    viewToggle?.addEventListener('view:changed', (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const viewMode = customEvent.detail.value;
-      
-      if (viewMode === 'grid') {
-        gridView?.classList.remove('hidden');
-        listView?.classList.add('hidden');
-      } else if (viewMode === 'list') {
-        gridView?.classList.add('hidden');
-        listView?.classList.remove('hidden');
-      }
-    });
-    
-    // Advanced filters toggle
-    const advancedToggleBtn = document.querySelector('[data-toggle-advanced]');
-    const advancedFilters = document.querySelector('[data-advanced-filters]');
-    const showText = advancedToggleBtn?.querySelector('.show-text');
-    const hideText = advancedToggleBtn?.querySelector('.hide-text');
-    const filterHeading = document.querySelector('.advanced-filter-heading');
-    
-    advancedToggleBtn?.addEventListener('click', () => {
-      advancedFilters?.classList.toggle('hidden');
-      showText?.classList.toggle('hidden');
-      hideText?.classList.toggle('hidden');
-      filterHeading?.classList.toggle('hidden');
-    });
-    
-    // Simple range slider validation
-    const rangeInputs = document.querySelectorAll('.simple-range-slider input[type="number"]');
-    rangeInputs.forEach(input => {
-      input.addEventListener('change', (e) => {
-        const target = e.target as HTMLInputElement;
-        const value = parseInt(target.value);
-        const min = parseInt(target.min);
-        const max = parseInt(target.max);
-        
-        // Ensure value is within min/max bounds
-        if (value < min) target.value = min.toString();
-        if (value > max) target.value = max.toString();
-        
-        // For min inputs, ensure they don't exceed the max value
-        if (target.id.endsWith('Min')) {
-          const maxInput = document.getElementById(target.id.replace('Min', 'Max')) as HTMLInputElement;
-          if (maxInput && parseInt(target.value) > parseInt(maxInput.value)) {
-            maxInput.value = target.value;
-          }
-        }
-        
-        // For max inputs, ensure they don't go below the min value
-        if (target.id.endsWith('Max')) {
-          const minInput = document.getElementById(target.id.replace('Max', 'Min')) as HTMLInputElement;
-          if (minInput && parseInt(target.value) < parseInt(minInput.value)) {
-            minInput.value = target.value;
-          }
-        }
-      });
-    });
-    
-    console.log('View toggle and advanced filters functionality ready');
-  });
-
-  // Listen for view:changed events from the ViewToggle component
-  document.addEventListener('view:changed', (event) => {
-    const viewValue = event.detail?.value;
-    if (!viewValue) return;
-    
-    // Get containers that should respond to view changes
-    const gridContainer = document.querySelector('[data-view-container="grid"]');
-    const listContainer = document.querySelector('[data-view-container="list"]');
-    
-    if (gridContainer && listContainer) {
-      if (viewValue === 'grid') {
-        gridContainer.classList.remove('hidden');
-        listContainer.classList.add('hidden');
-      } else {
-        gridContainer.classList.add('hidden');
-        listContainer.classList.remove('hidden');
-      }
-    }
+    // No JavaScript needed for basic functionality
+    // Form submits naturally via GET method
   });
 </script> 

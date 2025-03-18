@@ -3,7 +3,7 @@
  * SortSelect Component
  * 
  * A dropdown component for selecting sort options.
- * Includes both the field to sort by and the direction.
+ * Designed for server-side sorting with URL parameters.
  * 
  * @example
  * ```astro
@@ -13,7 +13,7 @@
  *     { value: 'name_desc', label: 'Name (Z-A)' },
  *     { value: 'date_desc', label: 'Newest first' }
  *   ]}
- *   selectedValue="name_asc"
+ *   selected="name_asc"
  * />
  * ```
  */
@@ -64,7 +64,7 @@ export interface SortSelectProps {
    * Currently selected option value
    * @default ""
    */
-  selectedValue?: string;
+  selected?: string;
   
   /**
    * Additional CSS classes to apply to the container
@@ -72,15 +72,9 @@ export interface SortSelectProps {
   class?: string;
   
   /**
-   * Whether to auto-submit the parent form on change
-   * @default false
+   * Function to generate the URL when option changes
    */
-  autoSubmit?: boolean;
-  
-  /**
-   * Callback function name to call on change (will be available on window)
-   */
-  onChange?: string;
+  onChange?: (value: string) => string;
 }
 
 // Type alias for Props
@@ -91,9 +85,8 @@ const {
   label = "Sort by",
   name = "sort",
   id = "sort-select",
-  selectedValue = "",
+  selected = "",
   class: className = "",
-  autoSubmit = false,
   onChange
 } = Astro.props;
 ---
@@ -105,21 +98,23 @@ const {
     <select
       id={id}
       name={name}
+      onchange={`window.location.href = this.options[this.selectedIndex].dataset.url`}
       class="block w-full rounded-md border border-gray-300 bg-white py-1.5 pl-3 pr-10 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-      data-sort-select
-      data-auto-submit={autoSubmit.toString()}
-      data-on-change={onChange}
       aria-label={label}
     >
-      {options.map(option => (
-        <option 
-          value={option.value} 
-          selected={option.value === selectedValue}
-          disabled={option.disabled}
-        >
-          {option.label}
-        </option>
-      ))}
+      {options.map(option => {
+        const url = onChange ? onChange(option.value) : `?${name}=${option.value}`;
+        return (
+          <option 
+            value={option.value} 
+            selected={option.value === selected}
+            disabled={option.disabled}
+            data-url={url}
+          >
+            {option.label}
+          </option>
+        );
+      })}
     </select>
     
     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
@@ -128,50 +123,4 @@ const {
       </svg>
     </div>
   </div>
-</div>
-
-<script>
-  function initializeSortSelects() {
-    const sortSelects = document.querySelectorAll('[data-sort-select]');
-    
-    sortSelects.forEach(select => {
-      // Remove existing event listener if re-initializing
-      const oldSelect = select.cloneNode(true);
-      select.parentNode?.replaceChild(oldSelect, select);
-      select = oldSelect;
-      
-      select.addEventListener('change', (e) => {
-        const selectEl = e.currentTarget as HTMLSelectElement;
-        const value = selectEl.value;
-        const autoSubmit = selectEl.dataset.autoSubmit === 'true';
-        const onChangeFn = selectEl.dataset.onChange;
-        
-        // Dispatch a custom event that can be listened for to update sorting
-        const event = new CustomEvent('sort:changed', { 
-          detail: { value },
-          bubbles: true 
-        });
-        selectEl.dispatchEvent(event);
-        
-        // Auto-submit parent form if enabled
-        if (autoSubmit) {
-          const form = selectEl.closest('form');
-          if (form) {
-            form.submit();
-          }
-        }
-        
-        // Call onChange function if provided
-        if (onChangeFn && typeof window[onChangeFn] === 'function') {
-          window[onChangeFn](value, selectEl);
-        }
-      });
-    });
-  }
-  
-  // Initialize on page load
-  document.addEventListener('DOMContentLoaded', initializeSortSelects);
-  
-  // Re-initialize after Astro page transitions
-  document.addEventListener('astro:page-load', initializeSortSelects);
-</script> 
+</div> 
