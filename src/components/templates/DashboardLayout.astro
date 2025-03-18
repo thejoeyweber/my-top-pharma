@@ -3,7 +3,7 @@
  * Dashboard Layout Template
  * 
  * Layout template for dashboard-style pages with sidebar navigation.
- * Includes header, footer, sidebar, and main content area.
+ * Includes header, sidebar, main content area, and footer.
  */
 
 import Layout from '../../layouts/Layout.astro';
@@ -12,49 +12,60 @@ import Footer from '../organisms/Footer.astro';
 import Sidebar from '../organisms/Sidebar.astro';
 import Breadcrumb from '../molecules/Breadcrumb.astro';
 
-interface Props {
+export interface Props {
   title?: string;
   description?: string;
+  ogImage?: string;
   currentPath?: string;
   breadcrumbs?: {
     label: string;
     href: string;
     isActive?: boolean;
   }[];
+  showDevTools?: boolean;
+  sidebarOpen?: boolean;
 }
 
 const { 
   title,
   description,
+  ogImage,
   currentPath = Astro.url.pathname,
-  breadcrumbs = []
+  breadcrumbs = [],
+  showDevTools = import.meta.env.DEV,
+  sidebarOpen = false
 } = Astro.props;
 ---
 
-<Layout title={title} description={description}>
-  <div class="min-h-screen flex flex-col">
-    <Header currentPath={currentPath} />
+<Layout 
+  title={title} 
+  description={description}
+  ogImage={ogImage}
+  showDevTools={showDevTools}
+>
+  <Header currentPath={currentPath} />
+  
+  <div class="flex flex-1 flex-grow">
+    {/* Sidebar */}
+    <Sidebar currentPath={currentPath} isOpen={sidebarOpen} />
     
-    <div class="flex flex-1 pt-16">
-      <!-- Sidebar -->
-      <Sidebar currentPath={currentPath} />
-      
-      <!-- Main content -->
-      <div class="flex-1 transition-all duration-300 ease-in-out w-full lg:pl-64">
-        <main class="px-4 sm:px-6 lg:px-8 py-6">
-          <!-- Breadcrumbs -->
-          {breadcrumbs.length > 0 && (
+    {/* Main content */}
+    <div class="flex-1 transition-all duration-300 w-full lg:pl-64">
+      <main class="px-4 sm:px-6 lg:px-8 py-6">
+        {/* Breadcrumbs */}
+        {breadcrumbs.length > 0 && (
+          <div class="mb-6">
             <Breadcrumb items={breadcrumbs} />
-          )}
-          
-          <!-- Page content -->
-          <div class="max-w-full mx-auto">
-            <slot />
           </div>
-        </main>
+        )}
         
-        <Footer />
-      </div>
+        {/* Page content */}
+        <div class="max-w-full mx-auto">
+          <slot />
+        </div>
+      </main>
+      
+      <Footer />
     </div>
   </div>
 </Layout> 

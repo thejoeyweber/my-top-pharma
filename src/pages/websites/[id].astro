@@ -9,46 +9,134 @@ import Card from '../../components/atoms/Card.astro';
 import Button from '../../components/atoms/Button.astro';
 import TabGroup from '../../components/molecules/TabGroup.astro';
 import DataTable from '../../components/molecules/DataTable.astro';
-import { 
-  websites, 
-  getWebsiteById, 
-  websiteCategories,
-  getCompanyById, 
-  getProductById,
-  therapeuticAreas
-} from '../../utils/dataUtils';
-import { getWebsiteScreenshotUrl, getCompanyLogoUrl } from '../../utils/assetUtils';
 import KeyMetric from '../../components/molecules/KeyMetric.astro';
 
+// Import Supabase client directly
+import { supabase } from '../../lib/supabase';
+import { dbWebsiteToWebsite } from '../../interfaces/entities/Website';
+import { dbCompanyToCompany } from '../../interfaces/entities/Company';
+import { dbProductToProduct } from '../../interfaces/entities/Product';
+import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/TherapeuticArea';
+import type { Website, Company, Product, TherapeuticArea } from '../../interfaces/entities';
+
+import { getWebsiteScreenshotUrl, getCompanyLogoUrl } from '../../utils/assetUtils';
+
+// Helper function to create a URL-safe version of domain
+const getDomainSlug = (domain: string): string => {
+  return domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+};
+
 // Generate static paths for all websites
-export function getStaticPaths() {
-  return websites.map(website => ({
-    params: { id: website.domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase() }, // URL-safe version of domain
-    props: { website }
+export async function getStaticPaths() {
+  const { data: dbWebsites } = await supabase
+    .from('websites')
+    .select('id, domain');
+    
+  return (dbWebsites || []).map(website => ({
+    params: { id: getDomainSlug(website.domain) },
+    props: { websiteId: website.id }
   }));
 }
 
-// Get website from props or by domain-based ID
+// Get website ID from params or props
 const { id } = Astro.params;
-const website = Astro.props.website || websites.find(w => 
-  w.domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase() === id
-);
+const { websiteId } = Astro.props;
 
-// Handle case when website is not found
-if (!website) {
+// Fetch website data directly from Supabase
+const { data: dbWebsite, error: websiteError } = await supabase
+  .from('websites')
+  .select('*')
+  .eq('id', websiteId)
+  .single();
+
+// Handle website not found
+if (websiteError || !dbWebsite) {
   return Astro.redirect('/websites');
 }
 
-// Get the owning company
-const company = getCompanyById(website.companyId);
+// Convert database record to application entity
+const website = dbWebsiteToWebsite(dbWebsite);
 
-// Get products associated with this website
-const associatedProducts = website.products ? website.products.map(productId => {
-  return getProductById(productId);
-}).filter(product => product !== undefined) : [];
+// Fetch owning company data
+const { data: dbCompany } = await supabase
+  .from('companies')
+  .select('*')
+  .eq('id', website.companyId)
+  .single();
 
-// Get screenshot URL
-const screenshotUrl = website.screenshotUrl || getWebsiteScreenshotUrl(website.domain);
+// Convert company data to entity
+const company = dbCompany ? dbCompanyToCompany(dbCompany) : null;
+
+// Fetch products associated with this website
+const { data: websiteProductRelations } = await supabase
+  .from('product_websites')
+  .select('product_id')
+  .eq('website_id', website.id);
+
+const productIds = (websiteProductRelations || []).map(rel => rel.product_id);
+let associatedProducts: Product[] = [];
+
+if (productIds.length > 0) {
+  const { data: dbProducts } = await supabase
+    .from('products')
+    .select('*')
+    .in('id', productIds);
+  
+  associatedProducts = (dbProducts || []).map(dbProductToProduct);
+}
+
+// Fetch therapeutic areas for this website's company
+const { data: companyTARelations } = await supabase
+  .from('company_therapeutic_areas')
+  .select('therapeutic_area_id')
+  .eq('company_id', website.companyId);
+
+const therapeuticAreaIds = (companyTARelations || []).map(rel => rel.therapeutic_area_id);
+let therapeuticAreas: TherapeuticArea[] = [];
+
+if (therapeuticAreaIds.length > 0) {
+  const { data: dbTherapeuticAreas } = await supabase
+    .from('therapeutic_areas')
+    .select('*')
+    .in('id', therapeuticAreaIds);
+  
+  therapeuticAreas = (dbTherapeuticAreas || []).map(dbTherapeuticAreaToTherapeuticArea);
+}
+
+// Fetch similar websites (same category and company)
+const { data: similarWebsites } = await supabase
+  .from('websites')
+  .select('*')
+  .eq('company_id', website.companyId)
+  .eq('category', website.category)
+  .neq('id', website.id)
+  .limit(5);
+
+const relatedWebsites = (similarWebsites || []).map(dbWebsiteToWebsite);
+
+// Define website categories
+const websiteCategories = [
+  { value: 'corporate', label: 'Corporate' },
+  { value: 'hcp', label: 'Healthcare Professional' },
+  { value: 'patient', label: 'Patient' },
+  { value: 'campaign', label: 'Campaign' },
+  { value: 'disease', label: 'Disease Awareness' },
+  { value: 'brand', label: 'Brand' },
+  { value: 'other', label: 'Other' }
+];
+
+// Helper function to get category label
+const getCategoryLabel = (categoryId: string) => {
+  const category = websiteCategories.find(c => c.value === categoryId);
+  return category ? category.label : categoryId;
+};
+
+// Set up breadcrumbs for navigation
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Websites', href: '/websites' },
+  { label: website.domain, href: `/websites/${id}`, active: true }
+];
 
 // Default tab is "overview"
 const activeTab = "overview";
@@ -61,12 +149,6 @@ const tabs = [
   { id: "ownership", label: "Ownership & Links", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>' },
   { id: "content", label: "Content & Compliance", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>' },
 ];
-
-// Get category label
-const getCategoryLabel = (categoryId: string) => {
-  const category = websiteCategories.find(c => c.value === categoryId);
-  return category ? category.label : categoryId;
-};
 
 // Get therapeutic area name
 const getTherapeuticAreaName = (areaId: string) => {
@@ -84,13 +166,6 @@ const formatDate = (dateString?: string) => {
     day: 'numeric' 
   }).format(date);
 };
-
-// Breadcrumbs for website detail page
-const breadcrumbs = [
-  { label: 'Home', href: '/' },
-  { label: 'Websites', href: '/websites' },
-  { label: website.domain, href: `/websites/${id}`, isActive: true },
-];
 ---
 
 <DashboardLayout 
@@ -200,7 +275,7 @@ const breadcrumbs = [
           <div class="lg:w-1/3 mobile-tab-content hidden lg:block" id="screenshot-content">
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-xl font-medium text-gray-900">Website Preview</h2>
-              {screenshotUrl && (
+              {website.screenshotUrl && (
                 <button 
                   type="button" 
                   class="text-gray-500 hover:text-gray-700 view-screenshot"
@@ -213,10 +288,10 @@ const breadcrumbs = [
                 </button>
               )}
             </div>
-            {screenshotUrl ? (
+            {website.screenshotUrl ? (
               <div class="relative rounded-lg overflow-hidden border border-gray-200 aspect-[4/3]">
                 <img 
-                  src={screenshotUrl} 
+                  src={website.screenshotUrl} 
                   alt={`Screenshot of ${website.domain}`}
                   class="object-cover w-full h-full cursor-pointer view-screenshot"
                 />
@@ -247,9 +322,9 @@ const breadcrumbs = [
           </button>
         </div>
         <div class="flex-1 overflow-auto">
-          {screenshotUrl ? (
+          {website.screenshotUrl ? (
             <img 
-              src={screenshotUrl} 
+              src={website.screenshotUrl} 
               alt={`Full screenshot of ${website.domain}`}
               class="max-w-full mx-auto"
             />

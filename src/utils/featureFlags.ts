@@ -1,314 +1,226 @@
 /**
- * Feature Flags System
+ * Feature Flags
  * 
- * This module provides a centralized way to manage feature flags for the application.
- * Feature flags control which data source is used for different content types,
- * allowing for a phased migration from static JSON data to database-driven content.
+ * A centralized feature flags system for managing application features.
+ * Simplified to remove previous data source selection features since the app
+ * now uses Supabase directly.
+ * 
+ * Uses browser storage (cookies, localStorage) to persist flags
+ * across sessions, and URL parameters for temporary overrides.
  */
 
-// Import .env variables for server-side rendering defaults
-import.meta.env;
-
-// Define all available feature flags
-export const FEATURES = {
-  // Data source flags - control whether we use database or static JSON
-  USE_DATABASE_COMPANIES: 'USE_DATABASE_COMPANIES',
-  USE_DATABASE_PRODUCTS: 'USE_DATABASE_PRODUCTS',
-  USE_DATABASE_WEBSITES: 'USE_DATABASE_WEBSITES',
-  USE_DATABASE_THERAPEUTIC_AREAS: 'USE_DATABASE_THERAPEUTIC_AREAS',
-  
-  // Additional data type flags for FMP data
-  USE_DATABASE_COMPANY_FINANCIALS: 'USE_DATABASE_COMPANY_FINANCIALS',
-  USE_DATABASE_COMPANY_METRICS: 'USE_DATABASE_COMPANY_METRICS',
-  USE_DATABASE_COMPANY_STOCK_DATA: 'USE_DATABASE_COMPANY_STOCK_DATA',
-  
-  // Database connection flags
-  /**
-   * Controls which Supabase instance to use (local vs. remote)
-   * When true: Uses local Supabase instance (http://localhost:54321)
-   * When false: Uses remote Supabase instance
-   * 
-   * This flag is intended for development use only and will eventually be removed
-   * when the migration to database-driven content is complete.
-   * 
-   * @deprecated This will be removed once migration is complete.
-   * Path to removal:
-   * 1. Complete all data migrations to both local and remote databases
-   * 2. Update all data source utilities to use a single non-toggling client
-   * 3. Remove this flag and the factory pattern in supabase.ts/supabase-admin.ts
-   */
-  USE_LOCAL_DATABASE: 'USE_LOCAL_DATABASE',
-  
-  // UI flags
-  ENABLE_DATA_SOURCE_TOGGLE: 'ENABLE_DATA_SOURCE_TOGGLE',
-} as const;
-
-// Define the type for feature flag keys
-export type FeatureFlag = keyof typeof FEATURES;
-
-// Local storage key for persisting feature flags
-const STORAGE_KEY = 'mytoppharma_feature_flags';
-
-// Server-side environment variables can set default flag values
-// These take precedence over DEFAULT_FLAGS but not over URL params or cookies
-const ENV_FLAGS: Partial<Record<FeatureFlag, boolean>> = {
-  USE_DATABASE_COMPANIES: import.meta.env.PUBLIC_USE_DATABASE_COMPANIES === 'true',
-  USE_DATABASE_PRODUCTS: import.meta.env.PUBLIC_USE_DATABASE_PRODUCTS === 'true',
-  USE_DATABASE_WEBSITES: import.meta.env.PUBLIC_USE_DATABASE_WEBSITES === 'true',
-  USE_DATABASE_THERAPEUTIC_AREAS: import.meta.env.PUBLIC_USE_DATABASE_THERAPEUTIC_AREAS === 'true',
-  USE_DATABASE_COMPANY_FINANCIALS: import.meta.env.PUBLIC_USE_DATABASE_COMPANY_FINANCIALS === 'true',
-  USE_DATABASE_COMPANY_METRICS: import.meta.env.PUBLIC_USE_DATABASE_COMPANY_METRICS === 'true',
-  USE_DATABASE_COMPANY_STOCK_DATA: import.meta.env.PUBLIC_USE_DATABASE_COMPANY_STOCK_DATA === 'true',
-  USE_LOCAL_DATABASE: import.meta.env.PUBLIC_USE_LOCAL_DATABASE === 'true',
-};
-
-// Default feature flag values if not set in environment or cookies
-const DEFAULT_FLAGS: Record<FeatureFlag, boolean> = {
-  USE_DATABASE_COMPANIES: false,
-  USE_DATABASE_PRODUCTS: false,
-  USE_DATABASE_WEBSITES: false,
-  USE_DATABASE_THERAPEUTIC_AREAS: false,
-  USE_DATABASE_COMPANY_FINANCIALS: false,
-  USE_DATABASE_COMPANY_METRICS: false,
-  USE_DATABASE_COMPANY_STOCK_DATA: false,
-  USE_LOCAL_DATABASE: false, // Default to remote database in production
-  ENABLE_DATA_SOURCE_TOGGLE: import.meta.env.DEV, // Only enabled in development by default
-};
-
-// In-memory cache of feature flags - cleared between requests in SSR
-let featureFlagsCache: Record<FeatureFlag, boolean> | null = null;
+import { ErrorCategory, createErrorResponse, type ErrorResponse } from './errorUtils';
 
 /**
- * Parses cookies to find feature flags
- * Works in both browser and server contexts if cookies are present
+ * Feature flag types
  */
-function getFeatureFlagsFromCookies(): Partial<Record<FeatureFlag, boolean>> {
-  const flags: Partial<Record<FeatureFlag, boolean>> = {};
+export interface FeatureFlags {
+  // Database connection settings
+  databaseUrl: string;
+  databaseKey: string;
+  databaseUseSsl: boolean;
   
-  // Get cookies string - works in both browser and some server contexts
-  const cookieString = 
-    // Browser context
-    (typeof document !== 'undefined' ? document.cookie : '') ||
-    // We can't directly access Astro in a module, so we only use document.cookie
-    '';
+  // Additional feature flags
+  enableDevTools: boolean;
+  enableDarkMode: boolean;
+  enableBetaFeatures: boolean;
   
-  if (!cookieString) return flags;
-  
-  // Parse cookies
-  cookieString.split(';').forEach((cookie: string) => {
-    const [name, value] = cookie.trim().split('=');
-    
-    // Check if this is a feature flag cookie (prefixed with ff_)
-    if (name && name.startsWith('ff_')) {
-      // Convert cookie name back to flag name
-      const flagName = name.replace('ff_', '').toUpperCase();
-      
-      // Check if this matches a known feature flag
-      if (Object.values(FEATURES).includes(flagName as any)) {
-        flags[flagName as FeatureFlag] = value === 'true';
-      }
-    }
-  });
-  
-  return flags;
+  // Add other feature flags as needed
+  [key: string]: boolean | string | number;
 }
 
 /**
- * Get URL parameters for feature flags
- * Works in both browser and server contexts
+ * Default feature flag values 
  */
-function getFeatureFlagsFromUrl(): Partial<Record<FeatureFlag, boolean>> {
-  const flags: Partial<Record<FeatureFlag, boolean>> = {};
+export const defaultFeatureFlags: FeatureFlags = {
+  // Database connection settings (override with env variables)
+  databaseUrl: import.meta.env.PUBLIC_SUPABASE_URL || '',
+  databaseKey: import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '',
+  databaseUseSsl: true,
   
-  // Get URL search params - browser-only for now
-  // We can't access Astro.url in a module
-  let searchParams: URLSearchParams | null = null;
+  // Additional feature flags
+  enableDevTools: import.meta.env.DEV === true,
+  enableDarkMode: false,
+  enableBetaFeatures: false,
+};
+
+// Singleton instance
+let featureFlags: FeatureFlags = { ...defaultFeatureFlags };
+
+/**
+ * Initialize feature flags from various sources
+ * Order of precedence: URL params > cookies > localStorage > defaults
+ */
+export function initializeFeatureFlags(): FeatureFlags {
+  // Start with defaults
+  const flags = { ...defaultFeatureFlags };
   
   try {
-    // Browser context
+    // Load from localStorage if available
+    if (typeof localStorage !== 'undefined') {
+      const storedFlags = localStorage.getItem('featureFlags');
+      if (storedFlags) {
+        Object.assign(flags, JSON.parse(storedFlags));
+      }
+    }
+    
+    // Load from cookies if available
+    if (typeof document !== 'undefined') {
+      document.cookie.split(';').forEach(cookie => {
+        const parts = cookie.split('=');
+        if (parts.length === 2 && parts[0].trim().startsWith('ff_')) {
+          const key = parts[0].trim().substring(3);
+          const value = parts[1].trim();
+          
+          if (key in flags) {
+            // Convert string value to appropriate type
+            if (typeof flags[key] === 'boolean') {
+              flags[key] = value === 'true';
+            } else if (typeof flags[key] === 'number') {
+              flags[key] = Number(value);
+            } else {
+              flags[key] = value;
+            }
+          }
+        }
+      });
+    }
+    
+    // Override with URL parameters if available
     if (typeof window !== 'undefined') {
-      searchParams = new URLSearchParams(window.location.search);
+      const params = new URLSearchParams(window.location.search);
+      params.forEach((value, key) => {
+        if (key.startsWith('ff_')) {
+          const flagKey = key.substring(3);
+          if (flagKey in flags) {
+            // Convert string value to appropriate type
+            if (typeof flags[flagKey] === 'boolean') {
+              flags[flagKey] = value === 'true';
+            } else if (typeof flags[flagKey] === 'number') {
+              flags[flagKey] = Number(value);
+            } else {
+              flags[flagKey] = value;
+            }
+          }
+        }
+      });
     }
-  } catch (e) {
-    console.error('Error getting URL parameters:', e);
-    return flags;
-  }
-  
-  if (!searchParams) return flags;
-  
-  // Check each feature flag for URL parameter
-  Object.values(FEATURES).forEach(flag => {
-    const paramName = `ff_${flag.toLowerCase()}`;
-    const paramValue = searchParams?.get(paramName);
     
-    if (paramValue === 'true') {
-      flags[flag as FeatureFlag] = true;
-    } else if (paramValue === 'false') {
-      flags[flag as FeatureFlag] = false;
-    }
-  });
+    // Update singleton instance
+    featureFlags = flags;
+    
+  } catch (error) {
+    console.error('Error initializing feature flags:', error);
+  }
   
   return flags;
 }
 
 /**
- * Get feature flags from localStorage (client-side only)
+ * Get a feature flag value
+ * @param name Feature flag name
+ * @returns The feature flag value
  */
-function getFeatureFlagsFromLocalStorage(): Partial<Record<FeatureFlag, boolean>> {
-  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
-    return {};
-  }
-  
+export function getFeatureFlag<K extends keyof FeatureFlags>(name: K): FeatureFlags[K] {
+  return featureFlags[name];
+}
+
+/**
+ * Set a feature flag value
+ * @param name Feature flag name
+ * @param value Feature flag value
+ * @returns Result indicating success or error
+ */
+export function setFeatureFlag<K extends keyof FeatureFlags>(
+  name: K, 
+  value: FeatureFlags[K]
+): { success: boolean; error?: ErrorResponse } {
   try {
-    const storedFlags = localStorage.getItem(STORAGE_KEY);
-    if (storedFlags) {
-      return JSON.parse(storedFlags);
-    }
-  } catch (error) {
-    console.error('Error loading feature flags from local storage:', error);
-  }
-  
-  return {};
-}
-
-/**
- * Initialize feature flags by combining all sources with proper priority
- * 1. URL parameters (highest priority)
- * 2. Cookies (shared between client/server)
- * 3. LocalStorage (client-only)
- * 4. Environment variables
- * 5. Default values (lowest priority)
- */
-function initializeFeatureFlags(): Record<FeatureFlag, boolean> {
-  // Return cached values if available
-  if (featureFlagsCache !== null) {
-    return featureFlagsCache;
-  }
-  
-  // Start with default values
-  const mergedFlags = { ...DEFAULT_FLAGS };
-  
-  // Apply each source with increasing priority
-  const sources = [
-    // Environment variables from .env (server-side)
-    ENV_FLAGS,
-    // localStorage values (client-side only)
-    getFeatureFlagsFromLocalStorage(),
-    // Cookie values (works in both contexts)
-    getFeatureFlagsFromCookies(),
-    // URL parameters (highest priority)
-    getFeatureFlagsFromUrl(),
-  ];
-  
-  // Merge sources in priority order
-  sources.forEach(source => {
-    Object.entries(source).forEach(([key, value]) => {
-      if (key in mergedFlags) {
-        mergedFlags[key as FeatureFlag] = value;
-      }
-    });
-  });
-  
-  // Cache the result
-  featureFlagsCache = mergedFlags;
-  
-  return mergedFlags;
-}
-
-/**
- * Get the current value of a feature flag
- * @param flag The feature flag to check
- * @returns The current state of the feature flag (true=enabled, false=disabled)
- */
-export function getFeatureFlag(flag: FeatureFlag): boolean {
-  const flags = initializeFeatureFlags();
-  return flags[flag];
-}
-
-/**
- * Set a feature flag value - affects localStorage and attempts to set a cookie
- * @param flag The feature flag to set
- * @param value The value to set (true=enabled, false=disabled)
- */
-export function setFeatureFlag(flag: FeatureFlag, value: boolean): void {
-  // Update in-memory cache
-  const flags = initializeFeatureFlags();
-  flags[flag] = value;
-  featureFlagsCache = flags;
-  
-  console.log(`🚩 Setting feature flag ${flag} to ${value}`);
-  
-  // Only update storage in browser context
-  if (typeof window !== 'undefined') {
-    // Update localStorage
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(flags));
-      console.log(`✅ Updated localStorage with new flag value for ${flag}`);
-    } catch (error) {
-      console.error('❌ Error saving feature flags to local storage:', error);
+    // Update in-memory value
+    featureFlags[name] = value;
+    
+    // Persist to localStorage if available
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('featureFlags', JSON.stringify(featureFlags));
     }
     
-    // Set a cookie as well with a longer expiration (30 days)
-    try {
-      const cookieName = `ff_${flag.toLowerCase()}`;
-      const expires = new Date();
-      expires.setDate(expires.getDate() + 30);
-      
-      document.cookie = `${cookieName}=${value}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
-      console.log(`✅ Set cookie ${cookieName}=${value}`);
-      
-      // Also update URL parameter without page reload for easier sharing
-      const url = new URL(window.location.href);
-      url.searchParams.set(`ff_${flag.toLowerCase()}`, value.toString());
-      window.history.replaceState({}, '', url.toString());
-    } catch (error) {
-      console.error('❌ Error setting feature flag cookie:', error);
+    // Set cookie for persistence across sessions
+    if (typeof document !== 'undefined') {
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 30); // 30 days
+      document.cookie = `ff_${name}=${value};expires=${expiryDate.toUTCString()};path=/`;
     }
     
-    // Dispatch custom event for components to listen to
-    try {
+    // Dispatch event for components that need to react to flag changes
+    if (typeof window !== 'undefined') {
       const event = new CustomEvent('featureflag:changed', { 
-        detail: { flag, value },
-        bubbles: true 
+        detail: { name, value } 
       });
       window.dispatchEvent(event);
-      console.log(`✅ Dispatched featureflag:changed event for ${flag}`);
-    } catch (error) {
-      console.error('❌ Error dispatching feature flag change event:', error);
-    }
-  }
-}
-
-/**
- * Reset all feature flags to their default values
- */
-export function resetFeatureFlags(): void {
-  featureFlagsCache = { ...DEFAULT_FLAGS };
-  
-  // Only update storage in browser context
-  if (typeof window !== 'undefined') {
-    // Update localStorage
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(featureFlagsCache));
-    } catch (error) {
-      console.error('Error resetting feature flags in local storage:', error);
     }
     
-    // Clear cookies for all flags
-    Object.values(FEATURES).forEach(flag => {
-      try {
-        document.cookie = `ff_${flag.toLowerCase()}=; path=/; max-age=0`;
-      } catch (error) {
-        console.error(`Error clearing cookie for flag ${flag}:`, error);
-      }
-    });
+    return { success: true };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: createErrorResponse(
+        `Failed to set feature flag: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ErrorCategory.INTERNAL,
+        { originalError: error }
+      ) 
+    };
   }
 }
 
 /**
- * Get all current feature flag values
- * @returns Record of all feature flags and their current values
+ * Reset feature flags to defaults
+ * @returns Result indicating success or error
  */
-export function getAllFeatureFlags(): Record<FeatureFlag, boolean> {
-  return { ...initializeFeatureFlags() };
+export function resetFeatureFlags(): { success: boolean; error?: ErrorResponse } {
+  try {
+    // Reset in-memory flags
+    featureFlags = { ...defaultFeatureFlags };
+    
+    // Clear localStorage if available
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('featureFlags');
+    }
+    
+    // Clear cookies
+    if (typeof document !== 'undefined') {
+      Object.keys(featureFlags).forEach(key => {
+        document.cookie = `ff_${key}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+      });
+    }
+    
+    // Dispatch event
+    if (typeof window !== 'undefined') {
+      const event = new CustomEvent('featureflag:reset');
+      window.dispatchEvent(event);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: createErrorResponse(
+        `Failed to reset feature flags: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ErrorCategory.INTERNAL,
+        { originalError: error }
+      ) 
+    };
+  }
+}
+
+/**
+ * Get all feature flags
+ * @returns All feature flags
+ */
+export function getAllFeatureFlags(): FeatureFlags {
+  return { ...featureFlags };
+}
+
+// Initialize feature flags if in browser environment
+if (typeof window !== 'undefined') {
+  initializeFeatureFlags();
 } 

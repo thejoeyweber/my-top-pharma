@@ -6,13 +6,17 @@
  * and displays helpful error messages.
  * 
  * Usage:
- * node scripts/db-push.js
+ * node scripts/db-push.js [--no-include-all]
  */
 
-import { execSync } from 'child_process';
-import fs from 'fs';
+import { exec } from 'child_process';
+import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import util from 'util';
+
+// Convert exec to Promise-based
+const execAsync = util.promisify(exec);
 
 // Get proper __dirname equivalent in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -22,81 +26,134 @@ const __dirname = path.dirname(__filename);
 const SUPABASE_DIR = path.join(__dirname, '../supabase');
 const MIGRATIONS_DIR = path.join(SUPABASE_DIR, 'migrations');
 
-console.log('Working directory:', process.cwd());
-console.log('SUPABASE_DIR:', SUPABASE_DIR);
-console.log('MIGRATIONS_DIR:', MIGRATIONS_DIR);
+// Parse command line arguments
+const args = process.argv.slice(2);
+const noIncludeAll = args.includes('--no-include-all');
 
-// Verify migrations directory exists
-if (!fs.existsSync(MIGRATIONS_DIR)) {
-  console.error(`Error: Migrations directory not found at: ${MIGRATIONS_DIR}`);
-  process.exit(1);
-}
-
-// Count migrations
-const migrationFiles = fs.readdirSync(MIGRATIONS_DIR).filter(file => file.endsWith('.sql'));
-if (migrationFiles.length === 0) {
-  console.error('No migration files found. Create migrations first with:');
-  console.error('npm run create-migration <migration-name>');
-  process.exit(1);
-}
-
-console.log(`Found ${migrationFiles.length} migration files to apply:`);
-migrationFiles.forEach(file => console.log(`- ${file}`));
-
-try {
-  // Check if Supabase CLI is installed
+// Main async function
+async function pushMigrations() {
   try {
-    const versionOutput = execSync('npx supabase --version', { stdio: 'pipe', encoding: 'utf8' });
-    console.log('Supabase CLI version:', versionOutput.trim());
-  } catch (error) {
-    console.log('Supabase CLI not found. Installing...');
-    execSync('npm install -g supabase', { stdio: 'inherit' });
-  }
+    console.log('Working directory:', process.cwd());
+    console.log('SUPABASE_DIR:', SUPABASE_DIR);
+    console.log('MIGRATIONS_DIR:', MIGRATIONS_DIR);
 
-  // Check if the project is linked
-  try {
-    console.log('Checking if project is linked...');
-    execSync('npx supabase status', { stdio: 'pipe' });
-    console.log('Project is linked to Supabase.');
-  } catch (error) {
-    console.log('Project is not linked to Supabase, attempting to link...');
-    
-    // Get the project ID from environment variable or use default
-    const projectId = process.env.SUPABASE_PROJECT_ID || 'teycvirevxhmuaurroxm';
-    
+    // Verify migrations directory exists
     try {
-      console.log(`Linking to project ${projectId}...`);
-      execSync(`npx supabase link --project-ref ${projectId}`, { 
-        stdio: 'inherit',
-        cwd: process.cwd() 
-      });
-    } catch (linkError) {
-      console.error('Failed to link project:');
-      console.error(linkError.message);
+      await fs.access(MIGRATIONS_DIR);
+    } catch (err) {
+      console.error(`Error: Migrations directory not found at: ${MIGRATIONS_DIR}`);
       process.exit(1);
     }
-  }
 
-  // Apply migrations with --include-all flag
-  console.log('Pushing migrations to Supabase...');
-  try {
-    // Use include-all flag to apply migrations regardless of timestamp
-    execSync('npx supabase db push --include-all', { 
-      stdio: 'inherit',
-      cwd: process.cwd() 
-    });
+    // Count migrations
+    const migrationFiles = (await fs.readdir(MIGRATIONS_DIR)).filter(file => file.endsWith('.sql'));
+    if (migrationFiles.length === 0) {
+      console.error('No migration files found. Create migrations first with:');
+      console.error('npm run create-migration <migration-name>');
+      process.exit(1);
+    }
+
+    console.log(`Found ${migrationFiles.length} migration files to apply:`);
+    migrationFiles.forEach(file => console.log(`- ${file}`));
+
+    // Check if Supabase CLI is installed
+    try {
+      const { stdout: versionOutput } = await execAsync('npx supabase --version');
+      console.log('Supabase CLI version:', versionOutput.trim());
+    } catch (error) {
+      console.log('Supabase CLI not found. Installing...');
+      try {
+        await execAsync('npm install -g supabase');
+        console.log('Supabase CLI installed successfully.');
+      } catch (installError) {
+        console.error('Failed to install Supabase CLI:');
+        console.error(installError.message);
+        process.exit(1);
+      }
+    }
+
+    // Check if the project is linked
+    let isLinked = false;
+    try {
+      console.log('Checking if project is linked...');
+      await execAsync('npx supabase status');
+      console.log('Project is linked to Supabase.');
+      isLinked = true;
+    } catch (error) {
+      console.log('Project is not linked to Supabase, will attempt to link...');
+    }
+
+    // Link the project if needed
+    if (!isLinked) {
+      // Get the project ID from environment variable
+      const projectId = process.env.SUPABASE_PROJECT_ID;
+      
+      if (!projectId) {
+        console.error('Error: SUPABASE_PROJECT_ID environment variable is required.');
+        console.error('Please set this variable in your .env file and try again.');
+        process.exit(1);
+      }
+      
+      try {
+        console.log(`Linking to project ${projectId}...`);
+        const { stdout, stderr } = await execAsync(`npx supabase link --project-ref ${projectId}`, { 
+          cwd: process.cwd() 
+        });
+        
+        if (stdout) console.log(stdout);
+        if (stderr) console.error(stderr);
+      } catch (linkError) {
+        console.error('Failed to link project:');
+        console.error(linkError.message);
+        process.exit(1);
+      }
+    }
+
+    // Apply migrations 
+    console.log('Pushing migrations to Supabase...');
     
-    console.log('✅ Database migrations successfully applied!');
+    // Check environment for safety
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (isProduction && !noIncludeAll) {
+      console.warn('⚠️ WARNING: Running with --include-all in production!');
+      console.warn('This will push ALL migrations, including those already applied.');
+      console.warn('This could cause data loss in a production environment.');
+      console.warn('If you want to proceed, run again with the --no-include-all flag.');
+      console.warn('Aborting for safety.');
+      process.exit(1);
+    }
+    
+    try {
+      // Determine whether to use --include-all flag
+      const useIncludeAll = !isProduction && !noIncludeAll;
+      const dbPushCommand = useIncludeAll
+        ? 'npx supabase db push --include-all'
+        : 'npx supabase db push';
+        
+      console.log(`Executing: ${dbPushCommand}`);
+      
+      const { stdout, stderr } = await execAsync(dbPushCommand, { 
+        cwd: process.cwd() 
+      });
+      
+      if (stdout) console.log(stdout);
+      if (stderr) console.error(stderr);
+      
+      console.log('✅ Database migrations successfully applied!');
+    } catch (error) {
+      console.error('Error pushing migrations:');
+      console.error(error.message);
+      
+      console.log('\nPlease try running the command manually:');
+      console.log('npx supabase db push');
+      process.exit(1);
+    }
   } catch (error) {
-    console.error('Error pushing migrations:');
+    console.error('Unexpected error:');
     console.error(error.message);
-    
-    console.log('\nPlease try running the command manually:');
-    console.log('npx supabase db push --include-all');
     process.exit(1);
   }
-} catch (error) {
-  console.error('Unexpected error:');
-  console.error(error.message);
-  process.exit(1);
-} 
+}
+
+// Execute the main function
+pushMigrations(); 

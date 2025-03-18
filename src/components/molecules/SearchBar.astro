@@ -4,15 +4,80 @@
  * 
  * A search input with autocomplete functionality for filtering content.
  * Includes a search icon and clear button for enhanced user experience.
+ * 
+ * @example
+ * ```astro
+ * <SearchBar 
+ *   placeholder="Search products..." 
+ *   value={searchQuery}
+ *   autoFocus={true}
+ * />
+ * ```
  */
 
-interface Props {
+export interface SearchBarProps {
+  /**
+   * Placeholder text for the search input
+   * @default "Search..."
+   */
   placeholder?: string;
+  
+  /**
+   * HTML id attribute for the input element
+   * @default "search"
+   */
   id?: string;
+  
+  /**
+   * HTML name attribute for the input element
+   * @default "search"
+   */
   name?: string;
+  
+  /**
+   * Initial value for the search input
+   * @default ""
+   */
   value?: string;
+  
+  /**
+   * Additional CSS classes to apply to the container
+   */
   class?: string;
+  
+  /**
+   * Whether to auto-submit the parent form on input
+   * @default false
+   */
+  autoSubmit?: boolean;
+  
+  /**
+   * Delay in milliseconds before auto-submitting
+   * @default 300
+   */
+  debounceMs?: number;
+  
+  /**
+   * Whether to automatically focus the input on page load
+   * @default false
+   */
+  autoFocus?: boolean;
+  
+  /**
+   * Minimum number of characters required before showing results
+   * @default 2
+   */
+  minChars?: number;
+  
+  /**
+   * ARIA label for the search input
+   * @default "Search"
+   */
+  ariaLabel?: string;
 }
+
+// Type alias for Props
+type Props = SearchBarProps;
 
 const {
   placeholder = "Search...",
@@ -20,13 +85,18 @@ const {
   name = "search",
   value = "",
   class: className = "",
+  autoSubmit = false,
+  debounceMs = 300,
+  autoFocus = false,
+  minChars = 2,
+  ariaLabel = "Search"
 } = Astro.props;
 ---
 
 <div class:list={["search-bar relative w-full", className]}>
   <div class="relative">
     <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
       </svg>
     </div>
@@ -37,13 +107,20 @@ const {
       value={value}
       placeholder={placeholder}
       class="block w-full rounded-md border border-gray-300 bg-white py-2 pl-10 pr-10 text-sm placeholder-gray-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+      data-auto-submit={autoSubmit.toString()}
+      data-debounce-ms={debounceMs}
+      data-min-chars={minChars}
+      aria-label={ariaLabel}
+      autocomplete="off"
+      {...autoFocus && { autofocus: true }}
     />
     <button
       type="button"
       class="clear-button absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 focus:outline-none"
-      style="display: none;"
+      style={value ? "display: flex;" : "display: none;"}
+      aria-label="Clear search"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
       </svg>
     </button>
@@ -54,31 +131,136 @@ const {
 </div>
 
 <script>
-  // Handle search input functionality
-  document.addEventListener('DOMContentLoaded', () => {
-    const searchInputs = document.querySelectorAll('.search-bar input');
+  // Debounce helper function
+  function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+      const context = this;
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(context, args), wait);
+    };
+  }
+
+  // Initialize search bar functionality
+  function initializeSearchBars() {
+    const searchBars = document.querySelectorAll('.search-bar');
     
-    searchInputs.forEach(input => {
-      const searchBar = input.closest('.search-bar');
-      const clearButton = searchBar?.querySelector('.clear-button');
+    searchBars.forEach(searchBar => {
+      const input = searchBar.querySelector('input');
+      const clearButton = searchBar.querySelector('.clear-button');
+      const resultsContainer = searchBar.querySelector('.search-results');
+      
+      if (!input || !clearButton || !resultsContainer) return;
+      
+      // Get configuration from data attributes
+      const autoSubmit = input.dataset.autoSubmit === 'true';
+      const debounceMs = parseInt(input.dataset.debounceMs || '300', 10);
+      const minChars = parseInt(input.dataset.minChars || '2', 10);
+      
+      // Create a debounced submit function if auto-submit is enabled
+      const debouncedSubmit = autoSubmit ? debounce(() => {
+        const form = input.closest('form');
+        if (form) form.submit();
+      }, debounceMs) : null;
       
       // Show/hide clear button based on input content
       input.addEventListener('input', () => {
         if (input.value) {
-          clearButton?.setAttribute('style', 'display: flex;');
+          clearButton.style.display = 'flex';
+          
+          // Auto-submit if enabled and meets minimum character requirement
+          if (autoSubmit && input.value.length >= minChars && debouncedSubmit) {
+            debouncedSubmit();
+          }
+          
+          // Dispatch custom event for search input
+          const event = new CustomEvent('search:input', {
+            detail: { value: input.value },
+            bubbles: true
+          });
+          input.dispatchEvent(event);
         } else {
-          clearButton?.setAttribute('style', 'display: none;');
+          clearButton.style.display = 'none';
+          resultsContainer.classList.add('hidden');
+          
+          // Dispatch custom event for empty search
+          const event = new CustomEvent('search:clear', {
+            bubbles: true
+          });
+          input.dispatchEvent(event);
         }
       });
       
       // Clear the input when the clear button is clicked
-      clearButton?.addEventListener('click', () => {
+      clearButton.addEventListener('click', () => {
         input.value = '';
-        clearButton.setAttribute('style', 'display: none;');
+        clearButton.style.display = 'none';
+        resultsContainer.classList.add('hidden');
+        
         // Trigger input event to update any listeners
         input.dispatchEvent(new Event('input', { bubbles: true }));
+        
+        // Dispatch custom event for search clear
+        const event = new CustomEvent('search:clear', {
+          bubbles: true
+        });
+        input.dispatchEvent(event);
+        
         input.focus();
       });
+      
+      // Handle keyboard navigation in results
+      input.addEventListener('keydown', (e) => {
+        if (resultsContainer.classList.contains('hidden')) return;
+        
+        const results = resultsContainer.querySelectorAll('[role="option"]');
+        if (results.length === 0) return;
+        
+        const activeResult = resultsContainer.querySelector('[aria-selected="true"]');
+        let index = Array.from(results).indexOf(activeResult);
+        
+        switch (e.key) {
+          case 'ArrowDown':
+            e.preventDefault();
+            index = (index + 1) % results.length;
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            index = (index - 1 + results.length) % results.length;
+            break;
+          case 'Enter':
+            if (activeResult) {
+              e.preventDefault();
+              activeResult.click();
+            }
+            return;
+          case 'Escape':
+            e.preventDefault();
+            resultsContainer.classList.add('hidden');
+            input.focus();
+            return;
+          default:
+            return;
+        }
+        
+        // Update selected result
+        results.forEach(result => result.setAttribute('aria-selected', 'false'));
+        results[index].setAttribute('aria-selected', 'true');
+        results[index].scrollIntoView({ block: 'nearest' });
+      });
+      
+      // Close results when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!searchBar.contains(e.target)) {
+          resultsContainer.classList.add('hidden');
+        }
+      });
     });
-  });
+  }
+  
+  // Initialize on page load
+  document.addEventListener('DOMContentLoaded', initializeSearchBars);
+  
+  // Re-initialize after Astro page transitions
+  document.addEventListener('astro:page-load', initializeSearchBars);
 </script> 

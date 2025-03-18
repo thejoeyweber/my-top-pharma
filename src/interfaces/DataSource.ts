@@ -1,181 +1,199 @@
 /**
- * Data Source Abstraction Layer
+ * Data Source Interface
  * 
- * This file defines the core interfaces for the data source abstraction layer,
- * which provides consistent data access patterns regardless of the underlying
- * data source (JSON, Supabase, external APIs, etc.).
+ * Defines the standard interface for data sources used throughout the application.
+ * This abstraction layer allows for consistent data access regardless of where
+ * the data is coming from (Supabase, static files, API, etc.).
  */
 
-import type { Company } from './entities/Company';
-import type { Product } from './entities/Product';
-import type { Website } from './entities/Website';
-import type { TherapeuticArea } from './entities/TherapeuticArea';
+import type { 
+  Company, 
+  Product, 
+  TherapeuticArea, 
+  Website 
+} from './entities';
 
 /**
- * Query options for filtering, sorting, and paginating results
+ * Filtering options for Company queries
  */
-export interface QueryOptions {
-  /**
-   * Filter criteria as key-value pairs
-   */
-  filters?: Record<string, unknown>;
-  
-  /**
-   * Sorting configuration
-   */
-  sort?: {
-    /**
-     * Field to sort by
-     */
-    field: string;
-    
-    /**
-     * Sort direction
-     */
-    direction: 'asc' | 'desc';
-  };
-  
-  /**
-   * Pagination options
-   */
-  pagination?: {
-    /**
-     * Page number (1-indexed)
-     */
-    page: number;
-    
-    /**
-     * Number of items per page
-     */
-    limit: number;
-  };
+export interface CompanyFilters {
+  ids?: string[];
+  name?: string;
+  country?: string;
+  type?: string;
+  therapeuticAreaIds?: string[];
+  limit?: number;
+  offset?: number;
 }
 
 /**
- * Result structure for paginated queries
+ * Filtering options for Product queries
  */
-export interface PaginatedResult<T> {
-  /**
-   * Array of items for the current page
-   */
-  data: T[];
-  
-  /**
-   * Pagination metadata
-   */
-  pagination: {
-    /**
-     * Total number of items across all pages
-     */
-    total: number;
-    
-    /**
-     * Current page number
-     */
-    page: number;
-    
-    /**
-     * Number of items per page
-     */
-    limit: number;
-    
-    /**
-     * Total number of pages
-     */
-    pages: number;
-  };
+export interface ProductFilters {
+  ids?: string[];
+  name?: string;
+  companyId?: string;
+  stage?: string;
+  therapeuticAreaIds?: string[];
+  limit?: number;
+  offset?: number;
 }
 
 /**
- * Core interface for data sources
- * 
- * This interface defines a consistent API for accessing data
- * regardless of the underlying data source (JSON, Supabase, external APIs, etc.)
+ * Filtering options for TherapeuticArea queries
+ */
+export interface TherapeuticAreaFilters {
+  ids?: string[];
+  name?: string;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Filtering options for Website queries
+ */
+export interface WebsiteFilters {
+  ids?: string[];
+  domain?: string;
+  companyId?: string;
+  categoryId?: string;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * DataSource interface defines the contract for data access
  */
 export interface DataSource {
   /**
-   * Check if the data source is healthy and accessible
-   * @returns Promise resolving to true if healthy, false otherwise
+   * Initialize the data source
    */
-  healthCheck(): Promise<boolean>;
-  
+  initialize(): Promise<void>;
+
   /**
-   * Get a company by ID
-   * @param id Company ID
-   * @returns Promise resolving to the company or null if not found
+   * Get companies with optional filtering
+   */
+  getCompanies(filters?: CompanyFilters): Promise<Company[]>;
+
+  /**
+   * Get a single company by ID
    */
   getCompanyById(id: string): Promise<Company | null>;
-  
+
   /**
-   * Get companies with optional filtering, sorting, and pagination
-   * @param options Query options for filtering, sorting, and pagination
-   * @returns Promise resolving to paginated companies
+   * Get a single company by slug
    */
-  getCompanies(options?: QueryOptions): Promise<PaginatedResult<Company>>;
-  
+  getCompanyBySlug(slug: string): Promise<Company | null>;
+
   /**
-   * Get a product by ID
-   * @param id Product ID
-   * @returns Promise resolving to the product or null if not found
+   * Create a new company
+   */
+  createCompany(company: Partial<Company>): Promise<Company>;
+
+  /**
+   * Update an existing company
+   */
+  updateCompany(id: string, company: Partial<Company>): Promise<Company>;
+
+  /**
+   * Delete a company
+   */
+  deleteCompany(id: string): Promise<boolean>;
+
+  /**
+   * Get products with optional filtering
+   */
+  getProducts(filters?: ProductFilters): Promise<Product[]>;
+
+  /**
+   * Get a single product by ID
    */
   getProductById(id: string): Promise<Product | null>;
-  
+
   /**
-   * Get products with optional filtering, sorting, and pagination
-   * @param options Query options for filtering, sorting, and pagination
-   * @returns Promise resolving to paginated products
+   * Get a single product by slug
    */
-  getProducts(options?: QueryOptions): Promise<PaginatedResult<Product>>;
-  
+  getProductBySlug(slug: string): Promise<Product | null>;
+
   /**
-   * Get products for a specific company
-   * @param companyId Company ID
-   * @param options Query options for filtering, sorting, and pagination
-   * @returns Promise resolving to paginated products for the company
+   * Create a new product
    */
-  getProductsForCompany(companyId: string, options?: QueryOptions): Promise<PaginatedResult<Product>>;
-  
+  createProduct(product: Partial<Product>): Promise<Product>;
+
   /**
-   * Get a website by ID
-   * @param id Website ID
-   * @returns Promise resolving to the website or null if not found
+   * Update an existing product
    */
-  getWebsiteById(id: string): Promise<Website | null>;
-  
+  updateProduct(id: string, product: Partial<Product>): Promise<Product>;
+
   /**
-   * Get websites with optional filtering, sorting, and pagination
-   * @param options Query options for filtering, sorting, and pagination
-   * @returns Promise resolving to paginated websites
+   * Delete a product
    */
-  getWebsites(options?: QueryOptions): Promise<PaginatedResult<Website>>;
-  
+  deleteProduct(id: string): Promise<boolean>;
+
   /**
-   * Get websites for a specific company
-   * @param companyId Company ID
-   * @param options Query options for filtering, sorting, and pagination
-   * @returns Promise resolving to paginated websites for the company
+   * Get therapeutic areas with optional filtering
    */
-  getWebsitesForCompany(companyId: string, options?: QueryOptions): Promise<PaginatedResult<Website>>;
-  
+  getTherapeuticAreas(filters?: TherapeuticAreaFilters): Promise<TherapeuticArea[]>;
+
   /**
-   * Get a therapeutic area by ID
-   * @param id Therapeutic area ID
-   * @returns Promise resolving to the therapeutic area or null if not found
+   * Get a single therapeutic area by ID
    */
   getTherapeuticAreaById(id: string): Promise<TherapeuticArea | null>;
-  
+
   /**
-   * Get therapeutic areas with optional filtering, sorting, and pagination
-   * @param options Query options for filtering, sorting, and pagination
-   * @returns Promise resolving to paginated therapeutic areas
+   * Get a single therapeutic area by slug
    */
-  getTherapeuticAreas(options?: QueryOptions): Promise<PaginatedResult<TherapeuticArea>>;
-  
+  getTherapeuticAreaBySlug(slug: string): Promise<TherapeuticArea | null>;
+
   /**
-   * Get therapeutic areas for a specific company
-   * @param companyId Company ID
-   * @param options Query options for filtering, sorting, and pagination
-   * @returns Promise resolving to paginated therapeutic areas for the company
+   * Create a new therapeutic area
    */
-  getTherapeuticAreasForCompany(companyId: string, options?: QueryOptions): Promise<PaginatedResult<TherapeuticArea>>;
+  createTherapeuticArea(area: Partial<TherapeuticArea>): Promise<TherapeuticArea>;
+
+  /**
+   * Update an existing therapeutic area
+   */
+  updateTherapeuticArea(id: string, area: Partial<TherapeuticArea>): Promise<TherapeuticArea>;
+
+  /**
+   * Delete a therapeutic area
+   */
+  deleteTherapeuticArea(id: string): Promise<boolean>;
+
+  /**
+   * Get websites with optional filtering
+   */
+  getWebsites(filters?: WebsiteFilters): Promise<Website[]>;
+
+  /**
+   * Get a single website by ID
+   */
+  getWebsiteById(id: string): Promise<Website | null>;
+
+  /**
+   * Get websites by company ID
+   */
+  getWebsitesByCompanyId(companyId: string): Promise<Website[]>;
+
+  /**
+   * Create a new website
+   */
+  createWebsite(website: Partial<Website>): Promise<Website>;
+
+  /**
+   * Update an existing website
+   */
+  updateWebsite(id: string, website: Partial<Website>): Promise<Website>;
+
+  /**
+   * Delete a website
+   */
+  deleteWebsite(id: string): Promise<boolean>;
+}
+
+/**
+ * Constructor for DataSource implementation
+ */
+export interface DataSourceConstructor {
+  new (useAdmin?: boolean): DataSource;
 } 

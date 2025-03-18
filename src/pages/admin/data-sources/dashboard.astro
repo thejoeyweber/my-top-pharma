@@ -1,38 +1,57 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
-import { getDataSource, getActiveDataSourceType } from '../../../dataSources';
-
-// Get the current data source
-const dataSourceType = getActiveDataSourceType();
-const dataSource = getDataSource();
+import { supabase } from '../../../lib/supabase';
 
 // Check health
-const isHealthy = await dataSource.healthCheck();
+let isHealthy = false;
+let error = null;
 
 // Fetch data counts
 let companiesCount = 0;
 let productsCount = 0;
 let websitesCount = 0;
 let therapeuticAreasCount = 0;
-let error = null;
 
 try {
-  // Get counts with pagination of 1 item (we just need the total)
-  const options = { pagination: { page: 1, limit: 1 } };
+  // Check connection health
+  const healthCheck = await supabase.from('companies').select('id', { count: 'exact', head: true });
+  isHealthy = !healthCheck.error;
   
-  const companiesResult = await dataSource.getCompanies(options);
-  companiesCount = companiesResult.pagination.total;
+  // Get counts from each table
+  const { count: companiesTotal, error: companiesError } = await supabase
+    .from('companies')
+    .select('*', { count: 'exact', head: true });
   
-  const productsResult = await dataSource.getProducts(options);
-  productsCount = productsResult.pagination.total;
+  if (!companiesError && companiesTotal !== null) {
+    companiesCount = companiesTotal;
+  }
   
-  const websitesResult = await dataSource.getWebsites(options);
-  websitesCount = websitesResult.pagination.total;
+  const { count: productsTotal, error: productsError } = await supabase
+    .from('products')
+    .select('*', { count: 'exact', head: true });
   
-  const therapeuticAreasResult = await dataSource.getTherapeuticAreas(options);
-  therapeuticAreasCount = therapeuticAreasResult.pagination.total;
+  if (!productsError && productsTotal !== null) {
+    productsCount = productsTotal;
+  }
+  
+  const { count: websitesTotal, error: websitesError } = await supabase
+    .from('websites')
+    .select('*', { count: 'exact', head: true });
+  
+  if (!websitesError && websitesTotal !== null) {
+    websitesCount = websitesTotal;
+  }
+  
+  const { count: therapeuticAreasTotal, error: therapeuticAreasError } = await supabase
+    .from('therapeutic_areas')
+    .select('*', { count: 'exact', head: true });
+  
+  if (!therapeuticAreasError && therapeuticAreasTotal !== null) {
+    therapeuticAreasCount = therapeuticAreasTotal;
+  }
 } catch (err) {
   error = err instanceof Error ? err.message : 'Unknown error occurred';
+  isHealthy = false;
 }
 
 // Get current date and time
@@ -44,18 +63,43 @@ const formattedDate = now.toLocaleDateString('en-US', {
   day: 'numeric'
 });
 const formattedTime = now.toLocaleTimeString('en-US');
+
+// Get environment information
+const databaseUrl = import.meta.env.PUBLIC_USE_LOCAL_DATABASE === 'true'
+  ? import.meta.env.PUBLIC_LOCAL_SUPABASE_URL
+  : import.meta.env.PUBLIC_SUPABASE_URL;
+
+// Format URL for display
+const displayUrl = databaseUrl?.length > 30
+  ? `${databaseUrl.substring(0, 27)}...`
+  : databaseUrl;
 ---
 
-<AdminLayout title="Data Source Dashboard">
+<AdminLayout title="Supabase Dashboard">
   <div class="max-w-7xl mx-auto py-8 px-4">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
       <div>
-        <h1 class="text-3xl font-bold">Data Source Dashboard</h1>
-        <p class="text-gray-600 mt-1">Monitor and manage your data sources</p>
+        <h1 class="text-3xl font-bold">Supabase Dashboard</h1>
+        <p class="text-gray-600 mt-1">Monitor your Supabase database status and statistics</p>
       </div>
       
-      <div class="mt-4 md:mt-0">
-        <span class="text-sm text-gray-500">Last updated: {formattedDate} at {formattedTime}</span>
+      <div class="mt-4 md:mt-0 flex items-center">
+        <span class="mr-2">Status:</span>
+        {isHealthy ? (
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+            Connected
+          </span>
+        ) : (
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            </svg>
+            Connection Failed
+          </span>
+        )}
       </div>
     </div>
     
@@ -79,7 +123,7 @@ const formattedTime = now.toLocaleTimeString('en-US');
       <div class="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
           <h2 class="text-xl font-semibold">Data Source Status</h2>
-          <p class="text-gray-600 mt-1">Current data source: <span class="font-medium">{dataSourceType}</span></p>
+          <p class="text-gray-600 mt-1">Current data source: <span class="font-medium">{displayUrl}</span></p>
         </div>
         
         <div class="mt-4 md:mt-0 flex items-center">
@@ -215,7 +259,7 @@ const formattedTime = now.toLocaleTimeString('en-US');
             <tbody class="bg-white divide-y divide-gray-200">
               <tr>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Type</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{dataSourceType}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{displayUrl}</td>
               </tr>
               <tr>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Status</td>

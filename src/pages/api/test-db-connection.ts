@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { createClient } from '@supabase/supabase-js';
-import { supabaseAdmin } from '../../lib/supabase-admin';
+import { supabaseAdmin } from '../../lib/supabase';
 
 /**
  * Test Supabase Database Connection API
@@ -118,6 +118,10 @@ export const GET: APIRoute = async () => {
     if (serviceRoleKey) {
       console.log('Testing companies table with admin client...');
       try {
+        if (!supabaseAdmin) {
+          throw new Error('Supabase admin client not initialized');
+        }
+        
         const { data: adminData, error: adminError } = await supabaseAdmin
           .from('companies')
           .select('count');

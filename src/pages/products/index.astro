@@ -12,13 +12,58 @@ import FilterBar from '../../components/organisms/FilterBar.astro';
 import SortSelect from '../../components/molecules/SortSelect.astro';
 import ViewToggle from '../../components/molecules/ViewToggle.astro';
 import ProductCard from '../../components/molecules/ProductCard.astro';
-import { products, getStageName, therapeuticAreas, getCompanyById } from '../../utils/dataUtils';
-import therapeuticAreasData from '../../data/json/therapeuticAreas.json';
+import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
+
+// Import Supabase client directly
+import { supabase } from '../../lib/supabase';
+import { dbProductToProduct } from '../../interfaces/entities/Product';
+import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/TherapeuticArea';
+import type { Product, TherapeuticArea } from '../../interfaces/entities';
 
 // Define breadcrumbs for navigation
 const breadcrumbs = [
-  { label: 'Products', href: '/products' },
+  { label: 'Products', href: '/products', active: true },
 ];
+
+// Fetch all products from Supabase
+const { data: dbProducts, error: productsError } = await supabase
+  .from('products')
+  .select('*')
+  .order('name');
+
+if (productsError) {
+  console.error('Error fetching products:', productsError);
+}
+
+// Convert database records to application entities
+const products: Product[] = (dbProducts || []).map(dbProductToProduct);
+
+// Fetch all therapeutic areas for filtering
+const { data: dbTherapeuticAreas, error: taError } = await supabase
+  .from('therapeutic_areas')
+  .select('*')
+  .order('name');
+
+if (taError) {
+  console.error('Error fetching therapeutic areas:', taError);
+}
+
+// Convert database records to application entities
+const therapeuticAreas: TherapeuticArea[] = (dbTherapeuticAreas || []).map(dbTherapeuticAreaToTherapeuticArea);
+
+// Helper function to get stage name
+const getStageName = (stage: string): string => {
+  const stageMap = {
+    'preclinical': 'Preclinical',
+    'phase1': 'Phase 1',
+    'phase2': 'Phase 2',
+    'phase3': 'Phase 3',
+    'approved': 'Approved',
+    'market': 'Marketed',
+    'discontinued': 'Discontinued'
+  };
+  return stageMap[stage] || stage;
+};
 
 // Define filter options
 const filters = [
@@ -50,25 +95,29 @@ const filters = [
     label: 'Molecule Type',
     type: 'select',
     options: [
-      { value: 'Small Molecule', label: 'Small Molecule' },
-      { value: 'Monoclonal Antibody', label: 'Monoclonal Antibody' },
-      { value: 'Peptide', label: 'Peptide' },
-      { value: 'Biologic', label: 'Biologic' },
-      { value: 'Gene Therapy', label: 'Gene Therapy' },
-      { value: 'Cell Therapy', label: 'Cell Therapy' },
+      { value: 'small-molecule', label: 'Small Molecule' },
+      { value: 'biologic', label: 'Biologic' },
+      { value: 'antibody', label: 'Monoclonal Antibody' },
+      { value: 'protein', label: 'Protein Therapeutic' },
+      { value: 'gene-therapy', label: 'Gene Therapy' },
+      { value: 'cell-therapy', label: 'Cell Therapy' },
+      { value: 'vaccine', label: 'Vaccine' },
+      { value: 'other', label: 'Other' },
     ]
-  }
+  },
 ];
 
 // Define sort options
 const sortOptions = [
-  { value: 'name-asc', label: 'Name (A-Z)' },
-  { value: 'name-desc', label: 'Name (Z-A)' },
-  { value: 'stage-desc', label: 'Latest Stage First' },
-  { value: 'stage-asc', label: 'Early Stage First' },
-  { value: 'newest', label: 'Newest First' },
-  { value: 'oldest', label: 'Oldest First' },
+  { value: 'name', label: 'Product Name (A-Z)' },
+  { value: 'stage', label: 'Development Stage' },
+  { value: 'recentApproval', label: 'Recent Approvals' },
+  { value: 'company', label: 'Company' }
 ];
+
+// Set up page metadata
+const title = "Pharmaceutical Products Directory | Top Pharma";
+const description = "Browse pharmaceutical products by development stage, therapeutic area, and more.";
 
 // Helper: Extract the earliest start date from the timeline
 const getStartDate = (product) => {
@@ -106,11 +155,12 @@ const sortedProducts = [...products].sort((a, b) => {
 >
   <div class="space-y-6">
     <!-- Page header -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold text-gray-900">Products Directory</h1>
-        <p class="mt-1 text-sm text-gray-500">
-          Browse all pharmaceutical products and pipeline candidates in our database
+        <p class="mt-1 text-sm text-gray-600">
+          Browse all pharmaceutical products in the directory
+          <DataSourceVisualizer contentType="products" />
         </p>
       </div>
       <div class="flex items-center gap-2">
@@ -342,7 +392,7 @@ const sortedProducts = [...products].sort((a, b) => {
       <div class="flex flex-col sm:flex-row sm:items-center gap-4">
         <SortSelect
           options={sortOptions}
-          selectedValue="name-asc"
+          selectedValue="name"
         />
         
         <div class="flex items-center gap-4">

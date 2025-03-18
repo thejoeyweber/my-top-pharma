@@ -1,390 +1,733 @@
 /**
  * Company Data Utilities
  * 
- * Standardized functions for accessing company data from various sources.
- * Uses feature flags to determine whether to fetch from Supabase or mock JSON.
+ * Standardized functions for accessing company data from various sources:
+ * - Static JSON files (legacy/mock data)
+ * - Local Database (development)
+ * - Remote Database (production)
+ * 
+ * This consolidated module uses feature flags to determine data sources
+ * and implements consistent error handling and type safety.
  */
 
 import { supabase } from './supabase';
 import { getFeatureFlag, FEATURES } from './featureFlags';
 import { companies as mockCompanies } from './dataUtils';
+import * as stringUtils from './stringUtils';
+import { 
+  handleDatabaseError, 
+  createNotFoundError, 
+  ErrorCategory, 
+  type ErrorResponse 
+} from './errorUtils';
 
 // Import JSON data for mock responses
 import companyFinancialsData from '../data/json/companyFinancials.json';
 import companyMetricsData from '../data/json/companyMetrics.json';
 import companyStockData from '../data/json/companyStockData.json';
 
-// Import types
-import type { Database } from '../types/supabase';
-import type { Company as CompanyType } from '../types/companies';
+// Import canonical types
+import type { 
+  Company, 
+  CompanyProduct, 
+  FinancialMetric, 
+  DbCompany,
+  dbCompanyToCompany
+} from '../interfaces/entities/Company';
 
-// Define company type based on Supabase schema
-export type Company = Database['public']['Tables']['companies']['Row'];
+// Import database types
+import type { Database } from '../types/database';
+import type { PostgrestError } from '@supabase/supabase-js';
+
+// Define mock data types
+interface MockCompany {
+  id: string;
+  name: string;
+  slug?: string;
+  description: string;
+  logoUrl: string;
+  headerImageUrl?: string;
+  websiteUrl?: string;
+  headquarters: string;
+  foundedYear?: number | null;
+  employeeCount?: number | null;
+  marketCapBillions?: number | null;
+  stockSymbol?: string | null;
+  stockExchange?: string | null;
+  therapeuticAreas?: string[];
+  products?: any[];
+  [key: string]: any;
+}
+
+interface MockFinancial {
+  stockSymbol: string;
+  data: FinancialMetric[];
+}
+
+interface MockStockData {
+  stockSymbol: string;
+  data: any[];
+}
+
+interface MockMetrics {
+  stockSymbol: string;
+  data: any;
+}
+
+// Interface for function results with error handling
+export interface Result<T> {
+  data?: T;
+  error?: ErrorResponse;
+}
 
 /**
- * Transform a database company record to match the expected Company type shape
+ * Transform a database company record to the application Company model
+ * 
+ * @param dbCompany Company record from database
+ * @returns Transformed company object matching the expected shape
  */
-function transformDatabaseCompany(dbCompany: any): CompanyType {
+export function transformDatabaseCompany(dbCompany: any): Partial<Company> {
+  // For null/undefined records
+  if (!dbCompany) return {};
+  
   return {
-    id: dbCompany.id,
+    id: dbCompany.id.toString(),
     name: dbCompany.name,
-    slug: dbCompany.slug || dbCompany.name.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-'),
+    slug: dbCompany.slug || stringUtils.generateSlug(dbCompany.name),
     description: dbCompany.description || '',
     logoUrl: dbCompany.logo_url || '/placeholder-logo.png',
-    headerImageUrl: dbCompany.header_image_url || undefined,
+    headerImageUrl: dbCompany.header_image_url,
+    websiteUrl: dbCompany.website || '',
     headquarters: dbCompany.headquarters || 'Unknown',
-    founded: dbCompany.founded || 'Unknown',
-    website: dbCompany.website || '',
-    marketCap: dbCompany.market_cap ? Number(dbCompany.market_cap) / 1e9 : 0, // Convert to billions
-    employees: dbCompany.full_time_employees || 0,
-    stockSymbol: dbCompany.stock_symbol || dbCompany.ticker || undefined,
-    stockExchange: dbCompany.stock_exchange || undefined,
+    foundedYear: dbCompany.founded_year,
+    employeeCount: dbCompany.employee_count,
+    marketCapBillions: dbCompany.market_cap_billions,
+    annualRevenueBillions: dbCompany.annual_revenue_billions,
+    isPublic: dbCompany.public_company || false,
+    stockSymbol: dbCompany.stock_symbol,
+    stockExchange: dbCompany.stock_exchange,
+    ceo: dbCompany.ceo,
     therapeuticAreas: dbCompany.therapeutic_areas || [],
     products: dbCompany.products || [],
     relatedCompanies: dbCompany.related_companies || [],
     milestones: dbCompany.milestones || [],
-    financials: dbCompany.financials || []
+    financials: dbCompany.financials || [],
+    createdAt: dbCompany.created_at,
+    updatedAt: dbCompany.updated_at
   };
 }
 
 /**
- * Get mock companies data
- */
-function getMockCompanies(): CompanyType[] {
-  return mockCompanies;
-}
-
-/**
- * Get a specific mock company by ID
- */
-function getMockCompanyById(id: string): CompanyType | null {
-  return mockCompanies.find(company => 
-    company.id.toString() === id.toString() || 
-    // @ts-ignore - Ignore the slug property which might not be in the type but exists in the data
-    company.slug === id || 
-    company.stockSymbol?.toLowerCase() === id.toLowerCase()
-  ) || null;
-}
-
-/**
  * Get all companies
- * @returns Array of companies
+ * 
+ * @returns Promise<Result<Company[]>> Result with array of companies or error
  */
-export async function getAllCompanies(): Promise<CompanyType[]> {
-  return getCompanies(getFeatureFlag(FEATURES.USE_DATABASE_COMPANIES));
-}
-
-/**
- * Get company data from either mock JSON or database based on feature flag
- */
-export async function getCompanies(useDatabase = getFeatureFlag(FEATURES.USE_DATABASE_COMPANIES)): Promise<CompanyType[]> {
-  if (useDatabase) {
-    try {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .order('name');
-        
-      if (error) {
-        console.error('Error fetching companies from database:', error);
-        return getMockCompanies();
-      }
-      
-      return data.map(transformDatabaseCompany);
-    } catch (error) {
-      console.error('Failed to fetch companies from database, falling back to mock data:', error);
-      return getMockCompanies();
-    }
-  }
-  
-  return getMockCompanies();
-}
-
-/**
- * Get a specific company by ID from either mock JSON or database
- * @param id - Company ID, slug, or stock symbol (string or number)
- * @param useDatabase - Whether to use database or mock data
- * @returns Company or null if not found
- */
-export async function getCompanyById(
-  id: string | number, 
-  useDatabase = getFeatureFlag(FEATURES.USE_DATABASE_COMPANIES)
-): Promise<CompanyType | null> {
-  if (useDatabase) {
-    try {
-      // Try finding by ID first
-      let { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('id', id.toString())
-        .single();
-      
-      // If not found by ID, try by slug (if id is a string)
-      if (!data && !error && typeof id === 'string') {
-        ({ data, error } = await supabase
-          .from('companies')
-          .select('*')
-          .eq('slug', id)
-          .single());
-      }
-      
-      // If still not found, try by stock_symbol (if id is a string)
-      if (!data && !error && typeof id === 'string') {
-        ({ data, error } = await supabase
-          .from('companies')
-          .select('*')
-          .eq('stock_symbol', id)
-          .single());
-      }
-      
-      if (error || !data) {
-        console.error('Error fetching company by ID from database:', error);
-        return getMockCompanyById(id.toString());
-      }
-      
-      return transformDatabaseCompany(data);
-    } catch (error) {
-      console.error('Failed to fetch company by ID from database, falling back to mock data:', error);
-      return getMockCompanyById(id.toString());
-    }
-  }
-  
-  return getMockCompanyById(id.toString());
-}
-
-/**
- * Get a company by slug
- * @param slug Company slug
- * @returns Company or null if not found
- */
-export async function getCompanyBySlug(slug: string): Promise<CompanyType | null> {
+export async function getCompanies(): Promise<Result<Company[]>> {
   const useDatabase = getFeatureFlag(FEATURES.USE_DATABASE_COMPANIES);
   
-  if (!useDatabase) {
-    // Use mock data
-    return mockCompanies.find(company => company.slug === slug) || null;
+  if (useDatabase) {
+    return await getCompaniesFromDatabase();
   } else {
-    // Load from Supabase
     try {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('slug', slug)
-        .single();
-        
-      if (error) {
-        console.error(`Error fetching company ${slug} from Supabase:`, error);
-        return null;
+      const companies = await getCompaniesFromJson();
+      return { data: companies };
+    } catch (error) {
+      return { 
+        error: {
+          message: 'Error loading companies from JSON data',
+          category: ErrorCategory.INTERNAL,
+          originalError: error
+        }
+      };
+    }
+  }
+}
+
+/**
+ * Get a company by ID or slug
+ * 
+ * @param identifier Company ID or slug
+ * @param type Specify if the identifier is an 'id' or 'slug' (auto-detect if not specified)
+ * @returns Promise<Result<Company>> Result with company or error
+ */
+export async function getCompany(
+  identifier: string,
+  type?: 'id' | 'slug'
+): Promise<Result<Company>> {
+  const useDatabase = getFeatureFlag(FEATURES.USE_DATABASE_COMPANIES);
+  
+  if (useDatabase) {
+    try {
+      // Determine field to query based on type parameter or guess based on format
+      let field = type;
+      if (!field) {
+        // If no type specified, try to guess - UUIDs and numeric strings are likely IDs
+        const isIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier) || 
+                          /^\d+$/.test(identifier);
+        field = isIdPattern ? 'id' : 'slug';
       }
       
-      return transformDatabaseCompany(data);
+      if (!supabase) {
+        return {
+          error: {
+            message: 'Supabase client not initialized',
+            category: ErrorCategory.INTERNAL
+          }
+        };
+      }
+      
+      // Execute query
+      let data;
+      let error;
+      
+      try {
+        if (field === 'id') {
+          // @ts-ignore: TypeScript has issues with Supabase's method chaining
+          const result = await supabase
+            .from('companies')
+            .select('*, therapeutic_areas(*)')
+            // @ts-ignore: TypeScript has issues with Supabase query methods
+            .eq('id', identifier)
+            .single();
+          data = result.data;
+          error = result.error;
+        } else {
+          // @ts-ignore: TypeScript has issues with Supabase's method chaining
+          const result = await supabase
+            .from('companies')
+            .select('*, therapeutic_areas(*)')
+            // @ts-ignore: TypeScript has issues with Supabase query methods
+            .eq('slug', identifier)
+            .single();
+          data = result.data;
+          error = result.error;
+        }
+      } catch (queryError) {
+        return {
+          error: {
+            message: 'Error executing database query',
+            category: ErrorCategory.DATABASE,
+            originalError: queryError
+          }
+        };
+      }
+      
+      // Handle errors
+      if (error) {
+        return { 
+          error: handleDatabaseError(error, 'fetch', 'company', identifier)
+        };
+      }
+      
+      // Handle not found case
+      if (!data) {
+        return { 
+          error: createNotFoundError('Company', identifier)
+        };
+      }
+      
+      // Transform and return the data
+      return { data: transformDatabaseCompany(data) as Company };
     } catch (error) {
-      console.error(`Error fetching company ${slug}:`, error);
-      return null;
+      return { 
+        error: handleDatabaseError(error, 'fetch', 'company', identifier)
+      };
     }
+  } else {
+    // Use mock data
+    try {
+      const companies = await getCompaniesFromJson();
+      
+      // Find by ID or slug based on the type parameter
+      const company = type === 'slug' 
+        ? companies.find(company => company.slug === identifier)
+        : type === 'id'
+          ? companies.find(company => company.id === identifier)
+          : companies.find(company => company.id === identifier || company.slug === identifier);
+      
+      if (!company) {
+        return { 
+          error: createNotFoundError('Company', identifier)
+        };
+      }
+      
+      return { data: company };
+    } catch (error) {
+      return { 
+        error: {
+          message: `Error fetching mock company with identifier ${identifier}`,
+          category: ErrorCategory.INTERNAL,
+          originalError: error
+        }
+      };
+    }
+  }
+}
+
+/**
+ * Get a company by ID (legacy method - use getCompany instead)
+ * @deprecated Use getCompany(id, 'id') instead
+ */
+export async function getCompanyById(id: string): Promise<Company | undefined> {
+  const result = await getCompany(id, 'id');
+  return result.data;
+}
+
+/**
+ * Get a company by slug (legacy method - use getCompany instead)
+ * @deprecated Use getCompany(slug, 'slug') instead
+ */
+export async function getCompanyBySlug(slug: string): Promise<Company | undefined> {
+  const result = await getCompany(slug, 'slug');
+  return result.data;
+}
+
+/**
+ * Get companies by therapeutic area
+ * 
+ * @param taId Therapeutic area ID
+ * @returns Promise<Result<Company[]>> Result with array of companies or error
+ */
+export async function getCompaniesByTherapeuticArea(taId: string): Promise<Result<Company[]>> {
+  const useDatabase = getFeatureFlag(FEATURES.USE_DATABASE_COMPANIES);
+  
+  if (useDatabase) {
+    try {
+      const companies = await getCompaniesByTherapeuticAreaFromDatabase(taId);
+      return { data: companies };
+    } catch (error) {
+      return {
+        error: handleDatabaseError(error, 'fetch', 'companies by therapeutic area', taId)
+      };
+    }
+  } else {
+    try {
+      const companies = await getCompaniesByTherapeuticAreaFromJson(taId);
+      return { data: companies };
+    } catch (error) {
+      return {
+        error: {
+          message: `Error fetching companies for therapeutic area ${taId}`,
+          category: ErrorCategory.INTERNAL,
+          originalError: error
+        }
+      };
+    }
+  }
+}
+
+/**
+ * Get company financials
+ * 
+ * @param stockSymbol Company stock symbol
+ * @returns Promise<Result<FinancialMetric[]>> Result with array of financial metrics or error
+ */
+export async function getCompanyFinancials(stockSymbol: string): Promise<Result<FinancialMetric[]>> {
+  const useDatabase = getFeatureFlag(FEATURES.USE_DATABASE_COMPANIES);
+  
+  if (useDatabase) {
+    try {
+      const financials = await getCompanyFinancialsFromDatabase(stockSymbol);
+      return { data: financials };
+    } catch (error) {
+      return {
+        error: handleDatabaseError(error, 'fetch', 'financials', stockSymbol)
+      };
+    }
+  } else {
+    try {
+      const financials = await getCompanyFinancialsFromJson(stockSymbol);
+      return { data: financials };
+    } catch (error) {
+      return {
+        error: {
+          message: `Error fetching financials for company with stock symbol ${stockSymbol}`,
+          category: ErrorCategory.INTERNAL,
+          originalError: error
+        }
+      };
+    }
+  }
+}
+
+/**
+ * Get company stock data
+ * 
+ * @param stockSymbol Company stock symbol
+ * @returns Promise<Result<any>> Result with stock data or error
+ */
+export async function getCompanyStockData(stockSymbol: string): Promise<Result<any>> {
+  const useDatabase = getFeatureFlag(FEATURES.USE_DATABASE_COMPANIES);
+  
+  if (useDatabase) {
+    try {
+      const stockData = await getCompanyStockDataFromDatabase(stockSymbol);
+      return { data: stockData };
+    } catch (error) {
+      return {
+        error: handleDatabaseError(error, 'fetch', 'stock data', stockSymbol)
+      };
+    }
+  } else {
+    try {
+      const stockData = await getCompanyStockDataFromJson(stockSymbol);
+      return { data: stockData };
+    } catch (error) {
+      return {
+        error: {
+          message: `Error fetching stock data for company with stock symbol ${stockSymbol}`,
+          category: ErrorCategory.INTERNAL,
+          originalError: error
+        }
+      };
+    }
+  }
+}
+
+/**
+ * Get company metrics
+ * 
+ * @param stockSymbol Company stock symbol
+ * @returns Promise<Result<any>> Result with company metrics or error
+ */
+export async function getCompanyMetrics(stockSymbol: string): Promise<Result<any>> {
+  const useDatabase = getFeatureFlag(FEATURES.USE_DATABASE_COMPANIES);
+  
+  if (useDatabase) {
+    try {
+      const metrics = await getCompanyMetricsFromDatabase(stockSymbol);
+      return { data: metrics };
+    } catch (error) {
+      return {
+        error: handleDatabaseError(error, 'fetch', 'metrics', stockSymbol)
+      };
+    }
+  } else {
+    try {
+      const metrics = await getCompanyMetricsFromJson(stockSymbol);
+      return { data: metrics };
+    } catch (error) {
+      return {
+        error: {
+          message: `Error fetching metrics for company with stock symbol ${stockSymbol}`,
+          category: ErrorCategory.INTERNAL,
+          originalError: error
+        }
+      };
+    }
+  }
+}
+
+/**
+ * Get related companies
+ * 
+ * @param companyId Company ID
+ * @returns Promise<Result<Company[]>> Result with array of related companies or error
+ */
+export async function getRelatedCompanies(companyId: string): Promise<Result<Company[]>> {
+  // This is a placeholder - in a real implementation, we would fetch related companies
+  // based on relationships stored in the database
+  try {
+    const allCompanies = await getCompanies();
+    if (allCompanies.error) {
+      return allCompanies as Result<Company[]>;
+    }
+    
+    const relatedCompanies = allCompanies.data?.filter(company => company.id !== companyId).slice(0, 3) || [];
+    return { data: relatedCompanies };
+  } catch (error) {
+    return {
+      error: {
+        message: `Error fetching related companies for company ${companyId}`,
+        category: ErrorCategory.INTERNAL,
+        originalError: error
+      }
+    };
+  }
+}
+
+// -------------------------------------------------------------------------
+// Private implementation functions
+// -------------------------------------------------------------------------
+
+/**
+ * Get companies from JSON (mock data)
+ */
+async function getCompaniesFromJson(): Promise<Company[]> {
+  try {
+    // Convert mock data to Company type
+    return (mockCompanies as MockCompany[]).map(company => ({
+      id: company.id,
+      name: company.name,
+      slug: company.slug || stringUtils.generateSlug(company.name),
+      description: company.description,
+      logoUrl: company.logoUrl,
+      headerImageUrl: company.headerImageUrl,
+      websiteUrl: company.websiteUrl || '',
+      headquarters: company.headquarters,
+      foundedYear: company.foundedYear || null,
+      employeeCount: company.employeeCount || null,
+      marketCapBillions: company.marketCapBillions || null,
+      annualRevenueBillions: null, // Not available in mock data
+      isPublic: !!company.stockSymbol,
+      stockSymbol: company.stockSymbol || null,
+      stockExchange: company.stockExchange || null,
+      ceo: null, // Not available in mock data
+      therapeuticAreas: company.therapeuticAreas || [],
+      products: company.products as CompanyProduct[],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    })) as Company[];
+  } catch (error) {
+    console.error('Error loading companies from JSON:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get companies from database
+ */
+async function getCompaniesFromDatabase(): Promise<Result<Company[]>> {
+  try {
+    if (!supabase) {
+      return {
+        error: {
+          message: 'Supabase client not initialized',
+          category: ErrorCategory.INTERNAL
+        }
+      };
+    }
+    
+    // @ts-ignore: TypeScript has issues with Supabase's method chaining
+    const { data, error } = await supabase
+      .from('companies')
+      .select('*, therapeutic_areas(*)')
+      // @ts-ignore: TypeScript has issues with Supabase query methods
+      .order('name');
+      
+    if (error) {
+      return {
+        error: handleDatabaseError(error, 'fetch', 'companies')
+      };
+    }
+    
+    const companies = (data || []).map((company: any) => transformDatabaseCompany(company) as Company);
+    return { data: companies };
+  } catch (error) {
+    return {
+      error: handleDatabaseError(error, 'fetch', 'companies')
+    };
   }
 }
 
 /**
  * Get companies by therapeutic area from database
- * @param therapeuticAreaId The therapeutic area ID
- * @returns Array of companies in the therapeutic area
  */
-export async function getCompaniesByTherapeuticAreaFromDatabase(therapeuticAreaId: string): Promise<Company[]> {
+async function getCompaniesByTherapeuticAreaFromDatabase(therapeuticAreaId: string): Promise<Company[]> {
   try {
+    if (!supabase) {
+      throw new Error('Supabase client not initialized');
+    }
+    
+    // This is a simplified implementation - in a real app, we would use a join table
+    // @ts-ignore: TypeScript has issues with Supabase's method chaining
     const { data, error } = await supabase
-      .from('company_therapeutic_areas')
-      .select('company_id')
-      .eq('therapeutic_area_id', therapeuticAreaId);
-      
-    if (error) {
-      console.error(`Error fetching companies for therapeutic area ${therapeuticAreaId}:`, error);
-      return [];
-    }
-    
-    if (!data || data.length === 0) {
-      return [];
-    }
-    
-    const companyIds = data.map((item: { company_id: number }) => item.company_id);
-    
-    const { data: companies, error: companiesError } = await supabase
       .from('companies')
       .select('*')
-      .in('id', companyIds)
-      .order('name');
+      // @ts-ignore: TypeScript has issues with Supabase query methods
+      .contains('therapeutic_areas', [therapeuticAreaId]);
       
-    if (companiesError) {
-      console.error(`Error fetching companies by IDs:`, companiesError);
-      return [];
+    if (error) {
+      console.error('Error fetching companies by therapeutic area:', error);
+      throw error;
     }
     
-    return companies || [];
+    return (data || []).map((company: any) => transformDatabaseCompany(company) as Company);
   } catch (error) {
-    console.error(`Error in getCompaniesByTherapeuticAreaFromDatabase:`, error);
-    return [];
+    console.error('Error fetching companies by therapeutic area:', error);
+    throw error;
   }
 }
 
 /**
- * Get companies by therapeutic area from JSON mock data
- * @param therapeuticAreaId The therapeutic area ID
- * @returns Array of companies in the therapeutic area
+ * Get companies by therapeutic area from JSON
  */
-export function getCompaniesByTherapeuticAreaFromJson(therapeuticAreaId: string): any[] {
-  return mockCompanies.filter((company: any) => 
-    company.therapeutic_areas && 
-    Array.isArray(company.therapeutic_areas) && 
-    company.therapeutic_areas.includes(therapeuticAreaId)
-  );
+function getCompaniesByTherapeuticAreaFromJson(therapeuticAreaId: string): Company[] {
+  try {
+    return (mockCompanies as MockCompany[])
+      .filter(company => company.therapeuticAreas && company.therapeuticAreas.includes(therapeuticAreaId))
+      .map(company => ({
+        id: company.id,
+        name: company.name,
+        slug: company.slug || stringUtils.generateSlug(company.name),
+        description: company.description,
+        logoUrl: company.logoUrl,
+        websiteUrl: company.websiteUrl || '',
+        headquarters: company.headquarters,
+        foundedYear: company.foundedYear || null,
+        employeeCount: company.employeeCount || null,
+        marketCapBillions: company.marketCapBillions || null,
+        annualRevenueBillions: null,
+        isPublic: !!company.stockSymbol,
+        stockSymbol: company.stockSymbol || null,
+        stockExchange: company.stockExchange || null,
+        ceo: null,
+        therapeuticAreas: company.therapeuticAreas || [],
+        products: company.products as CompanyProduct[],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })) as Company[];
+  } catch (error) {
+    console.error('Error filtering companies by therapeutic area:', error);
+    throw error;
+  }
 }
 
 /**
  * Get company financials from database
- * @param stockSymbol The company stock symbol
- * @returns Company financials data
  */
-export async function getCompanyFinancialsFromDatabase(stockSymbol: string): Promise<any> {
+async function getCompanyFinancialsFromDatabase(stockSymbol: string): Promise<FinancialMetric[]> {
   try {
+    if (!supabase) {
+      throw new Error('Supabase client not initialized');
+    }
+    
+    // @ts-ignore: TypeScript has issues with Supabase's method chaining
     const { data, error } = await supabase
       .from('company_financials')
       .select('*')
+      // @ts-ignore: TypeScript has issues with Supabase query methods
       .eq('stock_symbol', stockSymbol)
-      .order('period_end_date', { ascending: false })
-      .limit(4);
+      .order('fiscal_date', { ascending: false });
       
     if (error) {
-      console.error(`Error fetching financials for ${stockSymbol}:`, error);
-      return null;
+      console.error('Error fetching company financials:', error);
+      throw error;
     }
     
-    return data || null;
+    return (data || []).map((item: any) => ({
+      year: new Date(item.fiscal_date).getFullYear(),
+      revenue: item.revenue || 0,
+      rAndDSpending: item.r_and_d_expense || 0,
+      netIncome: item.net_income || 0
+    }));
   } catch (error) {
-    console.error(`Error in getCompanyFinancialsFromDatabase:`, error);
-    return null;
+    console.error('Error fetching company financials:', error);
+    throw error;
   }
 }
 
 /**
- * Get company financials from JSON mock data
- * @param stockSymbol The company stock symbol
- * @returns Company financials data
+ * Get company financials from JSON
  */
-export function getCompanyFinancialsFromJson(stockSymbol: string): any {
-  return companyFinancialsData[stockSymbol as keyof typeof companyFinancialsData] || null;
+function getCompanyFinancialsFromJson(stockSymbol: string): FinancialMetric[] {
+  try {
+    const financials = (companyFinancialsData as unknown as MockFinancial[])
+      .find(item => item.stockSymbol === stockSymbol);
+    return financials?.data || [];
+  } catch (error) {
+    console.error('Error fetching company financials from JSON:', error);
+    throw error;
+  }
 }
 
 /**
  * Get company stock data from database
- * @param stockSymbol The company stock symbol
- * @returns Company stock data
  */
-export async function getCompanyStockDataFromDatabase(stockSymbol: string): Promise<any> {
+async function getCompanyStockDataFromDatabase(stockSymbol: string): Promise<any> {
   try {
+    if (!supabase) {
+      throw new Error('Supabase client not initialized');
+    }
+    
+    // @ts-ignore: TypeScript has issues with Supabase's method chaining
     const { data, error } = await supabase
       .from('company_stock_data')
       .select('*')
+      // @ts-ignore: TypeScript has issues with Supabase query methods
       .eq('stock_symbol', stockSymbol)
       .order('date', { ascending: false })
       .limit(30);
       
     if (error) {
-      console.error(`Error fetching stock data for ${stockSymbol}:`, error);
-      return null;
+      console.error('Error fetching company stock data:', error);
+      throw error;
     }
     
-    return data || null;
+    return data;
   } catch (error) {
-    console.error(`Error in getCompanyStockDataFromDatabase:`, error);
-    return null;
+    console.error('Error fetching company stock data:', error);
+    throw error;
   }
 }
 
 /**
- * Get company stock data from JSON mock data
- * @param stockSymbol The company stock symbol
- * @returns Company stock data
+ * Get company stock data from JSON
  */
-export function getCompanyStockDataFromJson(stockSymbol: string): any {
-  return companyStockData[stockSymbol as keyof typeof companyStockData] || null;
+function getCompanyStockDataFromJson(stockSymbol: string): any {
+  try {
+    return (companyStockData as unknown as MockStockData[])
+      .find(item => item.stockSymbol === stockSymbol);
+  } catch (error) {
+    console.error('Error fetching company stock data from JSON:', error);
+    throw error;
+  }
 }
 
 /**
  * Get company metrics from database
- * @param stockSymbol The company stock symbol
- * @returns Company metrics data
  */
-export async function getCompanyMetricsFromDatabase(stockSymbol: string): Promise<any> {
+async function getCompanyMetricsFromDatabase(stockSymbol: string): Promise<any> {
   try {
+    if (!supabase) {
+      throw new Error('Supabase client not initialized');
+    }
+    
+    // @ts-ignore: TypeScript has issues with Supabase's method chaining
     const { data, error } = await supabase
       .from('company_metrics')
       .select('*')
+      // @ts-ignore: TypeScript has issues with Supabase query methods
       .eq('stock_symbol', stockSymbol)
       .order('date', { ascending: false })
       .limit(1)
       .single();
       
     if (error) {
-      console.error(`Error fetching metrics for ${stockSymbol}:`, error);
-      return null;
+      console.error('Error fetching company metrics:', error);
+      throw error;
     }
     
-    return data || null;
+    return data;
   } catch (error) {
-    console.error(`Error in getCompanyMetricsFromDatabase:`, error);
-    return null;
+    console.error('Error fetching company metrics:', error);
+    throw error;
   }
 }
 
 /**
- * Get company metrics from JSON mock data
- * @param stockSymbol The company stock symbol
- * @returns Company metrics data
+ * Get company metrics from JSON
  */
-export function getCompanyMetricsFromJson(stockSymbol: string): any {
-  return companyMetricsData[stockSymbol as keyof typeof companyMetricsData] || null;
+function getCompanyMetricsFromJson(stockSymbol: string): any {
+  try {
+    return (companyMetricsData as unknown as MockMetrics[])
+      .find(item => item.stockSymbol === stockSymbol);
+  } catch (error) {
+    console.error('Error fetching company metrics from JSON:', error);
+    throw error;
+  }
 }
 
-/**
- * Get related companies for a specific company
- * @param companyId - ID of the company to get related companies for
- * @returns Array of related companies with relationship information
- */
-export async function getRelatedCompanies(companyId: string) {
-  const useDatabase = getFeatureFlag(FEATURES.USE_DATABASE_COMPANIES);
-  
-  if (useDatabase) {
-    try {
-      // This is a simplified implementation - in a real app, you'd have a proper relationship table
-      // For now, we'll fall back to the mock data for related companies
-      const company = await getCompanyById(companyId);
-      if (!company || !company.relatedCompanies) return [];
-      
-      const relatedCompanyIds = company.relatedCompanies.map((relation: any) => relation.id);
-      const relatedCompaniesData = await Promise.all(
-        relatedCompanyIds.map((id: string) => getCompanyById(id))
-      );
-      
-      return relatedCompaniesData
-        .filter(Boolean)
-        .map((relatedCompany, index) => ({
-          ...relatedCompany,
-          relationship: company.relatedCompanies[index].relationship
-        }));
-    } catch (error) {
-      console.error(`Error fetching related companies for ${companyId}:`, error);
-      return [];
-    }
-  } else {
-    // Use mock data
-    const mockCompany = getMockCompanyById(companyId);
-    if (!mockCompany || !mockCompany.relatedCompanies) return [];
-    
-    return mockCompany.relatedCompanies
-      .map((relation: any) => ({
-        ...getMockCompanyById(relation.id),
-        relationship: relation.relationship
-      }))
-      .filter(Boolean);
-  }
-} 
+// Export a namespace for all company utilities
+export const companyDataUtils = {
+  getCompanies,
+  getCompany,
+  getCompanyById,
+  getCompanyBySlug,
+  getCompaniesByTherapeuticArea,
+  getCompanyFinancials,
+  getCompanyStockData,
+  getCompanyMetrics,
+  getRelatedCompanies,
+  transformDatabaseCompany
+}; 

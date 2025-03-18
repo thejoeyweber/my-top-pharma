@@ -6,6 +6,13 @@
  * consistent product data regardless of source.
  */
 
+import type { Database } from '../../types/database';
+
+// Database types for reference
+export type DbProduct = Database['public']['Tables']['products']['Row'];
+export type DbProductInsert = Database['public']['Tables']['products']['Insert'];
+export type DbProductUpdate = Database['public']['Tables']['products']['Update'];
+
 /**
  * Development and approval stages for a pharmaceutical product
  */
@@ -24,6 +31,11 @@ export type ProductStage =
  */
 export interface ProductTimeline {
   /**
+   * Unique identifier
+   */
+  id: string;
+
+  /**
    * Date of the timeline event
    */
   date: string;
@@ -31,7 +43,7 @@ export interface ProductTimeline {
   /**
    * Stage of development at this point in time
    */
-  stage: ProductStage;
+  stage: string;
   
   /**
    * Description of the timeline event
@@ -44,6 +56,11 @@ export interface ProductTimeline {
  */
 export interface ProductApproval {
   /**
+   * Unique identifier
+   */
+  id: string;
+
+  /**
    * Geographic region of the approval
    */
   region: string;
@@ -52,6 +69,16 @@ export interface ProductApproval {
    * Date of approval
    */
   date: string;
+  
+  /**
+   * Agency that granted the approval
+   */
+  agency: string;
+  
+  /**
+   * Status of the approval
+   */
+  status: string;
   
   /**
    * Approved indication (what the product is approved to treat)
@@ -68,6 +95,11 @@ export interface ProductApproval {
  * Patent information for a product
  */
 export interface ProductPatent {
+  /**
+   * Unique identifier
+   */
+  id: string;
+
   /**
    * Patent number
    */
@@ -99,6 +131,11 @@ export interface Product {
   name: string;
   
   /**
+   * URL-friendly version of the name
+   */
+  slug: string;
+  
+  /**
    * Non-proprietary or scientific name
    */
   genericName?: string;
@@ -111,37 +148,37 @@ export interface Product {
   /**
    * Product description
    */
-  description: string;
+  description?: string;
   
   /**
    * Current development or market stage
    */
-  stage: ProductStage;
+  stage?: string;
   
   /**
    * IDs of therapeutic areas associated with this product
    */
-  therapeuticAreas: string[];
+  therapeuticAreas?: string[];
   
   /**
    * Medical conditions the product is used to treat
    */
-  indications: string[];
+  indications?: string[];
   
   /**
    * Type of molecule (small molecule, biologic, etc.)
    */
-  moleculeType: string;
+  moleculeType?: string;
   
   /**
    * Key development and approval milestones
    */
-  timeline: ProductTimeline[];
+  timeline?: ProductTimeline[];
   
   /**
    * Regulatory approvals for the product
    */
-  approvals: ProductApproval[];
+  approvals?: ProductApproval[];
   
   /**
    * URL to product image
@@ -157,4 +194,56 @@ export interface Product {
    * Patents associated with the product
    */
   patents?: ProductPatent[];
+  
+  /**
+   * Creation timestamp
+   */
+  createdAt?: string;
+  
+  /**
+   * Last update timestamp
+   */
+  updatedAt?: string;
+}
+
+/**
+ * Converts a database product record to the application Product model
+ */
+export function dbProductToProduct(dbProduct: DbProduct): Product {
+  return {
+    id: dbProduct.id,
+    name: dbProduct.name,
+    genericName: dbProduct.generic_name || undefined,
+    companyId: dbProduct.company_id,
+    description: dbProduct.description || undefined,
+    stage: dbProduct.stage || undefined,
+    moleculeType: dbProduct.molecule_type || undefined,
+    imageUrl: dbProduct.image_url || undefined,
+    website: dbProduct.website || undefined,
+    createdAt: dbProduct.created_at || undefined,
+    updatedAt: dbProduct.updated_at || undefined,
+    slug: dbProduct.slug,
+    therapeuticAreas: [], // This will be populated separately by joining with product_therapeutic_areas
+    indications: [], // This will be populated separately by joining with product_indications
+  };
+}
+
+/**
+ * Converts an application Product model to a database insert record
+ */
+export function productToDbProduct(product: Partial<Product>): Partial<DbProduct> {
+  return {
+    id: product.id,
+    name: product.name,
+    generic_name: product.genericName || null,
+    company_id: product.companyId,
+    description: product.description || null,
+    stage: product.stage || null,
+    molecule_type: product.moleculeType || null,
+    image_url: product.imageUrl || null,
+    website: product.website || null,
+    // Don't set created_at or updated_at, let the database handle those
+    slug: product.slug || null,
+    // therapeuticAreas and indications are handled separately through junction tables
+  };
 } 

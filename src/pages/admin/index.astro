@@ -4,11 +4,10 @@
  * 
  * Main administrative dashboard with system stats and quick access to admin functions.
  */
-import DashboardLayout from '../../components/templates/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
 import { systemStats, recentCrawlerJobs, adminShortcuts } from '../../utils/dataUtils';
 import AdminLayout from '../../layouts/AdminLayout.astro';
-import { getDataSource, getActiveDataSourceType } from '../../dataSources';
+import { supabase } from '../../lib/supabase';
 
 // Format number with commas
 const formatNumber = (num: number): string => {
@@ -34,10 +33,14 @@ const breadcrumbs = [
   { label: 'Admin', href: '/admin', isActive: true },
 ];
 
-// Get the current data source type and check health
-const dataSourceType = getActiveDataSourceType();
-const dataSource = getDataSource();
-const isHealthy = await dataSource.healthCheck();
+// Check Supabase connection health
+let isHealthy = false;
+try {
+  const { data, error } = await supabase.from('companies').select('id', { count: 'exact', head: true });
+  isHealthy = !error;
+} catch (error) {
+  console.error('Supabase health check failed:', error);
+}
 
 // Define the admin sections
 const adminSections = [
@@ -84,12 +87,6 @@ const adminSections = [
         description: 'Test data source connections',
         icon: 'lightning-bolt',
         url: '/admin/data-sources/connection-test'
-      },
-      {
-        title: 'Configuration',
-        description: 'Configure data sources',
-        icon: 'cog',
-        url: '/admin/data-sources/config'
       },
       {
         title: 'Documentation',
@@ -180,20 +177,38 @@ const renderIcon = (iconName: string) => {
 };
 ---
 
-<DashboardLayout title="Admin Dashboard | Top Pharma" currentPath="/admin" breadcrumbs={breadcrumbs}>
-  <div class="space-y-6">
-    <!-- Welcome Panel -->
-    <div class="bg-white p-6 rounded-lg shadow-sm mb-6">
-      <h2 class="text-lg font-semibold text-gray-900">Welcome, Admin</h2>
-      <p class="mt-1 text-gray-500">
-        Last login: Today at 9:12 AM | System status: Operational
-      </p>
+<AdminLayout title="Admin Dashboard" breadcrumbs={breadcrumbs}>
+  <div class="max-w-7xl mx-auto py-8 px-4">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+      <div>
+        <h1 class="text-3xl font-bold">Admin Dashboard</h1>
+        <p class="text-gray-600 mt-1">Manage your application data and settings</p>
+      </div>
+      
+      <div class="mt-4 md:mt-0 flex items-center">
+        <span class="mr-2">System Status:</span>
+        {isHealthy ? (
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+            Healthy
+          </span>
+        ) : (
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            </svg>
+            Unhealthy
+          </span>
+        )}
+      </div>
     </div>
     
     <!-- System Stats -->
-    <div class="mb-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-3">System Statistics</h2>
-      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="mb-8">
+      <h2 class="text-xl font-semibold mb-4">System Statistics</h2>
+      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {systemStats.map((stat) => (
           <Card>
             <div class="px-4 py-5 sm:p-6">
@@ -222,8 +237,8 @@ const renderIcon = (iconName: string) => {
     </div>
     
     <!-- Recent Crawler Activity -->
-    <div class="mb-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-3">Recent Crawler Activity</h2>
+    <div class="mb-8">
+      <h2 class="text-xl font-semibold mb-4">Recent Crawler Activity</h2>
       <Card>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
@@ -266,65 +281,6 @@ const renderIcon = (iconName: string) => {
           </table>
         </div>
       </Card>
-    </div>
-    
-    <!-- Admin Shortcuts -->
-    <div class="mb-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-3">Admin Tools</h2>
-      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {adminShortcuts.map((shortcut) => (
-          <a href={shortcut.link} class="block">
-            <Card hover={true}>
-              <div class="px-4 py-5 sm:p-6">
-                <div class="flex items-start">
-                  <div class={`flex-shrink-0 rounded-md p-3 ${shortcut.color}`}>
-                    <span set:html={shortcut.icon} />
-                  </div>
-                  <div class="ml-4">
-                    <h3 class="text-lg font-medium text-gray-900">{shortcut.title}</h3>
-                    <p class="mt-1 text-sm text-gray-500">{shortcut.description}</p>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </a>
-        ))}
-      </div>
-    </div>
-    
-  </div>
-</DashboardLayout>
-
-<AdminLayout title="Admin Dashboard">
-  <div class="max-w-7xl mx-auto py-8 px-4">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-      <div>
-        <h1 class="text-3xl font-bold">Admin Dashboard</h1>
-        <p class="text-gray-600 mt-1">Manage your application data and settings</p>
-      </div>
-      
-      <div class="mt-4 md:mt-0 flex items-center">
-        <span class="mr-2">Data Source:</span>
-        <span class="px-3 py-1 bg-gray-100 rounded-full text-sm font-medium">{dataSourceType}</span>
-        
-        <span class="mx-2">•</span>
-        
-        {isHealthy ? (
-          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-            </svg>
-            Healthy
-          </span>
-        ) : (
-          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-            </svg>
-            Unhealthy
-          </span>
-        )}
-      </div>
     </div>
     
     {adminSections.map(section => (

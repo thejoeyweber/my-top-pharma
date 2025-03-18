@@ -6,22 +6,27 @@
  * It's intended for development and testing purposes only.
  */
 
-import { supabase, testSupabaseConnection } from '../utils/supabase';
+import { supabase } from '../lib/supabase';
 
 // Test the connection when the component is rendered
 let connectionStatus = 'Testing...';
 let errorMessage = '';
-let usingMock = false;
 
 try {
-  const result = await testSupabaseConnection();
-  usingMock = result.usingMock || false;
+  // Test connection with a simple query
+  const startTime = performance.now();
+  const { data, error } = await supabase
+    .from('companies')
+    .select('id', { count: 'exact', head: true });
+  const endTime = performance.now();
   
-  if (result.success) {
-    connectionStatus = 'Connected';
+  if (error) {
+    connectionStatus = 'Failed';
+    errorMessage = error.message;
   } else {
-    connectionStatus = usingMock ? 'Invalid Credentials' : 'Failed';
-    errorMessage = result.error || '';
+    connectionStatus = 'Connected';
+    // We can add performance metrics here if needed
+    // const queryTime = (endTime - startTime).toFixed(2);
   }
 } catch (error) {
   connectionStatus = 'Error';
@@ -44,11 +49,6 @@ try {
         Failed
       </span>
     )}
-    {connectionStatus === 'Invalid Credentials' && (
-      <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
-        Invalid Credentials
-      </span>
-    )}
     {connectionStatus === 'Testing...' && (
       <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
         Testing...
@@ -61,17 +61,7 @@ try {
     )}
   </div>
   
-  {usingMock && (
-    <div class="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-700">
-      <p class="font-medium">Using placeholder credentials</p>
-      <p>You need to add real Supabase credentials in your .env file:</p>
-      <pre class="mt-1 p-1 bg-yellow-100 rounded text-xs overflow-x-auto">
-PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-PUBLIC_SUPABASE_ANON_KEY=your-anon-key</pre>
-    </div>
-  )}
-  
-  {errorMessage && !usingMock && (
+  {errorMessage && (
     <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
       {errorMessage}
     </div>

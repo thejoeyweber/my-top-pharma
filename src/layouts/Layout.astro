@@ -1,28 +1,35 @@
 ---
+/**
+ * Core Layout Component
+ * 
+ * The foundational layout for all pages in the Top Pharma application.
+ * Provides the basic HTML structure, metadata, and common components.
+ */
 import '../styles/global.css';
-import FeatureFlagToggle from '../components/FeatureFlagToggle.astro';
-import Footer from '../components/organisms/Footer.astro';
-import Header from '../components/organisms/Header.astro';
 import { ViewTransitions } from 'astro:transitions';
 
 export interface Props {
 	title: string;
 	description?: string;
 	ogImage?: string;
-	styleOverrides?: string;
+	bodyClass?: string;
+	includeHeader?: boolean;
+	includeFooter?: boolean;
+	showDevTools?: boolean;
 }
 
 const { 
-	title = 'MyTopPharma',
+	title = 'Top Pharma',
 	description = 'Explore pharmaceutical companies, products, and industry insights',
 	ogImage = '/images/og-image.jpg',
-	styleOverrides,
+	bodyClass = 'bg-gray-50 text-gray-900 antialiased',
+	showDevTools = import.meta.env.DEV,
 } = Astro.props;
 
 // Construct the full page title
-const pageTitle = title !== 'MyTopPharma' 
-	? `${title} | MyTopPharma`
-	: 'MyTopPharma - Pharmaceutical Industry Insights';
+const pageTitle = title !== 'Top Pharma' 
+	? `${title} | Top Pharma`
+	: 'Top Pharma - Pharmaceutical Industry Insights';
 ---
 
 <!doctype html>
@@ -33,24 +40,25 @@ const pageTitle = title !== 'MyTopPharma'
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
 		<meta name="description" content={description} />
+		<meta property="og:title" content={pageTitle} />
+		<meta property="og:description" content={description} />
+		<meta property="og:image" content={ogImage} />
+		<meta property="og:type" content="website" />
+		<meta name="twitter:card" content="summary_large_image" />
 		<title>{pageTitle}</title>
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
-	</head>
-	<body class="h-full bg-gray-50 text-gray-900 antialiased">
-		<Header />
-		<main>
-			<slot />
-		</main>
-		<Footer />
 		<ViewTransitions />
-		{/* Development UI Components (Dev Mode Only) */}
-		<FeatureFlagToggle />
+	</head>
+	<body class={`h-full flex flex-col min-h-screen ${bodyClass}`}>
+		<slot />
+		
+		{/* Development Tools (Dev Mode Only) */}
 	</body>
 </html>
 
-<style>
+<style is:global>
 	html,
 	body {
 		margin: 0;

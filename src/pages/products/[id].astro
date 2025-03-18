@@ -12,57 +12,147 @@ import TabGroup from '../../components/molecules/TabGroup.astro';
 import Timeline from '../../components/molecules/Timeline.astro';
 import DataTable from '../../components/molecules/DataTable.astro';
 import ProductCard from '../../components/molecules/ProductCard.astro';
-import { 
-  products, 
-  getProductById, 
-  getRelatedProducts, 
-  getStageName,
-  getCompanyById,
-  websiteCategories 
-} from '../../utils/dataUtils';
-import { getWebsitesByProduct } from '../../utils/crossReferenceUtils';
-import { getProductImageUrl } from '../../utils/assetUtils';
-import therapeuticAreasData from '../../data/json/therapeuticAreas.json';
 
-// Helper function to get therapeutic area name from ID
-const getTherapeuticAreaName = (id) => {
-  const area = therapeuticAreasData.find(a => a.id === id);
-  return area ? area.name : id; // Return the name if found, or the ID as fallback
+// Import Supabase client directly
+import { supabase } from '../../lib/supabase';
+import { dbProductToProduct } from '../../interfaces/entities/Product';
+import { dbCompanyToCompany } from '../../interfaces/entities/Company';
+import { dbWebsiteToWebsite } from '../../interfaces/entities/Website';
+import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/TherapeuticArea';
+import type { Product, Company, Website, TherapeuticArea } from '../../interfaces/entities';
+
+import { getProductImageUrl } from '../../utils/assetUtils';
+
+// Helper function to get stage name
+const getStageName = (stage: string): string => {
+  const stageMap = {
+    'preclinical': 'Preclinical',
+    'phase1': 'Phase 1',
+    'phase2': 'Phase 2',
+    'phase3': 'Phase 3',
+    'approved': 'Approved',
+    'market': 'Marketed',
+    'discontinued': 'Discontinued'
+  };
+  return stageMap[stage] || stage;
 };
 
 // Generate static paths for all products
-export function getStaticPaths() {
-  return products.map(product => ({
+export async function getStaticPaths() {
+  const { data: dbProducts } = await supabase
+    .from('products')
+    .select('id');
+    
+  return (dbProducts || []).map(product => ({
     params: { id: product.id },
   }));
 }
 
 // Get product ID from URL parameters
 const { id } = Astro.params;
-const product = getProductById(id as string);
 
-// Handle case when product is not found
-if (!product) {
+// Fetch product data directly from Supabase
+const { data: dbProduct, error: productError } = await supabase
+  .from('products')
+  .select('*')
+  .eq('id', id)
+  .single();
+
+// Handle product not found
+if (productError || !dbProduct) {
   return Astro.redirect('/products');
 }
 
-// Get company that manufactures the product
-const company = getCompanyById(product.companyId);
+// Convert database record to application entity
+const product = dbProductToProduct(dbProduct);
 
-// Get related products
-const relatedProducts = getRelatedProducts(product.id);
+// Fetch company that manufactures the product
+const { data: dbCompany } = await supabase
+  .from('companies')
+  .select('*')
+  .eq('id', product.companyId)
+  .single();
 
-// Get websites associated with this product
-const productWebsites = getWebsitesByProduct(product.id);
+// Convert company data to entity
+const company = dbCompany ? dbCompanyToCompany(dbCompany) : null;
+
+// Fetch therapeutic areas for this product
+const { data: productTARelations } = await supabase
+  .from('product_therapeutic_areas')
+  .select('therapeutic_area_id')
+  .eq('product_id', id);
+
+const therapeuticAreaIds = (productTARelations || []).map(rel => rel.therapeutic_area_id);
+let therapeuticAreas: TherapeuticArea[] = [];
+
+if (therapeuticAreaIds.length > 0) {
+  const { data: dbTherapeuticAreas } = await supabase
+    .from('therapeutic_areas')
+    .select('*')
+    .in('id', therapeuticAreaIds);
+  
+  therapeuticAreas = (dbTherapeuticAreas || []).map(dbTherapeuticAreaToTherapeuticArea);
+}
+
+// Fetch websites associated with this product
+const { data: productWebsites } = await supabase
+  .from('product_websites')
+  .select('website_id')
+  .eq('product_id', id);
+
+const websiteIds = (productWebsites || []).map(rel => rel.website_id);
+let websites: Website[] = [];
+
+if (websiteIds.length > 0) {
+  const { data: dbWebsites } = await supabase
+    .from('websites')
+    .select('*')
+    .in('id', websiteIds);
+  
+  websites = (dbWebsites || []).map(dbWebsiteToWebsite);
+}
+
+// Fetch related products (same therapeutic areas)
+const { data: relatedProductsRelations } = await supabase
+  .from('product_therapeutic_areas')
+  .select('product_id')
+  .in('therapeutic_area_id', therapeuticAreaIds)
+  .neq('product_id', id)
+  .limit(5);
+
+const relatedProductIds = [...new Set((relatedProductsRelations || []).map(rel => rel.product_id))];
+let relatedProducts: Product[] = [];
+
+if (relatedProductIds.length > 0) {
+  const { data: dbRelatedProducts } = await supabase
+    .from('products')
+    .select('*')
+    .in('id', relatedProductIds);
+  
+  relatedProducts = (dbRelatedProducts || []).map(dbProductToProduct);
+}
+
+// Function to get therapeutic area name
+const getTherapeuticAreaName = (id: string) => {
+  const area = therapeuticAreas.find(a => a.id === id);
+  return area ? area.name : id;
+};
+
+// Set up breadcrumbs for navigation
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Products', href: '/products' },
+  { label: product.name, href: `/products/${product.id}`, active: true }
+];
 
 // Function to get category label
 const getCategoryLabel = (categoryId: string) => {
-  const category = websiteCategories.find(c => c.value === categoryId);
+  const category = websites.find(c => c.value === categoryId);
   return category ? category.label : categoryId;
 };
 
 // Group websites by category for display
-const websitesByCategory = productWebsites.reduce((acc, website) => {
+const websitesByCategory = websites.reduce((acc, website) => {
   const category = website.category || 'other';
   if (!acc[category]) {
     acc[category] = [];
@@ -81,12 +171,6 @@ const tabs = [
   { id: "regulatory", label: "Regulatory", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>' },
   { id: "timeline", label: "Development Timeline", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>' },
   { id: "patents", label: "Patents", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>' },
-];
-
-// Breadcrumbs for navigation
-const breadcrumbs = [
-  { label: 'Products', href: '/products' },
-  { label: product.name, href: `/products/${product.id}` },
 ];
 
 // Format date helper
@@ -206,11 +290,11 @@ const formatDate = (dateString: string) => {
                 </a>
               </div>
               
-              {productWebsites.length === 0 ? (
+              {websites.length === 0 ? (
                 <p class="text-gray-500">No official websites found for this product.</p>
               ) : (
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {productWebsites.slice(0, 3).map(website => (
+                  {websites.slice(0, 3).map(website => (
                     <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
                       <div class="p-4">
                         <div class="flex justify-between items-start">
@@ -244,10 +328,10 @@ const formatDate = (dateString: string) => {
                     </div>
                   ))}
                   
-                  {productWebsites.length > 3 && (
+                  {websites.length > 3 && (
                     <div class="bg-gray-50 rounded-lg border border-gray-200 shadow-sm overflow-hidden flex items-center justify-center">
                       <a href="#tab-websites" class="p-4 text-blue-600 hover:text-blue-800 font-medium text-center" onclick="switchTab('websites')">
-                        View {productWebsites.length - 3} more websites
+                        View {websites.length - 3} more websites
                       </a>
                     </div>
                   )}
@@ -262,7 +346,7 @@ const formatDate = (dateString: string) => {
               <div class="p-6">
                 <h2 class="text-xl font-medium text-gray-900 mb-4">Product Websites</h2>
                 
-                {productWebsites.length === 0 ? (
+                {websites.length === 0 ? (
                   <div class="bg-gray-50 rounded-lg p-6 text-center">
                     <p class="text-gray-500">No official websites found for this product.</p>
                     <p class="text-sm text-gray-400 mt-1">This product may be featured on the company's main website.</p>

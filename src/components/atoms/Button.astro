@@ -3,19 +3,87 @@
  * Button Component
  * 
  * A versatile button component that can be used throughout the application.
- * Supports different variants, sizes, and states.
+ * Supports different variants, sizes, states, and can render as either a button or link.
+ * 
+ * @example
+ * ```astro
+ * <Button>Default Button</Button>
+ * <Button variant="secondary" size="sm">Small Secondary Button</Button>
+ * <Button variant="outline" href="/some-page">Link Button</Button>
+ * <Button variant="text" disabled>Disabled Text Button</Button>
+ * ```
  */
 
-interface Props {
-  variant?: 'primary' | 'secondary' | 'outline' | 'text';
-  size?: 'sm' | 'md' | 'lg';
+export interface ButtonProps {
+  /**
+   * Visual style variant of the button
+   * @default "primary"
+   */
+  variant?: 'primary' | 'secondary' | 'outline' | 'text' | 'danger' | 'success';
+  
+  /**
+   * Size of the button
+   * @default "md"
+   */
+  size?: 'xs' | 'sm' | 'md' | 'lg';
+  
+  /**
+   * HTML button type attribute
+   * @default "button"
+   */
   type?: 'button' | 'submit' | 'reset';
+  
+  /**
+   * Whether the button is disabled
+   * @default false
+   */
   disabled?: boolean;
+  
+  /**
+   * Whether the button should take up full width of its container
+   * @default false
+   */
   fullWidth?: boolean;
+  
+  /**
+   * If provided, the button renders as an anchor (<a>) element
+   */
   href?: string;
+  
+  /**
+   * Additional CSS classes to apply
+   */
   class?: string;
-  [key: string]: any; // Allow any additional props to be passed through
+  
+  /**
+   * Aria-label for accessibility
+   */
+  ariaLabel?: string;
+  
+  /**
+   * Whether the button is in a loading state
+   * @default false
+   */
+  loading?: boolean;
+  
+  /**
+   * Icon to display before button text
+   */
+  iconLeft?: string;
+  
+  /**
+   * Icon to display after button text
+   */
+  iconRight?: string;
+  
+  /**
+   * Allow any additional HTML attributes to be passed
+   */
+  [key: string]: any;
 }
+
+// Use type alias for Props to export the interface
+type Props = ButtonProps;
 
 const {
   variant = 'primary',
@@ -25,6 +93,10 @@ const {
   fullWidth = false,
   href,
   class: className = '',
+  ariaLabel,
+  loading = false,
+  iconLeft,
+  iconRight,
   ...rest // Capture all other props
 } = Astro.props;
 
@@ -33,6 +105,7 @@ const baseClasses = 'inline-flex items-center justify-center font-medium transit
 
 // Size classes
 const sizeClasses = {
+  xs: 'text-xs px-2 py-1 rounded',
   sm: 'text-sm px-3 py-1.5 rounded',
   md: 'text-base px-4 py-2 rounded-md',
   lg: 'text-lg px-6 py-3 rounded-lg',
@@ -40,38 +113,67 @@ const sizeClasses = {
 
 // Variant classes
 const variantClasses = {
-  primary: 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500',
-  secondary: 'bg-secondary-500 text-white hover:bg-secondary-600 focus:ring-secondary-500',
-  outline: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-primary-500',
-  text: 'text-primary-600 hover:text-primary-700 hover:bg-gray-100 focus:ring-primary-500',
+  primary: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 disabled:bg-primary-300',
+  secondary: 'bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300 disabled:bg-gray-50 disabled:text-gray-400',
+  outline: 'bg-transparent text-primary-600 border border-primary-600 hover:bg-primary-50 active:bg-primary-100 disabled:text-primary-300 disabled:border-primary-300',
+  text: 'bg-transparent text-primary-600 hover:bg-primary-50 active:bg-primary-100 disabled:text-primary-300',
+  danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 disabled:bg-red-300',
+  success: 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800 disabled:bg-green-300',
 };
 
-// State classes
-const stateClasses = {
-  disabled: 'opacity-50 cursor-not-allowed',
-  fullWidth: 'w-full',
-};
+// Width classes
+const widthClasses = fullWidth ? 'w-full' : '';
 
+// Loading classes
+const loadingClasses = loading ? 'relative !text-transparent' : '';
+
+// Combine all classes
 const classes = [
   baseClasses,
   sizeClasses[size],
   variantClasses[variant],
-  disabled ? stateClasses.disabled : '',
-  fullWidth ? stateClasses.fullWidth : '',
+  widthClasses,
+  loadingClasses,
   className,
 ].join(' ');
 
-const Element = href ? 'a' : 'button';
+// Determine if we should render a button or link
+const Element = href && !disabled ? 'a' : 'button';
+
+// Prepare attributes based on element type
+const attrs = {
+  class: classes,
+  ...(Element === 'button' ? {
+    type,
+    disabled: disabled || loading,
+  } : {
+    href,
+    role: 'button',
+    tabindex: "0",
+  }),
+  'aria-label': ariaLabel,
+  'aria-disabled': disabled ? 'true' : undefined,
+  ...rest
+};
 ---
 
-{
-  href ? (
-    <a href={href} class={classes} {...disabled && { 'aria-disabled': 'true', tabindex: '-1' }} {...rest}>
-      <slot />
-    </a>
-  ) : (
-    <button type={type} class={classes} disabled={disabled} {...rest}>
-      <slot />
-    </button>
-  )
-} 
+<Element {...attrs}>
+  {loading && (
+    <div class="absolute inset-0 flex items-center justify-center">
+      <svg class="animate-spin h-5 w-5 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    </div>
+  )}
+  
+  {iconLeft && !loading && (
+    <span class="mr-2" set:html={iconLeft}></span>
+  )}
+  
+  <slot />
+  
+  {iconRight && !loading && (
+    <span class="ml-2" set:html={iconRight}></span>
+  )}
+</Element> 
