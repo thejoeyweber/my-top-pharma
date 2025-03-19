@@ -26,9 +26,18 @@ import type { Company, Product, Website, TherapeuticArea } from '../../interface
 
 // Import other existing utilities
 import { getCompanyLogoUrl, getCompanyHeaderUrl, getWebsiteScreenshotUrl } from '../../utils/assetUtils';
-import { websiteCategories } from '../../utils/dataUtils';
 import { generateSlug } from '../../utils/stringUtils';
-import { logError } from '../../utils/errorUtils';
+
+// Define website categories (moved from deleted dataUtils)
+const websiteCategories = {
+  CORPORATE: 'corporate',
+  PRODUCT: 'product',
+  DISEASE_AWARENESS: 'disease-awareness',
+  PATIENT_SUPPORT: 'patient-support',
+  CLINICAL_TRIAL: 'clinical-trial',
+  INVESTOR_RELATIONS: 'investor-relations',
+  OTHER: 'other'
+};
 
 // Generate static paths for all companies
 export async function getStaticPaths() {
@@ -37,7 +46,7 @@ export async function getStaticPaths() {
     .select('id, slug, name');
     
   if (error) {
-    logError('Error fetching companies for static paths', error);
+    console.error('Error fetching companies for static paths', error);
     return [];
   }
     
@@ -99,7 +108,7 @@ const { data: companyTARelations, error: taRelError } = await supabase
   .eq('company_id', dbCompany.id);
 
 if (taRelError) {
-  logError('Error fetching therapeutic area relations', taRelError);
+  console.error('Error fetching therapeutic area relations', taRelError);
 }
 
 // Fetch full therapeutic area details
@@ -114,7 +123,7 @@ if (therapeuticAreaIds.length > 0) {
     .in('id', therapeuticAreaIds);
   
   if (taError) {
-    logError('Error fetching therapeutic areas', taError);
+    console.error('Error fetching therapeutic areas', taError);
   }
   
   therapeuticAreas = (dbTherapeuticAreas || []).map(dbTherapeuticAreaToTherapeuticArea);
@@ -128,7 +137,7 @@ const { data: dbProducts, error: productsError } = await supabase
   .eq('company_id', dbCompany.id);
 
 if (productsError) {
-  logError('Error fetching company products', productsError);
+  console.error('Error fetching company products', productsError);
 }
 
 // Convert to application entities
@@ -146,7 +155,7 @@ if (products.length > 0) {
     .in('product_id', productIds);
     
   if (prodTaError) {
-    logError('Error fetching product therapeutic area relations', prodTaError);
+    console.error('Error fetching product therapeutic area relations', prodTaError);
   }
   
   // Group by product ID
@@ -166,7 +175,7 @@ if (products.length > 0) {
       .in('id', allTaIds);
       
     if (taNameError) {
-      logError('Error fetching therapeutic area names', taNameError);
+      console.error('Error fetching therapeutic area names', taNameError);
     }
     
     const taNameMap = new Map<string, string>();
@@ -190,7 +199,7 @@ const { data: dbWebsites, error: websitesError } = await supabase
   .eq('company_id', dbCompany.id);
 
 if (websitesError) {
-  logError('Error fetching company websites', websitesError);
+  console.error('Error fetching company websites', websitesError);
 }
 
 // Convert to application entities
@@ -208,7 +217,7 @@ if (websites.length > 0) {
     .in('website_id', websiteIds);
     
   if (webTaError) {
-    logError('Error fetching website therapeutic area relations', webTaError);
+    console.error('Error fetching website therapeutic area relations', webTaError);
   }
   
   // Group by website ID
@@ -228,7 +237,7 @@ if (websites.length > 0) {
       .in('id', allTaIds);
       
     if (taNameError) {
-      logError('Error fetching therapeutic area names', taNameError);
+      console.error('Error fetching therapeutic area names', taNameError);
     }
     
     const taNameMap = new Map<string, string>();
@@ -253,7 +262,7 @@ const { data: dbFinancials, error: financialsError } = await supabase
   .order('year', { ascending: true });
   
 if (financialsError) {
-  logError('Error fetching company financials', financialsError);
+  console.error('Error fetching company financials', financialsError);
 }
 
 // Convert to appropriate format for charts
@@ -270,7 +279,7 @@ const { data: dbMilestones, error: milestonesError } = await supabase
   .order('date', { ascending: false });
   
 if (milestonesError) {
-  logError('Error fetching company milestones', milestonesError);
+  console.error('Error fetching company milestones', milestonesError);
 }
 
 // Format milestones for the Timeline component
@@ -296,7 +305,7 @@ const { data: dbRelatedCompanies, error: relatedError } = await supabase
   .eq('company_id', dbCompany.id);
   
 if (relatedError) {
-  logError('Error fetching related companies', relatedError);
+  console.error('Error fetching related companies', relatedError);
 }
 
 // Extract related company details
@@ -340,8 +349,8 @@ const getTherapeuticAreaName = (id: string) => {
 
 // Function to get category label
 const getCategoryLabel = (categoryId: string) => {
-  const category = websiteCategories.find(c => c.value === categoryId);
-  return category ? category.label : categoryId;
+  const category = websiteCategories[categoryId as keyof typeof websiteCategories];
+  return category ? category : categoryId;
 };
 
 // Group websites by category for easier display

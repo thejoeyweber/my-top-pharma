@@ -14,7 +14,6 @@ import SortSelect from '../../components/molecules/SortSelect.astro';
 import ViewToggle from '../../components/molecules/ViewToggle.astro';
 import WebsiteCard from '../../components/molecules/WebsiteCard.astro';
 import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
-import { logError } from '../../utils/errorUtils';
 
 // Import Supabase client directly
 import { supabase } from '../../lib/supabase';
@@ -68,7 +67,7 @@ if (sortField === 'domain') {
 const { data: dbWebsites, error: websitesError } = await query;
 
 if (websitesError) {
-  logError('Error fetching websites:', websitesError);
+  console.error('Error fetching websites:', websitesError);
 }
 
 // Convert database records to application entities
@@ -84,7 +83,7 @@ if (selectedTAs.length > 0) {
     .in('therapeutic_area_id', selectedTAs);
     
   if (ctaError) {
-    logError('Error fetching company-therapeutic area relations:', ctaError);
+    console.error('Error fetching company-therapeutic area relations:', ctaError);
   }
   
   // Get unique company IDs that have the selected therapeutic areas
@@ -103,7 +102,7 @@ const { data: dbCompanies, error: companiesError } = await supabase
   .order('name');
 
 if (companiesError) {
-  logError('Error fetching companies:', companiesError);
+  console.error('Error fetching companies:', companiesError);
 }
 
 // Create company options for filtering
@@ -119,7 +118,7 @@ const { data: dbTherapeuticAreas, error: taError } = await supabase
   .order('name');
 
 if (taError) {
-  logError('Error fetching therapeutic areas:', taError);
+  console.error('Error fetching therapeutic areas:', taError);
 }
 
 // Create therapeutic areas options for filtering
@@ -143,7 +142,7 @@ const { data: allCompanyTAs, error: allCtaError } = await supabase
   .select('company_id, therapeutic_area_id');
   
 if (allCtaError) {
-  logError('Error fetching all company-therapeutic area relations:', allCtaError);
+  console.error('Error fetching all company-therapeutic area relations:', allCtaError);
 }
 
 // Group therapeutic areas by company

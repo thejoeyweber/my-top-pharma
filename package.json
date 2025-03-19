@@ -13,11 +13,6 @@
     "db:types": "node scripts/generate-types.js",
     "db:merge-migrations": "node scripts/migration-utils/merge-migrations.js",
     "db:migrate-to-sql": "node scripts/migration-utils/migrate-to-sql-based-approach.js",
-    "data:ingest-companies": "node scripts/ingest-companies.js",
-    "data:import-companies": "npx tsx scripts/import-fmp-companies.ts",
-    "data:import-therapeutic-areas": "node scripts/import-therapeutic-areas.js",
-    "data:import-therapeutic-areas-ts": "npx tsx scripts/import-therapeutic-areas.ts",
-    "data:test-fmp": "node scripts/test-fmp-connection.js",
     "data:normalize-json": "npx tsx src/utils/normalizeJsonData.ts",
     "data:migrate-to-content-collections": "npx tsx scripts/migrate-to-content-collections.ts"
   },

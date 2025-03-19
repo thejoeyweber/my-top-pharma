@@ -14,9 +14,6 @@ import SortSelect from '../../components/molecules/SortSelect.astro';
 import ViewToggle from '../../components/molecules/ViewToggle.astro';
 import CompanyCard from '../../components/molecules/CompanyCard.astro';
 import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
-// Import filterUtils but use server-side filtering primarily
-import { filterAndSortItems } from '../../utils/filterUtils';
-import { logError } from '../../utils/errorUtils';
 
 // Import Supabase client directly
 import { supabase } from '../../lib/supabase';
@@ -75,7 +72,7 @@ const { data: dbCompanies, error } = await query;
 
 // Handle potential errors
 if (error) {
-  logError('Error fetching companies:', error);
+  console.error('Error fetching companies:', error);
 }
 
 // Convert database records to application entities
@@ -88,7 +85,7 @@ const { data: therapeuticAreasData, error: taError } = await supabase
   .order('name');
 
 if (taError) {
-  logError('Error fetching therapeutic areas:', taError);
+  console.error('Error fetching therapeutic areas:', taError);
 }
 
 // Create therapeutic areas options for filtering
@@ -107,7 +104,7 @@ if (selectedTAs.length > 0) {
     .in('therapeutic_area_id', selectedTAs);
     
   if (ctaError) {
-    logError('Error fetching company-therapeutic area relations:', ctaError);
+    console.error('Error fetching company-therapeutic area relations:', ctaError);
   }
   
   // Get unique company IDs that have the selected therapeutic areas
@@ -126,7 +123,7 @@ const { data: allCompanyTAs, error: allCtaError } = await supabase
   .select('company_id, therapeutic_area_id');
   
 if (allCtaError) {
-  logError('Error fetching all company-therapeutic area relations:', allCtaError);
+  console.error('Error fetching all company-therapeutic area relations:', allCtaError);
 }
 
 // Group by company

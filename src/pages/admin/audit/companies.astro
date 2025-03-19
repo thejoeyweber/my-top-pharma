@@ -7,7 +7,7 @@
  */
 import DashboardLayout from '../../../components/templates/DashboardLayout.astro';
 import Card from '../../../components/atoms/Card.astro';
-import { getCompanies } from '../../../utils/companyDataUtils';
+import { companyUtils } from '../../../utils/companyUtils';
 import { FEATURES, getAllFeatureFlags, setFeatureFlag } from '../../../utils/featureFlags';
 
 // Breadcrumbs for navigation
@@ -22,9 +22,11 @@ const breadcrumbs = [
 const featureFlags = getAllFeatureFlags();
 const isUsingDatabase = featureFlags[FEATURES.USE_DATABASE_COMPANIES];
 
-// Get companies from both sources for comparison
-const mockCompanies = await getCompanies(false);
-const dbCompanies = await getCompanies(true);
+// Get companies from database
+const { data: dbCompanies = [] } = await companyUtils.getCompanies();
+
+// For now, we'll use the same data source for both since mock data has been removed
+const mockCompanies = dbCompanies;
 
 // Calculate stats for comparison
 const stats = {

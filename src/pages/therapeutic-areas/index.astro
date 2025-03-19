@@ -11,7 +11,6 @@ import Button from '../../components/atoms/Button.astro';
 import SortSelect from '../../components/molecules/SortSelect.astro';
 import TherapeuticAreaCard from '../../components/molecules/TherapeuticAreaCard.astro';
 import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
-import { logError } from '../../utils/errorUtils';
 
 // Import Supabase client directly
 import { supabase } from '../../lib/supabase';
@@ -49,7 +48,7 @@ if (sortField === 'name') {
 const { data: dbTherapeuticAreas, error: taError } = await query;
 
 if (taError) {
-  logError('Error fetching therapeutic areas:', taError);
+  console.error('Error fetching therapeutic areas:', taError);
 }
 
 // Convert database records to application entities
@@ -62,7 +61,7 @@ const { data: allCompanyRelations, error: companyRelError } = await supabase
   .select('company_id, therapeutic_area_id');
 
 if (companyRelError) {
-  logError('Error fetching company-therapeutic area relations:', companyRelError);
+  console.error('Error fetching company-therapeutic area relations:', companyRelError);
 }
 
 // Get all product-therapeutic area relations
@@ -71,7 +70,7 @@ const { data: allProductRelations, error: productRelError } = await supabase
   .select('product_id, therapeutic_area_id');
 
 if (productRelError) {
-  logError('Error fetching product-therapeutic area relations:', productRelError);
+  console.error('Error fetching product-therapeutic area relations:', productRelError);
 }
 
 // Get all website-company relations
@@ -80,7 +79,7 @@ const { data: allWebsites, error: websiteError } = await supabase
   .select('id, company_id');
 
 if (websiteError) {
-  logError('Error fetching websites:', websiteError);
+  console.error('Error fetching websites:', websiteError);
 }
 
 // Group relations by therapeutic area

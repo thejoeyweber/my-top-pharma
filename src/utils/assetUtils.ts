@@ -2,39 +2,72 @@
  * Asset Utilities
  * 
  * Helper functions for resolving URLs to assets like images, icons, etc.
+ * Uses Astro's asset handling and environment variables for configuration.
  */
 
 /**
  * Get the URL to a company logo
  */
 export function getCompanyLogoUrl(companyId: string): string {
-  return `/src/data/assets/logos/${companyId}.svg`;
+  const baseUrl = import.meta.env.PUBLIC_ASSETS_BASE_URL || '/assets';
+  return `${baseUrl}/companies/${companyId}/logo.svg`;
 }
 
 /**
  * Get the URL to a company header image
  */
 export function getCompanyHeaderUrl(companyId: string): string {
-  return `/images/headers/${companyId}-header.jpg`;
+  const baseUrl = import.meta.env.PUBLIC_ASSETS_BASE_URL || '/assets';
+  return `${baseUrl}/companies/${companyId}/header.jpg`;
 }
 
 /**
  * Get the URL to a product image
  */
 export function getProductImageUrl(productId: string): string {
-  return `/src/data/assets/products/${productId}.svg`;
+  const baseUrl = import.meta.env.PUBLIC_ASSETS_BASE_URL || '/assets';
+  return `${baseUrl}/products/${productId}/image.svg`;
 }
 
 /**
  * Get the URL to a website screenshot
  */
 export function getWebsiteScreenshotUrl(websiteId: string): string {
-  return `/src/data/assets/screenshots/${websiteId}.jpg`;
+  const baseUrl = import.meta.env.PUBLIC_ASSETS_BASE_URL || '/assets';
+  return `${baseUrl}/websites/${websiteId}/screenshot.jpg`;
 }
 
 /**
  * Get the URL to an icon
  */
 export function getIconUrl(iconId: string): string {
-  return `/src/data/assets/icons/${iconId}.svg`;
-} 
+  const baseUrl = import.meta.env.PUBLIC_ASSETS_BASE_URL || '/assets';
+  return `${baseUrl}/icons/${iconId}.svg`;
+}
+
+/**
+ * Get the URL to a therapeutic area icon
+ */
+export function getTherapeuticAreaIconUrl(areaId: string): string {
+  const baseUrl = import.meta.env.PUBLIC_ASSETS_BASE_URL || '/assets';
+  return `${baseUrl}/therapeutic-areas/${areaId}/icon.svg`;
+}
+
+/**
+ * Get the URL to a placeholder image
+ */
+export function getPlaceholderUrl(type: 'company' | 'product' | 'website'): string {
+  const baseUrl = import.meta.env.PUBLIC_ASSETS_BASE_URL || '/assets';
+  return `${baseUrl}/placeholders/${type}.svg`;
+}
+
+// Export a namespace for all asset utilities
+export const assetUtils = {
+  getCompanyLogoUrl,
+  getCompanyHeaderUrl,
+  getProductImageUrl,
+  getWebsiteScreenshotUrl,
+  getIconUrl,
+  getTherapeuticAreaIconUrl,
+  getPlaceholderUrl
+}; 

@@ -14,7 +14,6 @@ import ViewToggle from '../../components/molecules/ViewToggle.astro';
 import MultiSelect from '../../components/molecules/MultiSelect.astro';
 import ProductCard from '../../components/molecules/ProductCard.astro';
 import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
-import { logError } from '../../utils/errorUtils';
 
 // Import Supabase client directly
 import { supabase } from '../../lib/supabase';
@@ -69,7 +68,7 @@ if (sortField === 'name') {
 const { data: dbProducts, error: productsError } = await query;
 
 if (productsError) {
-  logError('Error fetching products:', productsError);
+  console.error('Error fetching products:', productsError);
 }
 
 // Convert database records to application entities
@@ -82,7 +81,7 @@ const { data: dbTherapeuticAreas, error: taError } = await supabase
   .order('name');
 
 if (taError) {
-  logError('Error fetching therapeutic areas:', taError);
+  console.error('Error fetching therapeutic areas:', taError);
 }
 
 // Create therapeutic areas options for filtering
@@ -101,7 +100,7 @@ if (selectedTAs.length > 0) {
     .in('therapeutic_area_id', selectedTAs);
     
   if (ptaError) {
-    logError('Error fetching product-therapeutic area relations:', ptaError);
+    console.error('Error fetching product-therapeutic area relations:', ptaError);
   }
   
   // Get unique product IDs that have the selected therapeutic areas
@@ -119,7 +118,7 @@ if (sortField === 'company') {
     .select('id, name');
     
   if (companiesError) {
-    logError('Error fetching companies for sorting:', companiesError);
+    console.error('Error fetching companies for sorting:', companiesError);
   }
   
   // Create a map of company IDs to names
@@ -152,7 +151,7 @@ if (companyIds.length > 0) {
     .in('id', companyIds);
     
   if (companiesError) {
-    logError('Error fetching companies for products:', companiesError);
+    console.error('Error fetching companies for products:', companiesError);
   }
   
   (companiesData || []).forEach(company => {
@@ -169,7 +168,7 @@ const { data: allProductTAs, error: allPtaError } = await supabase
   .select('product_id, therapeutic_area_id');
   
 if (allPtaError) {
-  logError('Error fetching all product-therapeutic area relations:', allPtaError);
+  console.error('Error fetching all product-therapeutic area relations:', allPtaError);
 }
 
 // Group by product
@@ -199,7 +198,7 @@ const { data: allCompaniesData, error: allCompaniesError } = await supabase
   .order('name');
   
 if (allCompaniesError) {
-  logError('Error fetching all companies for filtering:', allCompaniesError);
+  console.error('Error fetching all companies for filtering:', allCompaniesError);
 }
 
 // Create company options for filtering
