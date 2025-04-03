@@ -2,6 +2,9 @@
 import BaseLayout from '../components/templates/BaseLayout.astro';
 import Button from '../components/atoms/Button.astro';
 import Card from '../components/atoms/Card.astro';
+import Hero from '../components/molecules/Hero.astro';
+import SearchBar from '../components/molecules/SearchBar.astro';
+import { formatMarketCap } from '../utils/stringUtils';
 
 // Import Supabase client directly
 import { supabase } from '../lib/supabase';
@@ -270,7 +273,7 @@ const formatNumber = (num) => {
                 <dt class="text-sm font-medium text-gray-500">Headquarters</dt>
                 <dd class="text-sm text-gray-900">{company.headquarters}</dd>
                 <dt class="text-sm font-medium text-gray-500">Market Cap</dt>
-                <dd class="text-sm text-gray-900">{company.marketCap}</dd>
+                <dd class="text-sm text-gray-900">{formatMarketCap(company.marketCap)}</dd>
               </dl>
               <div class="mt-4 flex flex-wrap gap-2">
                 {company.therapeuticAreas.map((area) => (

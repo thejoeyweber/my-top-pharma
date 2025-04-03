@@ -1,0 +1,6 @@
+feeds:
+  - name: SEC_EDGAR
+    url: "https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip"
+    storage_bucket: "bulk-data-bucket" # Use the bucket name you created
+    storage_path: "temp/companyfacts.zip"
+  # Add other feeds here later 

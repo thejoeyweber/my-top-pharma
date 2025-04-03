@@ -7,6 +7,7 @@
 import Button from '../atoms/Button.astro';
 import type { Company } from '../../interfaces/entities';
 import Card from '../atoms/Card.astro';
+import { formatMarketCap } from '../../utils/stringUtils';
 
 interface Props {
   company: Company;
@@ -21,19 +22,6 @@ const {
   isCompact = false, 
   therapeuticAreaNames = []
 } = Astro.props;
-
-// Format market cap to readable format
-const formatMarketCap = (marketCap?: number | null): string => {
-  if (marketCap === undefined || marketCap === null) {
-    return 'N/A';
-  }
-  
-  if (marketCap >= 1000) {
-    return `$${(marketCap / 1000).toFixed(1)}T`;
-  } else {
-    return `$${marketCap.toFixed(1)}B`;
-  }
-};
 ---
 
 <Card>
