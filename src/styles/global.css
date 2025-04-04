@@ -676,6 +676,6 @@
 
 /* Wave animation */
 .animate-wave {
-  animation: wave 12s ease-in-out infinite;
-  will-change: transform;
+  animation: wave 2s linear infinite;
+  transform-origin: center bottom;
 }

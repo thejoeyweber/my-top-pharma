@@ -5,7 +5,7 @@
  * For more information, see: https://docs.astro.build/en/guides/backend/supabase/
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database';
 
 // Check if we should use local or remote Supabase
@@ -33,7 +33,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 console.log(`🔌 Connecting to ${useLocalDatabase ? 'local' : 'remote'} Supabase database at ${supabaseUrl}`);
 
 // Create and export the Supabase client for use throughout the app
-export const supabase = createClient<Database>(
+export const supabase: SupabaseClient<Database> = createClient<Database>(
   supabaseUrl,
   supabaseAnonKey
 );
@@ -50,20 +50,13 @@ export const supabaseAdmin = serviceRoleKey
     )
   : null;
 
-/**
- * Type-safe helper for querying database tables
- * 
- * @example
- * const { data, error } = await db('companies').select('*');
- */
-export const db = <T extends keyof Database['public']['Tables']>(table: T) => {
-  return supabase.from(table);
-};
-
-/**
- * Helper function to log database errors
- */
-export const logDatabaseError = (error: unknown, context: string) => {
-  console.error(`Database error in ${context}:`, error);
-  return error;
-}; 
+// Example usage (keep for reference if needed elsewhere, or remove if truly unused)
+// async function exampleQuery() {
+//   try {
+//     const { data, error } = await supabase.from('your_table').select('*')
+//     if (error) throw error
+//     console.log(data)
+//   } catch (error) {
+//     console.error('Error fetching data:', error)
+//   }
+// } 
