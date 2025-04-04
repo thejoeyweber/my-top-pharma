@@ -1,5 +1,6 @@
 # build output
 dist/
+.vercel/
 
 # generated types
 .astro/
@@ -58,3 +59,20 @@ exports/
 # Docker
 docker-volumes/
 .docker/
+
+# Supabase local branches
+supabase/.branches/
+
+# Python virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Project metrics and analyzer files
+file_depcheck.txt
+file_jscpd.txt
+file_last_commits.tsv
+file_line_counts.txt
+file_ts-prune.txt
+repomix-output.xml
