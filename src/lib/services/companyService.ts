@@ -1,6 +1,7 @@
 import { supabase } from "../supabase";
-import type { Company } from "../../interfaces/entities/Company";
-import type {
+import type { Company } from "../../interfaces/entities";
+import { dbCompanyToCompany } from "../../interfaces/entities";
+import {
   ICompanyService,
   CompanyListOptions,
 } from "../../interfaces/services/ICompanyService";
@@ -10,12 +11,22 @@ const companyService: ICompanyService = {
     options?: CompanyListOptions
   ): Promise<Company[]> {
     console.log("getCompanies called with options:", options);
-    // Placeholder: Implement actual Supabase query logic here in Task 1.4
-    // Example:
-    // const { data, error } = await supabase.from('companies').select('*');
-    // if (error) throw error;
-    // return data.map(dbCompanyToCompany); // Assuming a mapping function
-    return Promise.resolve([]); // Return empty array for now
+
+    // Basic implementation: Fetch all companies
+    const { data: dbData, error } = await supabase
+      .from("companies")
+      .select("*");
+
+    if (error) {
+      console.error("Error fetching companies:", error);
+      throw error; // Re-throw the error to be handled by the caller
+    }
+
+    // Map the raw DB data to the Company interface
+    // If dbData is null/undefined, map will handle it gracefully (empty array)
+    const companies = (dbData || []).map(dbCompanyToCompany);
+
+    return companies;
   },
 
   async getCompanyDetails(slug: string): Promise<Company | null> {
