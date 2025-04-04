@@ -1,0 +1,394 @@
+---
+/**
+ * Websites Directory Page
+ * 
+ * Lists all pharmaceutical websites in the directory with filtering options.
+ */
+import DashboardLayout from '../../components/templates/DashboardLayout.astro';
+import Card from '../../components/atoms/Card.astro';
+import Button from '../../components/atoms/Button.astro';
+import FilterBar from '../../components/organisms/FilterBar.astro';
+import MultiSelect from '../../components/molecules/MultiSelect.astro';
+import SearchBar from '../../components/molecules/SearchBar.astro';
+import SortSelect from '../../components/molecules/SortSelect.astro';
+import ViewToggle from '../../components/molecules/ViewToggle.astro';
+import WebsiteCard from '../../components/molecules/WebsiteCard.astro';
+import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
+
+// Import Supabase client directly
+import { supabase } from '../../lib/supabase';
+import { dbWebsiteToWebsite } from '../../interfaces/entities/Website';
+import { dbCompanyToCompany } from '../../interfaces/entities/Company';
+import type { Website } from '../../interfaces/entities';
+
+// Get URL query parameters for filtering and sorting
+const url = new URL(Astro.request.url);
+const params = url.searchParams;
+
+// Extract filter and sort parameters
+const sortParam = params.get('sort') || 'domain_asc';
+const viewMode = params.get('view') || 'grid';
+const search = params.get('search') || '';
+const selectedCompanies = params.get('companies')?.split(',') || [];
+const selectedTAs = params.get('tas')?.split(',') || [];
+const websiteTypes = params.get('types')?.split(',') || [];
+
+// Parse sort parameter
+const [sortField, sortDirection] = sortParam.split('_');
+
+// Build Supabase query with filtering and sorting
+let query = supabase.from('websites').select('*');
+
+// Apply search filter if provided
+if (search) {
+  query = query.or(`domain.ilike.%${search}%,title.ilike.%${search}%,description.ilike.%${search}%`);
+}
+
+// Apply company filter if provided
+if (selectedCompanies.length > 0) {
+  query = query.in('company_id', selectedCompanies);
+}
+
+// Apply website type filter if provided
+if (websiteTypes.length > 0) {
+  query = query.in('website_type', websiteTypes);
+}
+
+// Apply sorting
+if (sortField === 'domain') {
+  query = query.order('domain', { ascending: sortDirection === 'asc' });
+} else if (sortField === 'title') {
+  query = query.order('title', { ascending: sortDirection === 'asc' });
+} else if (sortField === 'date') {
+  query = query.order('created_at', { ascending: sortDirection === 'asc' });
+}
+
+// Execute the query
+const { data: dbWebsites, error: websitesError } = await query;
+
+if (websitesError) {
+  console.error('Error fetching websites:', websitesError);
+}
+
+// Convert database records to application entities
+const websites: Website[] = (dbWebsites || []).map(dbWebsiteToWebsite);
+
+// Handle therapeutic area filtering
+let filteredWebsites = websites;
+if (selectedTAs.length > 0) {
+  // First, get all companies in the selected therapeutic areas
+  const { data: companyTAs, error: ctaError } = await supabase
+    .from('company_therapeutic_areas')
+    .select('company_id')
+    .in('therapeutic_area_id', selectedTAs);
+    
+  if (ctaError) {
+    console.error('Error fetching company-therapeutic area relations:', ctaError);
+  }
+  
+  // Get unique company IDs that have the selected therapeutic areas
+  const companyIds = [...new Set((companyTAs || []).map(cta => cta.company_id))];
+  
+  // Filter websites by those company IDs
+  filteredWebsites = websites.filter(website => 
+    website.companyId && companyIds.includes(website.companyId)
+  );
+}
+
+// Fetch companies data for dropdown
+const { data: dbCompanies, error: companiesError } = await supabase
+  .from('companies')
+  .select('id, name')
+  .order('name');
+
+if (companiesError) {
+  console.error('Error fetching companies:', companiesError);
+}
+
+// Create company options for filtering
+const companyOptions = (dbCompanies || []).map(company => ({
+  value: company.id,
+  label: company.name
+}));
+
+// Fetch therapeutic areas for filtering
+const { data: dbTherapeuticAreas, error: taError } = await supabase
+  .from('therapeutic_areas')
+  .select('id, name')
+  .order('name');
+
+if (taError) {
+  console.error('Error fetching therapeutic areas:', taError);
+}
+
+// Create therapeutic areas options for filtering
+const therapeuticAreaOptions = (dbTherapeuticAreas || []).map(ta => ({
+  value: ta.id,
+  label: ta.name
+}));
+
+// Fetch company data for each website
+const companyNameMap = new Map<string, string>();
+(dbCompanies || []).forEach(company => {
+  companyNameMap.set(company.id, company.name);
+});
+
+// Get therapeutic area names for websites (via companies)
+const websiteTaNames = new Map<string, string[]>();
+
+// First, get all company therapeutic area relations
+const { data: allCompanyTAs, error: allCtaError } = await supabase
+  .from('company_therapeutic_areas')
+  .select('company_id, therapeutic_area_id');
+  
+if (allCtaError) {
+  console.error('Error fetching all company-therapeutic area relations:', allCtaError);
+}
+
+// Group therapeutic areas by company
+const companyTaMap = new Map<string, string[]>();
+(allCompanyTAs || []).forEach(relation => {
+  const taIds = companyTaMap.get(relation.company_id) || [];
+  companyTaMap.set(relation.company_id, [...taIds, relation.therapeutic_area_id]);
+});
+
+// Get therapeutic area names
+const taNameMap = new Map<string, string>();
+(dbTherapeuticAreas || []).forEach(ta => {
+  taNameMap.set(ta.id, ta.name);
+});
+
+// Create the final map of website to therapeutic area names (via company)
+filteredWebsites.forEach(website => {
+  if (website.companyId) {
+    const taIds = companyTaMap.get(website.companyId) || [];
+    const taNames = taIds.map(id => taNameMap.get(id)).filter(Boolean) as string[];
+    websiteTaNames.set(website.id, taNames);
+  } else {
+    websiteTaNames.set(website.id, []);
+  }
+});
+
+// Define website types for filtering
+const websiteTypeOptions = [
+  { value: 'corporate', label: 'Corporate' },
+  { value: 'product', label: 'Product' },
+  { value: 'research', label: 'Research' },
+  { value: 'disease', label: 'Disease Awareness' },
+  { value: 'patient', label: 'Patient Support' },
+  { value: 'news', label: 'News' },
+  { value: 'other', label: 'Other' }
+];
+
+// Define sort options
+const sortOptions = [
+  { value: 'domain_asc', label: 'Domain (A to Z)' },
+  { value: 'domain_desc', label: 'Domain (Z to A)' },
+  { value: 'title_asc', label: 'Title (A to Z)' },
+  { value: 'title_desc', label: 'Title (Z to A)' },
+  { value: 'date_desc', label: 'Newest First' },
+  { value: 'date_asc', label: 'Oldest First' }
+];
+
+// Helper function to build URLs with updated parameters
+const updateUrlParams = (updates: Record<string, string | string[] | null>) => {
+  const newUrl = new URL(Astro.request.url);
+  
+  Object.entries(updates).forEach(([key, value]) => {
+    if (value === null) {
+      newUrl.searchParams.delete(key);
+    } else if (Array.isArray(value)) {
+      if (value.length) {
+        newUrl.searchParams.set(key, value.join(','));
+      } else {
+        newUrl.searchParams.delete(key);
+      }
+    } else {
+      newUrl.searchParams.set(key, value);
+    }
+  });
+  
+  return newUrl.pathname + newUrl.search;
+};
+---
+
+<DashboardLayout title="Pharmaceutical Websites">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Added visual header that connects to detail page design -->
+    <div class="mb-6 overflow-hidden">
+      <div class="flex border border-gray-100 rounded-lg shadow-sm overflow-hidden">
+        <div class="w-3 bg-gradient-to-b from-purple-600 to-purple-700"></div>
+        <div class="p-6 flex items-center">
+          <div class="bg-white p-3 rounded-full shadow-sm mr-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Websites</h1>
+            <p class="text-gray-600 text-sm">Discover online platforms for pharmaceutical companies and products</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Filter Bar -->
+    <div class="mb-6">
+      <Card>
+        <div class="p-4">
+          <form id="filter-form" method="get" action="/websites">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+              <!-- Search input -->
+              <div class="w-full md:w-1/3">
+                <input 
+                  type="text" 
+                  id="search" 
+                  name="search" 
+                  value={search}
+                  placeholder="Search websites..."
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+              </div>
+              
+              <!-- View and Sort Options -->
+              <div class="flex items-center space-x-3">
+                <ViewToggle 
+                  options={[
+                    { value: 'grid', label: 'Grid', icon: 'grid' },
+                    { value: 'list', label: 'List', icon: 'list' }
+                  ]}
+                  activeOption={viewMode}
+                  onChange={(value) => updateUrlParams({ view: value })}
+                />
+                
+                <SortSelect 
+                  options={sortOptions}
+                  selected={sortParam}
+                  onChange={(value) => updateUrlParams({ sort: value })}
+                />
+              </div>
+            </div>
+            
+            <!-- Advanced Filters (collapsible) -->
+            <details class="mt-4">
+              <summary class="cursor-pointer text-blue-600 font-medium mb-3">Advanced Filters</summary>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-md">
+                <!-- Company Filter -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Companies</label>
+                  <MultiSelect
+                    options={companyOptions}
+                    selected={selectedCompanies}
+                    name="companies"
+                    onChange={(values) => {
+                      document.querySelector('input[name="companies"]').value = values.join(',');
+                    }}
+                  />
+                  <input type="hidden" name="companies" value={selectedCompanies.join(',')} />
+                </div>
+                
+                <!-- Therapeutic Areas Filter -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Therapeutic Areas</label>
+                  <MultiSelect
+                    options={therapeuticAreaOptions}
+                    selected={selectedTAs}
+                    name="tas"
+                    onChange={(values) => {
+                      document.querySelector('input[name="tas"]').value = values.join(',');
+                    }}
+                  />
+                  <input type="hidden" name="tas" value={selectedTAs.join(',')} />
+                </div>
+                
+                <!-- Website Type Filter -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Website Types</label>
+                  <MultiSelect
+                    options={websiteTypeOptions}
+                    selected={websiteTypes}
+                    name="types"
+                    onChange={(values) => {
+                      document.querySelector('input[name="types"]').value = values.join(',');
+                    }}
+                  />
+                  <input type="hidden" name="types" value={websiteTypes.join(',')} />
+                </div>
+              </div>
+              
+              <!-- Filter Action Buttons -->
+              <div class="flex justify-end mt-4 space-x-2">
+                <Button type="submit" variant="primary">Apply Filters</Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    window.location.href = "/websites";
+                  }}
+                >
+                  Reset
+                </Button>
+              </div>
+            </details>
+            
+            <!-- Maintain view and sort in form submission -->
+            <input type="hidden" name="view" value={viewMode} />
+            <input type="hidden" name="sort" value={sortParam} />
+          </form>
+        </div>
+      </Card>
+    </div>
+    
+    <!-- Results Count -->
+    <div class="mb-4">
+      <p class="text-sm text-gray-600">
+        Showing <span class="font-medium">{filteredWebsites.length}</span> websites
+      </p>
+    </div>
+    
+    <!-- Websites Results -->
+    {filteredWebsites.length === 0 ? (
+      <Card>
+        <div class="p-8 text-center">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 class="mt-2 text-lg font-medium text-gray-900">No websites found</h3>
+          <p class="mt-1 text-sm text-gray-500">Try adjusting your filters to find what you're looking for.</p>
+          <div class="mt-6">
+            <Button 
+              href="/websites" 
+              variant="primary"
+            >
+              Reset Filters
+            </Button>
+          </div>
+        </div>
+      </Card>
+    ) : (
+      <div class={`grid gap-4 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
+        {filteredWebsites.map(website => (
+          <WebsiteCard 
+            website={website} 
+            companyName={website.companyId ? companyNameMap.get(website.companyId) : undefined}
+            therapeuticAreaNames={websiteTaNames.get(website.id) || []}
+            view={viewMode}
+          />
+        ))}
+      </div>
+    )}
+    
+    <!-- Data Source Indicator -->
+    <div class="mt-8">
+      <DataSourceVisualizer />
+    </div>
+  </div>
+</DashboardLayout>
+
+<script>
+  // Client-side enhancement for form submission
+  document.addEventListener('DOMContentLoaded', () => {
+    // No JavaScript needed for basic functionality
+    // Form submits naturally via GET method
+  });
+</script> 

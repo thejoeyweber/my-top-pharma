@@ -1,0 +1,107 @@
+import { c as createComponent, r as renderComponent, b as renderTemplate, m as maybeRenderHead, e as addAttribute } from '../../chunks/astro/server_CCC6TWgs.mjs';
+import 'kleur/colors';
+import { $ as $$Card } from '../../chunks/Card_yc1BfYIH.mjs';
+export { renderers } from '../../renderers.mjs';
+
+const $$UserManagement = createComponent(($$result, $$props, $$slots) => {
+  const userManagement = {
+    users: [
+      {
+        id: "1",
+        name: "Admin User",
+        email: "admin@example.com",
+        role: "admin",
+        status: "active",
+        lastLogin: new Date(Date.now() - 2 * 60 * 60 * 1e3).toISOString(),
+        createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1e3).toISOString()
+      },
+      {
+        id: "2",
+        name: "Editor User",
+        email: "editor@example.com",
+        role: "editor",
+        status: "active",
+        lastLogin: new Date(Date.now() - 24 * 60 * 60 * 1e3).toISOString(),
+        createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1e3).toISOString()
+      },
+      {
+        id: "3",
+        name: "Viewer User",
+        email: "viewer@example.com",
+        role: "viewer",
+        status: "active",
+        lastLogin: new Date(Date.now() - 5 * 24 * 60 * 60 * 1e3).toISOString(),
+        createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1e3).toISOString()
+      },
+      {
+        id: "4",
+        name: "Inactive User",
+        email: "inactive@example.com",
+        role: "viewer",
+        status: "inactive",
+        lastLogin: new Date(Date.now() - 120 * 24 * 60 * 60 * 1e3).toISOString(),
+        createdAt: new Date(Date.now() - 180 * 24 * 60 * 60 * 1e3).toISOString()
+      }
+    ],
+    roles: [
+      {
+        name: "admin",
+        description: "Full access to all system features and settings",
+        permissions: ["read", "write", "delete", "admin"]
+      },
+      {
+        name: "editor",
+        description: "Can edit content and make changes to data",
+        permissions: ["read", "write"]
+      },
+      {
+        name: "viewer",
+        description: "Read-only access to the system",
+        permissions: ["read"]
+      }
+    ]
+  };
+  const formatDate = (dateString) => {
+    if (!dateString) return "--";
+    const date = new Date(dateString);
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    });
+  };
+  return renderTemplate`${renderComponent($$result, "Layout", Layout, { "title": "User Management | Admin | Top Pharma" }, { "default": ($$result2) => renderTemplate` ${maybeRenderHead()}<div class="min-h-screen bg-gray-100"> <header class="bg-white shadow"> <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8"> <div class="flex items-center"> <a href="/admin" class="mr-2 text-gray-400 hover:text-gray-600"> <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"> <path fill-rule="evenodd" d="M11.03 3.97a.75.75 0 0 1 0 1.06l-6.22 6.22H21a.75.75 0 0 1 0 1.5H4.81l6.22 6.22a.75.75 0 1 1-1.06 1.06l-7.5-7.5a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"></path> </svg> </a> <h1 class="text-3xl font-bold tracking-tight text-gray-900">User Management</h1> </div> </div> </header> <main class="mx-auto max-w-7xl py-6 px-4 sm:px-6 lg:px-8"> <!-- User List --> <div class="mb-6"> <h2 class="text-lg font-semibold text-gray-900 mb-3">Users</h2> ${renderComponent($$result2, "Card", $$Card, {}, { "default": ($$result3) => renderTemplate` <div class="px-4 py-5 sm:p-6"> <div class="mb-4 flex justify-end"> <button type="button" class="inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+Add New User
+</button> </div> <div class="overflow-x-auto"> <table class="min-w-full divide-y divide-gray-200"> <thead> <tr> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> </tr> </thead> <tbody class="bg-white divide-y divide-gray-200"> ${userManagement.users.map((user) => renderTemplate`<tr> <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${user.name}</td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user.email}</td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"> <span${addAttribute(`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${user.role === "admin" ? "bg-purple-100 text-purple-800" : user.role === "editor" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`, "class")}> ${user.role} </span> </td> <td class="px-6 py-4 whitespace-nowrap text-sm"> <span${addAttribute(`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${user.status === "active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`, "class")}> ${user.status} </span> </td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(user.lastLogin)}</td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(user.createdAt)}</td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"> <button type="button" class="text-primary-600 hover:text-primary-900 mr-3">Edit</button> <button type="button" class="text-red-600 hover:text-red-900"> ${user.status === "active" ? "Deactivate" : "Activate"} </button> </td> </tr>`)} </tbody> </table> </div> </div> ` })} </div> <!-- Roles & Permissions --> <div class="mb-6"> <h2 class="text-lg font-semibold text-gray-900 mb-3">Roles & Permissions</h2> ${renderComponent($$result2, "Card", $$Card, {}, { "default": ($$result3) => renderTemplate` <div class="px-4 py-5 sm:p-6"> <div class="mb-4 flex justify-end"> <button type="button" class="inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+Add New Role
+</button> </div> <div class="overflow-x-auto"> <table class="min-w-full divide-y divide-gray-200"> <thead> <tr> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Permissions</th> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Users</th> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> </tr> </thead> <tbody class="bg-white divide-y divide-gray-200"> ${userManagement.roles.map((role) => {
+    const usersWithRole = userManagement.users.filter((user) => user.role === role.name && user.status === "active");
+    return renderTemplate`<tr> <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${role.name}</td> <td class="px-6 py-4 text-sm text-gray-500">${role.description}</td> <td class="px-6 py-4 text-sm text-gray-500"> ${role.permissions.map((permission, index) => renderTemplate`<span> <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 bg-gray-100 text-gray-800"> ${permission} </span> ${index < role.permissions.length - 1 ? " " : ""} </span>`)} </td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"> ${usersWithRole.length} </td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"> <button type="button" class="text-primary-600 hover:text-primary-900 mr-3">Edit</button> <button type="button" class="text-red-600 hover:text-red-900">Delete</button> </td> </tr>`;
+  })} </tbody> </table> </div> </div> ` })} </div> <!-- User Editor Form --> <div class="mb-6"> <h2 class="text-lg font-semibold text-gray-900 mb-3">Add/Edit User</h2> ${renderComponent($$result2, "Card", $$Card, {}, { "default": ($$result3) => renderTemplate` <div class="px-4 py-5 sm:p-6"> <div class="grid grid-cols-1 gap-6 sm:grid-cols-2"> <div> <label for="user-name" class="block text-sm font-medium text-gray-700">Full Name</label> <div class="mt-1"> <input type="text" name="user-name" id="user-name" placeholder="e.g., John Doe" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"> </div> </div> <div> <label for="user-email" class="block text-sm font-medium text-gray-700">Email</label> <div class="mt-1"> <input type="email" name="user-email" id="user-email" placeholder="e.g., john@example.com" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"> </div> </div> <div> <label for="user-role" class="block text-sm font-medium text-gray-700">Role</label> <div class="mt-1"> <select id="user-role" name="user-role" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"> ${userManagement.roles.map((role) => renderTemplate`<option${addAttribute(role.name, "value")}>${role.name}</option>`)} </select> </div> </div> <div> <label for="user-status" class="block text-sm font-medium text-gray-700">Status</label> <div class="mt-1"> <select id="user-status" name="user-status" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"> <option value="active">Active</option> <option value="inactive">Inactive</option> </select> </div> </div> <div> <label for="user-password" class="block text-sm font-medium text-gray-700">Password</label> <div class="mt-1"> <input type="password" name="user-password" id="user-password" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"> </div> </div> <div> <label for="user-password-confirm" class="block text-sm font-medium text-gray-700">Confirm Password</label> <div class="mt-1"> <input type="password" name="user-password-confirm" id="user-password-confirm" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"> </div> </div> <div class="sm:col-span-2"> <label class="block text-sm font-medium text-gray-700">Additional Options</label> <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"> <div class="flex items-center"> <input id="send-welcome" name="send-welcome" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"> <label for="send-welcome" class="ml-2 text-sm text-gray-700">Send welcome email</label> </div> <div class="flex items-center"> <input id="require-reset" name="require-reset" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"> <label for="require-reset" class="ml-2 text-sm text-gray-700">Require password reset on first login</label> </div> </div> </div> </div> <div class="mt-6 flex justify-end"> <button type="button" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+Cancel
+</button> <button type="button" class="ml-3 inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+Save User
+</button> </div> </div> ` })} </div> <!-- Role Editor Form --> <div class="mb-6"> <h2 class="text-lg font-semibold text-gray-900 mb-3">Add/Edit Role</h2> ${renderComponent($$result2, "Card", $$Card, {}, { "default": ($$result3) => renderTemplate` <div class="px-4 py-5 sm:p-6"> <div class="grid grid-cols-1 gap-6 sm:grid-cols-2"> <div> <label for="role-name" class="block text-sm font-medium text-gray-700">Role Name</label> <div class="mt-1"> <input type="text" name="role-name" id="role-name" placeholder="e.g., manager" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"> </div> </div> <div> <label for="role-description" class="block text-sm font-medium text-gray-700">Description</label> <div class="mt-1"> <input type="text" name="role-description" id="role-description" placeholder="e.g., Can edit data but not system settings" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"> </div> </div> <div class="sm:col-span-2"> <label class="block text-sm font-medium text-gray-700">Permissions</label> <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4"> ${["read", "write", "delete", "manage-users", "manage-api", "view-reports", "create-reports", "access-admin"].map((permission) => renderTemplate`<div class="flex items-center"> <input${addAttribute(`permission-${permission}`, "id")}${addAttribute(`permission-${permission}`, "name")} type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"> <label${addAttribute(`permission-${permission}`, "for")} class="ml-2 text-sm text-gray-700">${permission}</label> </div>`)} </div> </div> </div> <div class="mt-6 flex justify-end"> <button type="button" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+Cancel
+</button> <button type="button" class="ml-3 inline-flex items-center rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+Save Role
+</button> </div> </div> ` })} </div> <!-- Activity Log --> <div class="mb-6"> <h2 class="text-lg font-semibold text-gray-900 mb-3">User Activity Log</h2> ${renderComponent($$result2, "Card", $$Card, {}, { "default": ($$result3) => renderTemplate` <div class="px-4 py-5 sm:p-6"> <p class="text-sm text-gray-500 mb-4">
+Recent user activity and authentication events.
+</p> <div class="overflow-x-auto"> <table class="min-w-full divide-y divide-gray-200"> <thead> <tr> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th> <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th> </tr> </thead> <tbody class="bg-white divide-y divide-gray-200"> <tr> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 7, 2025 9:12 AM</td> <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">admin@toppharma.com</td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Login</td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">192.168.1.1</td> <td class="px-6 py-4 text-sm text-gray-500">Browser: Chrome 125.0.0</td> </tr> <tr> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 7, 2025 8:45 AM</td> <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">analyst@toppharma.com</td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Login</td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">192.168.1.2</td> <td class="px-6 py-4 text-sm text-gray-500">Browser: Firefox 115.0.0</td> </tr> <tr> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 6, 2025 6:30 PM</td> <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">admin@toppharma.com</td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Logout</td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">192.168.1.1</td> <td class="px-6 py-4 text-sm text-gray-500">Session duration: 4h 12m</td> </tr> <tr> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Mar 6, 2025 2:18 PM</td> <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">admin@toppharma.com</td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Login</td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">192.168.1.1</td> <td class="px-6 py-4 text-sm text-gray-500">Browser: Chrome 125.0.0</td> </tr> </tbody> </table> </div> </div> ` })} </div> </main> </div> ` })}`;
+}, "C:/Users/joey/projects/jaw-labs/mytoppharma/app/src/pages/admin/user-management.astro", void 0);
+
+const $$file = "C:/Users/joey/projects/jaw-labs/mytoppharma/app/src/pages/admin/user-management.astro";
+const $$url = "/admin/user-management";
+
+const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
+  __proto__: null,
+  default: $$UserManagement,
+  file: $$file,
+  url: $$url
+}, Symbol.toStringTag, { value: 'Module' }));
+
+const page = () => _page;
+
+export { page };

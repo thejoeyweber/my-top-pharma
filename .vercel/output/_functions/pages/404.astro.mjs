@@ -1,0 +1,36 @@
+import { c as createComponent, r as renderComponent, b as renderTemplate, m as maybeRenderHead } from '../chunks/astro/server_CCC6TWgs.mjs';
+import 'kleur/colors';
+import { $ as $$DashboardLayout } from '../chunks/DashboardLayout_DgtcCfCn.mjs';
+import { $ as $$Button } from '../chunks/Button_D9GGRmJN.mjs';
+export { renderers } from '../renderers.mjs';
+
+const $$404 = createComponent(($$result, $$props, $$slots) => {
+  const title = "Page Not Found | Top Pharma";
+  const description = "The page you're looking for doesn't exist or has been moved.";
+  const currentPath = "";
+  const breadcrumbs = [
+    { label: "Home", href: "/" },
+    { label: "Page Not Found", href: "#", isActive: true }
+  ];
+  return renderTemplate`${renderComponent($$result, "DashboardLayout", $$DashboardLayout, { "title": title, "description": description, "currentPath": currentPath, "breadcrumbs": breadcrumbs }, { "default": ($$result2) => renderTemplate` ${maybeRenderHead()}<div class="flex flex-col items-center justify-center py-12"> <div class="text-center"> <h1 class="text-9xl font-bold text-[color:var(--color-primary-500)]">404</h1> <h2 class="mt-4 text-3xl font-bold text-gray-900">Page not found</h2> <p class="mt-2 text-lg text-gray-600 max-w-md mx-auto">
+Sorry, we couldn't find the page you're looking for. The page might have been moved or doesn't exist.
+</p> <div class="mt-8"> ${renderComponent($$result2, "Button", $$Button, { "href": "/", "variant": "primary", "size": "lg" }, { "default": ($$result3) => renderTemplate` <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path> </svg>
+Return to Home
+` })} ${renderComponent($$result2, "Button", $$Button, { "variant": "outline", "size": "lg", "class": "ml-4", "onClick": "window.history.back();" }, { "default": ($$result3) => renderTemplate` <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"></path> </svg>
+Go Back
+` })} </div> </div> </div> ` })}`;
+}, "C:/Users/joey/projects/jaw-labs/mytoppharma/app/src/pages/404.astro", void 0);
+
+const $$file = "C:/Users/joey/projects/jaw-labs/mytoppharma/app/src/pages/404.astro";
+const $$url = "/404";
+
+const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
+  __proto__: null,
+  default: $$404,
+  file: $$file,
+  url: $$url
+}, Symbol.toStringTag, { value: 'Module' }));
+
+const page = () => _page;
+
+export { page };

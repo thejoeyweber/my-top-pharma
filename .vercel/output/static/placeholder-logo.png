@@ -1,0 +1,12 @@
+This is a placeholder for a PNG image file.
+
+Since we can't directly create binary files through this interface, you should:
+
+1. Create a simple 200x200 pixel PNG image with:
+   - Light gray background (#f3f4f6)
+   - Dark gray pill/capsule icon or company building icon (#6b7280)
+   - Text "No Logo" in dark gray (#6b7280)
+
+2. Save it as "placeholder-logo.png" in the public directory
+
+This file will be used as a fallback when company logos can't be loaded. 

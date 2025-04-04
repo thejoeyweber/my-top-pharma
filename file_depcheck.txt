@@ -1,0 +1,19 @@
+PS C:\Users\joey\projects\jaw-labs\mytoppharma\app> npx depcheck
+Unused dependencies
+* @types/chart.js
+* @types/csv-parse
+* @types/react
+* @types/react-dom
+* chart.js
+* csv-parse
+* dotenv
+* node-fetch
+* react-dom
+* tailwindcss
+* uuid
+Unused devDependencies
+* @types/uuid
+* supabase
+* ts-node
+* ts-prune
+* typescript

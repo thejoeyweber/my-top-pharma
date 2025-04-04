@@ -1,0 +1,188 @@
+{
+	"version": 3,
+	"routes": [
+		{
+			"handle": "filesystem"
+		},
+		{
+			"src": "^/_astro/(.*)$",
+			"headers": {
+				"cache-control": "public, max-age=31536000, immutable"
+			},
+			"continue": true
+		},
+		{
+			"src": "^/_server-islands/([^/]+?)/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/_image/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/404/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/api-config/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/audit/companies/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/audit/feature-flags/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/audit/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/crawler-config/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/data-feeds/connection-test/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/data-feeds/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/data-sources/connection-test/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/data-sources/dashboard/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/docs/data-sources/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/reports-admin/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/system-logs/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/test-db/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/user-management/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/admin/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/reset-feature-flags/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/test-db-connection/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/toggle-feature-flag/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/toggle-supabase-env/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/companies/([^/]+?)/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/companies/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/dashboard/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/following/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/forgot-password/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/login/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/notifications/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/preferences/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/products/([^/]+?)/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/products/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/profile/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/register/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/reports/market-overview/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/reports/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/supabase-test/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/therapeutic-areas/([^/]+?)/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/therapeutic-areas/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/websites/([^/]+?)/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/websites/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/.*$",
+			"dest": "_render",
+			"status": 404
+		}
+	]
+}
