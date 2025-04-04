@@ -1,0 +1,3 @@
+import type { Company } from "../entities/Company";
+
+// ... existing code ... 
