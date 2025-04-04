@@ -1,0 +1,344 @@
+---
+/**
+ * Therapeutic Area Detail Page
+ * 
+ * Displays detailed information for a specific therapeutic area,
+ * including related companies, products, and websites.
+ */
+import { supabase } from '../../lib/supabase';
+import DashboardLayout from '../../components/templates/DashboardLayout.astro';
+import Breadcrumb from '../../components/molecules/Breadcrumb.astro';
+import TabGroup from '../../components/molecules/TabGroup.astro';
+import CompanyCard from '../../components/molecules/CompanyCard.astro';
+import ProductCard from '../../components/molecules/ProductCard.astro';
+import WebsiteCard from '../../components/molecules/WebsiteCard.astro';
+import { dbCompanyToCompany } from '../../interfaces/entities/Company';
+import { dbProductToProduct } from '../../interfaces/entities/Product';
+import { dbWebsiteToWebsite } from '../../interfaces/entities/Website';
+import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/TherapeuticArea';
+import type { TherapeuticArea } from '../../interfaces/entities';
+import Card from '../../components/atoms/Card.astro';
+
+// Function to generate static paths for all therapeutic areas
+export async function getStaticPaths() {
+  const { data: therapeuticAreas } = await supabase
+    .from('therapeutic_areas')
+    .select('id, slug, name');
+  
+  if (!therapeuticAreas) {
+    return [];
+  }
+  
+  return therapeuticAreas.map(ta => ({
+    params: { slug: ta.slug },
+    props: { therapeuticAreaId: ta.id }
+  }));
+}
+
+// Get the therapeutic area ID from the URL
+const { slug } = Astro.params;
+const { therapeuticAreaId } = Astro.props;
+
+// Fetch the therapeutic area data - first try by ID from props, then by slug
+let taData;
+
+if (therapeuticAreaId) {
+  const { data } = await supabase
+    .from('therapeutic_areas')
+    .select('*')
+    .eq('id', therapeuticAreaId)
+    .single();
+  
+  taData = data;
+}
+
+// If not found or ID not provided, try by slug
+if (!taData) {
+  const { data } = await supabase
+    .from('therapeutic_areas')
+    .select('*')
+    .eq('slug', slug)
+    .single();
+  
+  taData = data;
+  
+  // Last resort, try by ID
+  if (!taData) {
+    const { data } = await supabase
+      .from('therapeutic_areas')
+      .select('*')
+      .eq('id', slug)
+      .single();
+    
+    taData = data;
+  }
+}
+
+// Redirect to the therapeutic areas list if the therapeutic area is not found
+if (!taData) {
+  return Astro.redirect('/therapeutic-areas');
+}
+
+const therapeuticArea: TherapeuticArea = dbTherapeuticAreaToTherapeuticArea(taData);
+
+// Fetch companies related to this therapeutic area
+const { data: companiesData } = await supabase
+  .from('companies')
+  .select('*')
+  .contains('therapeutic_area_ids', [therapeuticArea.id]);
+
+const companies = companiesData ? companiesData.map(dbCompanyToCompany) : [];
+
+// Fetch products related to this therapeutic area
+const { data: productsData } = await supabase
+  .from('products')
+  .select('*')
+  .contains('therapeutic_area_ids', [therapeuticArea.id]);
+
+const products = productsData ? productsData.map(dbProductToProduct) : [];
+
+// Fetch websites related to this therapeutic area
+const { data: websitesData } = await supabase
+  .from('websites')
+  .select('*')
+  .contains('therapeutic_area_ids', [therapeuticArea.id]);
+
+const websites = websitesData ? websitesData.map(dbWebsiteToWebsite) : [];
+
+// Set up breadcrumbs
+const breadcrumbItems = [
+  { label: 'Home', href: '/' },
+  { label: 'Therapeutic Areas', href: '/therapeutic-areas' },
+  { label: therapeuticArea.name, href: `/therapeutic-areas/${slug}`, isActive: true }
+];
+
+// Set up tabs
+const tabs = [
+  { 
+    id: 'overview', 
+    label: 'Overview', 
+    count: null
+  },
+  { 
+    id: 'companies', 
+    label: 'Companies', 
+    count: companies.length
+  },
+  { 
+    id: 'products', 
+    label: 'Products', 
+    count: products.length
+  },
+  { 
+    id: 'websites', 
+    label: 'Websites', 
+    count: websites.length
+  }
+];
+
+// Get active tab from URL query parameter or default to 'overview'
+const activeTab = Astro.url.searchParams.get('tab') || 'overview';
+---
+
+<DashboardLayout 
+  title={`${therapeuticArea.name} - Therapeutic Area | MyTopPharma`}
+  description={`Detailed information about ${therapeuticArea.name} therapeutic area`}
+  currentPath={`/therapeutic-areas/${slug}`}
+  breadcrumbs={breadcrumbItems}
+>
+  <div class="space-y-6">
+    <!-- Therapeutic Area Header - Updated to match company header structure -->
+    <div class="relative">
+      <!-- Header Background -->
+      <div class="h-48 w-full bg-gradient-to-r from-amber-500 to-amber-600 relative overflow-hidden shadow-md">
+        {/* Background could include a relevant medical image */}
+      </div>
+      
+      <!-- Therapeutic Area Info Card -->
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden -mt-24 mb-8">
+          <div class="p-6 sm:p-8">
+            <div class="flex flex-col md:flex-row items-start md:items-center">
+              <!-- Therapeutic Area Icon -->
+              <div class="w-24 h-24 bg-white rounded-lg shadow-md flex items-center justify-center overflow-hidden mr-6 mb-4 md:mb-0">
+                {therapeuticArea.icon_path ? (
+                  <img src={therapeuticArea.icon_path} alt={therapeuticArea.name} class="max-w-full max-h-full p-2" />
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-amber-500" fill="currentColor" viewBox="0 0 612 612">
+                    <g>
+                      <path d="M380.406,254.483c-7.043,3.727-14.33,6.947-21.83,9.607c-16.626,5.899-34.283,9.08-52.575,9.08
+                        c-33.516,0-66.005,7.368-96.563,21.901c-7.149,3.4-14.112,7.16-20.886,11.26c-4.681,2.834-9.263,5.844-13.756,9.005
+                        c-4.306,3.03-8.526,6.205-12.652,9.531c-10.795,8.703-20.974,18.401-30.467,29.075c-45.35,50.992-70.326,118.535-70.326,190.186
+                        v47.975c0,10.989,8.908,19.897,19.897,19.897h26.529c10.988,0,19.897-8.908,19.897-19.897v-31.137h14.923h14.923h296.963h14.923
+                        h14.923v31.137c0,10.989,8.908,19.897,19.897,19.897h26.529c10.988,0,19.897-8.908,19.897-19.897v-47.975
+                        c0-71.652-24.975-139.194-70.325-190.186c-9.493-10.674-19.672-20.372-30.467-29.075c-11.004,7.412-22.507,13.983-34.475,19.675
+                        c-11.429,5.436-23.101,9.98-34.975,13.637c23.809,12.596,44.8,31.04,61.573,53.719h-18.929h-20.193H209.144H188.95h-18.929
+                        c16.774-22.679,37.764-41.123,61.573-53.719c7.044-3.726,14.33-6.947,21.83-9.607c16.626-5.899,34.283-9.08,52.576-9.08
+                        c33.516,0,66.005-7.368,96.563-21.901c7.149-3.4,14.112-7.16,20.886-11.26c4.681-2.834,9.263-5.844,13.756-9.005
+                        c4.306-3.03,8.525-6.204,12.652-9.531c10.795-8.703,20.975-18.401,30.467-29.075c45.35-50.992,70.325-118.535,70.325-190.186
+                        V19.897C550.649,8.908,541.741,0,530.752,0h-26.529c-10.988,0-19.897,8.908-19.897,19.897v31.071h-14.923h-14.923H157.519h-14.923
+                        h-14.923V19.897C127.674,8.908,118.765,0,107.777,0H81.248C70.259,0,61.351,8.908,61.351,19.897v48.638
+                        c0,71.652,24.975,139.194,70.325,190.186c9.493,10.674,19.672,20.372,30.467,29.075c11.004-7.412,22.507-13.983,34.475-19.676
+                        c11.429-5.435,23.101-9.98,34.975-13.637c-24.064-12.731-45.249-31.435-62.111-54.448h18.853h20.09h195.146h20.09h18.854
+                        C425.655,223.048,404.471,241.752,380.406,254.483z M170.966,471.59h270.069h15.944h15.763c3.174,9.575,5.739,19.49,7.64,29.687
+                        H465.2h-15.245H162.046h-15.245H131.62c1.901-10.196,4.466-20.111,7.64-29.687h15.763H170.966z M441.312,140.344H170.688h-15.922
+                        h-15.748c-3.138-9.578-5.671-19.493-7.536-29.687h15.181h15.23h288.216h15.23h15.182c-1.866,10.194-4.399,20.108-7.536,29.687
+                        h-15.748H441.312z"/>
+                    </g>
+                  </svg>
+                )}
+              </div>
+              
+              <!-- Therapeutic Area Basic Info -->
+              <div class="flex-grow">
+                <div class="flex items-center justify-between flex-wrap">
+                  <h1 class="text-2xl font-bold text-gray-900 mr-4">{therapeuticArea.name}</h1>
+                </div>
+                
+                {therapeuticArea.description && (
+                  <p class="mt-2 text-sm text-gray-500 line-clamp-2">{therapeuticArea.description}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Tabs Navigation -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+      <TabGroup tabs={tabs} activeTab={activeTab} baseUrl={`/therapeutic-areas/${slug}`} tabPanelId="ta-tab-content" />
+      
+      <!-- Tab Content -->
+      <div class="mt-6">
+        <!-- Overview Tab -->
+        <div id="ta-tab-content-overview" role="tabpanel" aria-labelledby="tab-overview" class={activeTab === 'overview' ? '' : 'hidden'}>
+          <div class="space-y-6">
+            <Card>
+              <div class="p-4">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Overview</h3>
+                {therapeuticArea.description ? (
+                  <p class="text-gray-700">{therapeuticArea.description}</p>
+                ) : (
+                  <p class="text-gray-500 italic">No detailed description available for this therapeutic area.</p>
+                )}
+              </div>
+            </Card>
+            
+            <Card>
+              <div class="p-4">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Summary</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div class="bg-blue-50 rounded-lg p-4">
+                    <div class="flex items-center">
+                      <div class="bg-blue-100 rounded-full p-2 mr-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div class="text-sm text-blue-600 font-medium">Companies</div>
+                        <div class="text-2xl font-bold text-blue-800">{companies.length}</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="bg-green-50 rounded-lg p-4">
+                    <div class="flex items-center">
+                      <div class="bg-green-100 rounded-full p-2 mr-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div class="text-sm text-green-600 font-medium">Products</div>
+                        <div class="text-2xl font-bold text-green-800">{products.length}</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="bg-purple-50 rounded-lg p-4">
+                    <div class="flex items-center">
+                      <div class="bg-purple-100 rounded-full p-2 mr-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div class="text-sm text-purple-600 font-medium">Websites</div>
+                        <div class="text-2xl font-bold text-purple-800">{websites.length}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+        
+        <!-- Companies Tab -->
+        <div id="ta-tab-content-companies" role="tabpanel" aria-labelledby="tab-companies" class={activeTab === 'companies' ? '' : 'hidden'}>
+          {companies.length > 0 ? (
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {companies.map(company => (
+                <CompanyCard company={company} />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <div class="p-6 text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                <h3 class="mt-2 text-lg font-medium text-gray-900">No companies found</h3>
+                <p class="mt-1 text-gray-500">No companies are associated with this therapeutic area.</p>
+              </div>
+            </Card>
+          )}
+        </div>
+        
+        <!-- Products Tab -->
+        <div id="ta-tab-content-products" role="tabpanel" aria-labelledby="tab-products" class={activeTab === 'products' ? '' : 'hidden'}>
+          {products.length > 0 ? (
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {products.map(product => (
+                <ProductCard product={product} />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <div class="p-6 text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+                <h3 class="mt-2 text-lg font-medium text-gray-900">No products found</h3>
+                <p class="mt-1 text-gray-500">No products are associated with this therapeutic area.</p>
+              </div>
+            </Card>
+          )}
+        </div>
+        
+        <!-- Websites Tab -->
+        <div id="ta-tab-content-websites" role="tabpanel" aria-labelledby="tab-websites" class={activeTab === 'websites' ? '' : 'hidden'}>
+          {websites.length > 0 ? (
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {websites.map(website => (
+                <WebsiteCard website={website} />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <div class="p-6 text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                </svg>
+                <h3 class="mt-2 text-lg font-medium text-gray-900">No websites found</h3>
+                <p class="mt-1 text-gray-500">No websites are associated with this therapeutic area.</p>
+              </div>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+</DashboardLayout> 

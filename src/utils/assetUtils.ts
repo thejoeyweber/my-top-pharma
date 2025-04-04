@@ -23,10 +23,15 @@ export function getCompanyHeaderUrl(companyId: string): string {
 
 /**
  * Get the URL to a product image
+ * Note: Currently returns a placeholder as product images aren't available yet
  */
-export function getProductImageUrl(productId: string): string {
-  const baseUrl = import.meta.env.PUBLIC_ASSETS_BASE_URL || '/assets';
-  return `${baseUrl}/products/${productId}/image.svg`;
+export function getProductImageUrl(productId: string): string | null {
+  // Return null to indicate no image available
+  return null;
+  
+  // Alternatively, when product images are ready, uncomment:
+  // const baseUrl = import.meta.env.PUBLIC_ASSETS_BASE_URL || '/assets';
+  // return `${baseUrl}/products/${productId}/image.svg`;
 }
 
 /**

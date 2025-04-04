@@ -1,0 +1,769 @@
+---
+/**
+ * Company Detail Page
+ * 
+ * Displays detailed information about a specific pharmaceutical company.
+ */
+import DashboardLayout from '../../components/templates/DashboardLayout.astro';
+import Card from '../../components/atoms/Card.astro';
+import Button from '../../components/atoms/Button.astro';
+import FollowButton from '../../components/molecules/FollowButton.astro';
+import TabGroup from '../../components/molecules/TabGroup.astro';
+import KeyMetric from '../../components/molecules/KeyMetric.astro';
+import Timeline from '../../components/molecules/Timeline.astro';
+import FinancialChart from '../../components/molecules/FinancialChart.astro';
+import PipelineChart from '../../components/molecules/PipelineChart.astro';
+import DataTable from '../../components/molecules/DataTable.astro';
+import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
+
+// Import Supabase client directly
+import { supabase } from '../../lib/supabase';
+import { dbCompanyToCompany } from '../../interfaces/entities/Company';
+import { dbProductToProduct } from '../../interfaces/entities/Product';
+import { dbWebsiteToWebsite } from '../../interfaces/entities/Website';
+import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/TherapeuticArea';
+import type { Company, Product, Website, TherapeuticArea } from '../../interfaces/entities';
+
+// Import other existing utilities
+import { getCompanyLogoUrl, getCompanyHeaderUrl, getWebsiteScreenshotUrl } from '../../utils/assetUtils';
+import { generateSlug, formatMarketCap } from '../../utils/stringUtils';
+
+// Define website categories (moved from deleted dataUtils)
+const websiteCategories = {
+  CORPORATE: 'corporate',
+  PRODUCT: 'product',
+  DISEASE_AWARENESS: 'disease-awareness',
+  PATIENT_SUPPORT: 'patient-support',
+  CLINICAL_TRIAL: 'clinical-trial',
+  INVESTOR_RELATIONS: 'investor-relations',
+  OTHER: 'other'
+};
+
+// Generate static paths for all companies
+export async function getStaticPaths() {
+  const { data: dbCompanies, error } = await supabase
+    .from('companies')
+    .select('id, slug, name');
+    
+  if (error) {
+    console.error('Error fetching companies for static paths', error);
+    return [];
+  }
+    
+  return (dbCompanies || []).map(company => ({
+    params: { 
+      slug: company.slug
+    },
+    props: { companyId: company.id }
+  }));
+}
+
+// Get company ID or slug from URL parameters
+const { slug } = Astro.params;
+const { companyId } = Astro.props;
+
+// Fetch company data directly from Supabase - first try by ID from props, then by slug
+let companyResponse;
+
+if (companyId) {
+  companyResponse = await supabase
+    .from('companies')
+    .select('*')
+    .eq('id', companyId)
+    .single();
+}
+
+// If not found or ID not provided, try to fetch by slug
+if (!companyResponse || companyResponse.error || !companyResponse.data) {
+  companyResponse = await supabase
+    .from('companies')
+    .select('*')
+    .eq('slug', slug)
+    .single();
+    
+  // Last resort, try to fetch by ID as fallback
+  if (companyResponse.error || !companyResponse.data) {
+    companyResponse = await supabase
+      .from('companies')
+      .select('*')
+      .eq('id', slug)
+      .single();
+  }
+}
+
+const { data: dbCompany, error: companyError } = companyResponse;
+
+// Handle company not found
+if (companyError || !dbCompany) {
+  return Astro.redirect('/404');
+}
+
+// Convert database record to application entity
+const company = dbCompanyToCompany(dbCompany);
+
+// Fetch therapeutic areas for this company
+const { data: companyTARelations, error: taRelError } = await supabase
+  .from('company_therapeutic_areas')
+  .select('therapeutic_area_id')
+  .eq('company_id', dbCompany.id);
+
+if (taRelError) {
+  console.error('Error fetching therapeutic area relations', taRelError);
+}
+
+// Fetch full therapeutic area details
+const therapeuticAreaIds = (companyTARelations || []).map(rel => rel.therapeutic_area_id);
+let therapeuticAreas: TherapeuticArea[] = [];
+let therapeuticAreaNames: string[] = [];
+
+if (therapeuticAreaIds.length > 0) {
+  const { data: dbTherapeuticAreas, error: taError } = await supabase
+    .from('therapeutic_areas')
+    .select('*')
+    .in('id', therapeuticAreaIds);
+  
+  if (taError) {
+    console.error('Error fetching therapeutic areas', taError);
+  }
+  
+  therapeuticAreas = (dbTherapeuticAreas || []).map(dbTherapeuticAreaToTherapeuticArea);
+  therapeuticAreaNames = therapeuticAreas.map(ta => ta.name);
+}
+
+// Fetch company products
+const { data: dbProducts, error: productsError } = await supabase
+  .from('products')
+  .select('*')
+  .eq('company_id', dbCompany.id);
+
+if (productsError) {
+  console.error('Error fetching company products', productsError);
+}
+
+// Convert to application entities
+const products = (dbProducts || []).map(dbProductToProduct);
+
+// Fetch product therapeutic areas
+let productTherapeuticAreaMap = new Map<string, string[]>();
+
+if (products.length > 0) {
+  const productIds = products.map(p => p.id);
+  
+  const { data: productTARelations, error: prodTaError } = await supabase
+    .from('product_therapeutic_areas')
+    .select('product_id, therapeutic_area_id')
+    .in('product_id', productIds);
+    
+  if (prodTaError) {
+    console.error('Error fetching product therapeutic area relations', prodTaError);
+  }
+  
+  // Group by product ID
+  const productTaMap = new Map<string, string[]>();
+  (productTARelations || []).forEach(rel => {
+    const currentTas = productTaMap.get(rel.product_id) || [];
+    productTaMap.set(rel.product_id, [...currentTas, rel.therapeutic_area_id]);
+  });
+  
+  // Fetch therapeutic area names
+  const allTaIds = Array.from(new Set((productTARelations || []).map(rel => rel.therapeutic_area_id)));
+  
+  if (allTaIds.length > 0) {
+    const { data: taData, error: taNameError } = await supabase
+      .from('therapeutic_areas')
+      .select('id, name')
+      .in('id', allTaIds);
+      
+    if (taNameError) {
+      console.error('Error fetching therapeutic area names', taNameError);
+    }
+    
+    const taNameMap = new Map<string, string>();
+    (taData || []).forEach(ta => {
+      taNameMap.set(ta.id, ta.name);
+    });
+    
+    // Create product to TA names map
+    products.forEach(product => {
+      const taIds = productTaMap.get(product.id) || [];
+      const taNames = taIds.map(id => taNameMap.get(id) || '').filter(Boolean);
+      productTherapeuticAreaMap.set(product.id, taNames);
+    });
+  }
+}
+
+// Fetch company websites
+const { data: dbWebsites, error: websitesError } = await supabase
+  .from('websites')
+  .select('*')
+  .eq('company_id', dbCompany.id);
+
+if (websitesError) {
+  console.error('Error fetching company websites', websitesError);
+}
+
+// Convert to application entities
+const websites = (dbWebsites || []).map(dbWebsiteToWebsite);
+
+// Fetch website therapeutic areas
+let websiteTherapeuticAreaMap = new Map<string, string[]>();
+
+if (websites.length > 0) {
+  const websiteIds = websites.map(w => w.id);
+  
+  const { data: websiteTARelations, error: webTaError } = await supabase
+    .from('website_therapeutic_areas')
+    .select('website_id, therapeutic_area_id')
+    .in('website_id', websiteIds);
+    
+  if (webTaError) {
+    console.error('Error fetching website therapeutic area relations', webTaError);
+  }
+  
+  // Group by website ID
+  const websiteTaMap = new Map<string, string[]>();
+  (websiteTARelations || []).forEach(rel => {
+    const currentTas = websiteTaMap.get(rel.website_id) || [];
+    websiteTaMap.set(rel.website_id, [...currentTas, rel.therapeutic_area_id]);
+  });
+  
+  // Fetch therapeutic area names
+  const allTaIds = Array.from(new Set((websiteTARelations || []).map(rel => rel.therapeutic_area_id)));
+  
+  if (allTaIds.length > 0) {
+    const { data: taData, error: taNameError } = await supabase
+      .from('therapeutic_areas')
+      .select('id, name')
+      .in('id', allTaIds);
+      
+    if (taNameError) {
+      console.error('Error fetching therapeutic area names', taNameError);
+    }
+    
+    const taNameMap = new Map<string, string>();
+    (taData || []).forEach(ta => {
+      taNameMap.set(ta.id, ta.name);
+    });
+    
+    // Create website to TA names map
+    websites.forEach(website => {
+      const taIds = websiteTaMap.get(website.id) || [];
+      const taNames = taIds.map(id => taNameMap.get(id) || '').filter(Boolean);
+      websiteTherapeuticAreaMap.set(website.id, taNames);
+    });
+  }
+}
+
+// Fetch financial data
+const { data: dbFinancials, error: financialsError } = await supabase
+  .from('company_financials')
+  .select('*')
+  .eq('company_id', dbCompany.id)
+  .order('year', { ascending: true });
+  
+if (financialsError) {
+  console.error('Error fetching company financials', financialsError);
+}
+
+// Convert to appropriate format for charts
+const financialYears = (dbFinancials || []).map(f => f.year);
+const revenueData = (dbFinancials || []).map(f => f.revenue);
+const rdSpendingData = (dbFinancials || []).map(f => f.r_and_d_spending);
+const netIncomeData = (dbFinancials || []).map(f => f.net_income);
+
+// Fetch company milestones
+const { data: dbMilestones, error: milestonesError } = await supabase
+  .from('company_milestones')
+  .select('*')
+  .eq('company_id', dbCompany.id)
+  .order('date', { ascending: false });
+  
+if (milestonesError) {
+  console.error('Error fetching company milestones', milestonesError);
+}
+
+// Format milestones for the Timeline component
+const milestones = (dbMilestones || []).map(milestone => ({
+  id: milestone.id,
+  date: new Date(milestone.date),
+  title: milestone.title,
+  description: milestone.description || '',
+  type: milestone.milestone_type || 'general'
+}));
+
+// Fetch related companies
+const { data: dbRelatedCompanies, error: relatedError } = await supabase
+  .from('related_companies')
+  .select(`
+    id, 
+    relationship_type,
+    related_company_id,
+    companies!related_companies_related_company_id_fkey (
+      id, name, slug, logo_url, headquarters
+    )
+  `)
+  .eq('company_id', dbCompany.id);
+  
+if (relatedError) {
+  console.error('Error fetching related companies', relatedError);
+}
+
+// Extract related company details
+const relatedCompanies = (dbRelatedCompanies || []).map(relation => {
+  const relCompany = relation.companies;
+  return {
+    id: relCompany.id,
+    name: relCompany.name,
+    slug: relCompany.slug,
+    logoUrl: relCompany.logo_url,
+    headquarters: relCompany.headquarters,
+    relationshipType: relation.relationship_type
+  };
+});
+
+// Fetch related companies (same therapeutic areas)
+const { data: relatedCompanyRelations } = await supabase
+  .from('company_therapeutic_areas')
+  .select('company_id')
+  .in('therapeutic_area_id', therapeuticAreaIds)
+  .neq('company_id', slug)
+  .limit(5);
+
+const relatedCompanyIds = [...new Set((relatedCompanyRelations || []).map(rel => rel.company_id))];
+let relatedCompanies2: Company[] = [];
+
+if (relatedCompanyIds.length > 0) {
+  const { data: dbRelatedCompanies } = await supabase
+    .from('companies')
+    .select('*')
+    .in('id', relatedCompanyIds);
+  
+  relatedCompanies2 = (dbRelatedCompanies || []).map(dbCompanyToCompany);
+}
+
+// Format data for the UI
+const getTherapeuticAreaName = (id: string) => {
+  const area = therapeuticAreas.find(a => a.id === id);
+  return area ? area.name : id;
+};
+
+// Function to get category label
+const getCategoryLabel = (categoryId: string) => {
+  const category = websiteCategories[categoryId as keyof typeof websiteCategories];
+  return category ? category : categoryId;
+};
+
+// Group websites by category for easier display
+const websitesByCategory = websites.reduce((acc, website) => {
+  const category = website.category || 'other';
+  if (!acc[category]) {
+    acc[category] = [];
+  }
+  acc[category].push(website);
+  return acc;
+}, {} as Record<string, any[]>);
+
+// Default tab is "overview"
+const activeTab = "overview";
+
+// Define tabs
+const tabs = [
+  { id: "overview", label: "Overview", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>' },
+  { id: "products", label: "Products", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>' },
+  { id: "websites", label: "Websites", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>' },
+  { id: "pipeline", label: "Pipeline", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>' },
+  { id: "financials", label: "Financials", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>' },
+  { id: "stock", label: "Stock", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>' },
+  { id: "news", label: "News", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>' },
+];
+
+// Pre-compute product therapeutic areas to avoid async calls in the template
+const productTherapeuticAreas = {};
+if (products && products.length > 0) {
+  for (const product of products) {
+    if (product?.therapeuticAreas) {
+      productTherapeuticAreas[product.id] = product.therapeuticAreas.map(id => getTherapeuticAreaName(id));
+    }
+  }
+}
+
+// Breadcrumbs for company detail page
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Companies', href: '/companies' },
+  { label: company.name, href: `/companies/${company.slug}`, isActive: true },
+];
+
+// Prepare financial data
+const financialData = {
+  revenue: company.financials?.map(f => ({ year: f.year, value: f.revenue })) || [],
+  rAndDSpending: company.financials?.map(f => ({ year: f.year, value: f.rAndDSpending })) || [],
+  netIncome: company.financials?.map(f => ({ year: f.year, value: f.netIncome })) || []
+};
+
+// Prepare pipeline data
+const pipelineStages = ['preclinical', 'phase1', 'phase2', 'phase3', 'submitted', 'approved', 'marketed'];
+const pipelineData = pipelineStages.map(stage => ({
+  stage,
+  count: products.filter(p => p.stage === stage).length
+}));
+
+// Prepare product table columns
+const productColumns = [
+  { 
+    key: 'name', 
+    label: 'Name', 
+    sortable: true,
+    render: (value, row) => `<a href="/products/${row.slug}" class="text-[color:var(--color-primary-600)] hover:text-[color:var(--color-primary-900)] hover:underline">${value}</a>`
+  },
+  { key: 'stage', label: 'Stage', sortable: true },
+  { key: 'therapeuticAreas', label: 'Therapeutic Areas', sortable: true, render: (value) => value.join(', ') },
+  { key: 'approvalDate', label: 'Approval Date', sortable: true, render: (value) => 
+    value ? new Date(value).toLocaleDateString() : '-'
+  }
+];
+
+// Prepare financial table columns
+const financialColumns = [
+  { key: 'year', label: 'Year', sortable: true },
+  { key: 'revenue', label: 'Revenue (B)', sortable: true, align: 'right', render: (value: number) => `$${value.toFixed(1)}` },
+  { key: 'rAndDSpending', label: 'R&D (B)', sortable: true, align: 'right', render: (value: number) => `$${value.toFixed(1)}` },
+  { key: 'netIncome', label: 'Net Income (B)', sortable: true, align: 'right', render: (value: number) => `$${value.toFixed(1)}` },
+  { 
+    key: 'rAndDPercent', 
+    label: 'R&D % of Revenue', 
+    sortable: true, 
+    align: 'right',
+    render: (_, row: any) => `${((row.rAndDSpending / row.revenue) * 100).toFixed(1)}%`
+  }
+];
+---
+
+<!-- Use the page layout and pass data to child components via props -->
+<DashboardLayout 
+  title={company.name}
+  description={`Detailed information about ${company.name} pharmaceutical company`}
+  currentPath={`/companies/${company.slug}`}
+  breadcrumbs={breadcrumbs}
+>
+  <!-- Company Header -->
+  <div class="relative">
+    <!-- Header Background Image -->
+    <div class="h-48 w-full bg-gradient-to-r from-blue-600 to-indigo-700 relative overflow-hidden">
+        {company.headerImageUrl && (
+          <img
+            src={company.headerImageUrl}
+            alt={`${company.name} header`}
+          class="absolute inset-0 w-full h-full object-cover opacity-20"
+          />
+        )}
+      </div>
+      
+    <!-- Company Info Card -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <div class="bg-white rounded-lg shadow-lg overflow-hidden -mt-24 mb-8">
+        <div class="p-6 sm:p-8">
+          <div class="flex flex-col md:flex-row items-start md:items-center">
+            <!-- Company Logo -->
+            <div class="w-24 h-24 bg-white rounded-lg shadow-md flex items-center justify-center overflow-hidden mr-6 mb-4 md:mb-0">
+              {company.logoUrl ? (
+                <img src={company.logoUrl} alt={`${company.name} logo`} class="max-w-full max-h-full p-2" />
+              ) : (
+                <span class="text-3xl font-bold text-blue-600">{company.name.charAt(0)}</span>
+              )}
+          </div>
+          
+            <!-- Company Basic Info -->
+            <div class="flex-grow">
+              <div class="flex items-center justify-between flex-wrap">
+                <h1 class="text-2xl font-bold text-gray-900 mr-4">{company.name}</h1>
+                
+                <div class="flex space-x-3 mt-2 md:mt-0">
+                  {company.website && (
+                    <Button 
+                      href={company.website.startsWith('http') ? company.website : `https://${company.website}`} 
+                      target="_blank"
+                      variant="outline"
+                size="sm"
+                    >
+                      <span class="flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                        Website
+                      </span>
+                    </Button>
+                  )}
+                  
+                  <FollowButton 
+                    entityId={company.id} 
+                    entityType="company"
+                    size="sm"
+              />
+                </div>
+              </div>
+              
+              <div class="mt-2 flex flex-wrap gap-2 items-center text-sm text-gray-500">
+                {company.headquarters && (
+                  <div class="flex items-center mr-4">
+            </div>
+                )}
+            </div>
+          </div>
+      </div>
+          </div>
+      </div>
+              </div>
+            </div>
+            
+  <!-- Tabs Navigation -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+    <TabGroup tabs={tabs} activeTab={activeTab} tabPanelId="tab-content" />
+    
+    <!-- Tab Content -->
+    <div class="mt-6">
+      <!-- Overview Tab -->
+      <div id="tab-content-overview" role="tabpanel" aria-labelledby="tab-overview" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Key Metrics -->
+          <div class="col-span-1">
+            <Card>
+              <div class="p-4">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Key Facts</h3>
+                <div class="space-y-4">
+              <KeyMetric 
+                label="Market Cap" 
+                value={formatMarketCap(company.marketCap)}
+                    icon='<svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>'
+              />
+              <KeyMetric 
+                    label="Headquarters" 
+                    value={company.headquarters || 'N/A'} 
+                    icon='<svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>'
+              />
+              <KeyMetric 
+                    label="Founded" 
+                    value={company.founded ? company.founded.toString() : 'N/A'} 
+                    icon='<svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>'
+              />
+              <KeyMetric 
+                    label="Employees" 
+                    value={company.employees ? company.employees.toLocaleString() : 'N/A'} 
+                    icon='<svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>'
+                  />
+                  {company.ticker_symbol && (
+                    <KeyMetric 
+                      label="Stock Symbol" 
+                      value={`${company.ticker_symbol} (${company.stock_exchange || 'Unknown'})`} 
+                      icon='<svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>'
+                    />
+                  )}
+            </div>
+          </div>
+            </Card>
+            
+            {therapeuticAreaNames.length > 0 && (
+              <Card class="mt-6">
+                <div class="p-4">
+                  <h3 class="text-lg font-medium text-gray-900 mb-4">Therapeutic Areas</h3>
+                  <div class="flex flex-wrap gap-2">
+                    {therapeuticAreaNames.map(area => (
+                      <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">{area}</span>
+                    ))}
+                </div>
+              </div>
+            </Card>
+            )}
+          </div>
+          
+          <!-- Company Description -->
+          <div class="col-span-2">
+            <Card>
+              <div class="p-4">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">About {company.name}</h3>
+                {company.description ? (
+                  <p class="text-gray-600">{company.description}</p>
+                ) : (
+                  <p class="text-gray-500 italic">No company description available</p>
+                )}
+              </div>
+            </Card>
+            
+            <!-- Timeline -->
+            <Card class="mt-6">
+              <div class="p-4">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Company Timeline</h3>
+                {milestones.length > 0 ? (
+                  <Timeline items={milestones} />
+                ) : (
+                  <p class="text-gray-500 italic">No timeline information available</p>
+                )}
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Products Tab -->
+      <div id="tab-content-products" role="tabpanel" aria-labelledby="tab-products" class="space-y-6 hidden">
+          <Card>
+          <div class="p-4">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Products</h3>
+            {products.length > 0 ? (
+              <DataTable 
+                data={products}
+                columns={productColumns}
+                defaultSort="name"
+              />
+            ) : (
+              <p class="text-gray-500 italic">No products associated with this company</p>
+              )}
+            </div>
+          </Card>
+      </div>
+      
+      <!-- Websites Tab -->
+      <div id="tab-content-websites" role="tabpanel" aria-labelledby="tab-websites" class="space-y-6 hidden">
+        <Card>
+          <div class="p-4">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Websites</h3>
+            {websites.length > 0 ? (
+              <div>
+                {Object.entries(websitesByCategory).map(([category, sites]) => (
+                  <div class="mb-6">
+                    <h4 class="text-md font-medium text-gray-800 mb-3">{getCategoryLabel(category)}</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {sites.map(website => (
+                        <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                          <div class="p-4">
+                            <div class="flex justify-between">
+                              <h5 class="text-lg font-medium text-gray-900">{website.domain}</h5>
+                            </div>
+                            <div class="mt-2">
+                              <a 
+                                href={`/websites/${website.slug}`} 
+                                class="text-blue-600 hover:text-blue-800 text-sm font-medium mr-4"
+                              >
+                                View details
+                              </a>
+                              <a 
+                                href={`https://${website.domain}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                class="text-gray-500 hover:text-gray-700 text-sm font-medium"
+                              >
+                                Visit site →
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p class="text-gray-500 italic">No websites associated with this company</p>
+            )}
+          </div>
+        </Card>
+      </div>
+        
+      <!-- Pipeline Tab -->
+      <div id="tab-content-pipeline" role="tabpanel" aria-labelledby="tab-pipeline" class="space-y-6 hidden">
+        <Card>
+          <div class="p-4">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Product Pipeline</h3>
+            {products.length > 0 ? (
+              <div>
+                <PipelineChart data={pipelineData} />
+                <div class="mt-6">
+                  <h4 class="text-md font-medium text-gray-800 mb-3">Pipeline Details</h4>
+                  <DataTable 
+                    data={products}
+                    columns={productColumns}
+                    defaultSort="stage"
+                  />
+                </div>
+                    </div>
+            ) : (
+              <p class="text-gray-500 italic">No pipeline information available</p>
+            )}
+          </div>
+        </Card>
+      </div>
+      
+      <!-- Financials Tab -->
+      <div id="tab-content-financials" role="tabpanel" aria-labelledby="tab-financials" class="space-y-6 hidden">
+          <Card>
+          <div class="p-4">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Financial Performance</h3>
+            {financialData.revenue.length > 0 ? (
+              <div>
+                <FinancialChart 
+                  data={{
+                    years: financialYears,
+                    datasets: [
+                      { label: 'Revenue', data: revenueData, color: 'rgba(59, 130, 246, 0.7)' },
+                      { label: 'R&D Spending', data: rdSpendingData, color: 'rgba(16, 185, 129, 0.7)' },
+                      { label: 'Net Income', data: netIncomeData, color: 'rgba(249, 115, 22, 0.7)' }
+                    ]
+                  }}
+                />
+                <div class="mt-6">
+                  <h4 class="text-md font-medium text-gray-800 mb-3">Financial Details</h4>
+              <DataTable
+                    data={
+                      financialYears.map((year, index) => ({
+                        year,
+                        revenue: revenueData[index],
+                        rAndDSpending: rdSpendingData[index],
+                        netIncome: netIncomeData[index]
+                      }))
+                    }
+                    columns={financialColumns}
+                    defaultSort="year"
+                    defaultSortDirection="desc"
+              />
+            </div>
+        </div>
+            ) : (
+              <p class="text-gray-500 italic">No financial data available</p>
+            )}
+          </div>
+        </Card>
+      </div>
+      
+      <!-- Stock Tab -->
+      <div id="tab-content-stock" role="tabpanel" aria-labelledby="tab-stock" class="space-y-6 hidden">
+            <Card>
+          <div class="p-4">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Stock Performance</h3>
+            {company.ticker_symbol ? (
+              <p class="text-gray-500 italic">Stock performance data is currently being integrated. Please check back later.</p>
+            ) : (
+              <p class="text-gray-500 italic">No stock information available for this company</p>
+            )}
+              </div>
+            </Card>
+          </div>
+          
+      <!-- News Tab -->
+      <div id="tab-content-news" role="tabpanel" aria-labelledby="tab-news" class="space-y-6 hidden">
+            <Card>
+          <div class="p-4">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Latest News</h3>
+            <p class="text-gray-500 italic">No news available for this company</p>
+              </div>
+            </Card>
+      </div>
+    </div>
+  </div>
+</DashboardLayout>
+
+<script>
+  // No need for custom tab switching as TabGroup component already handles this
+  document.addEventListener('DOMContentLoaded', () => {
+    // Additional company-specific functionality can go here
+  });
+</script> 

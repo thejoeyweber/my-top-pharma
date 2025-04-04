@@ -1,21 +1,23 @@
 ---
 /**
- * DataTable Component
+ * DataTable Component - Rebuilt to follow Astro best practices
  * 
- * A reusable table component with sorting, pagination, and export functionality.
- * Supports custom column rendering and data formatting.
+ * A server-rendered table component with optional client-side enhancements.
+ * Follows Astro's server-first approach with progressive enhancement.
  * 
  * @example
  * ```astro
  * <DataTable
  *   id="products-table"
  *   columns={[
- *     { key: 'name', label: 'Product Name', sortable: true },
- *     { key: 'company', label: 'Company', sortable: true },
- *     { key: 'stage', label: 'Stage', 
- *       render: (value) => getStageName(value) }
+ *     { key: 'name', label: 'Product Name', sortable: true, 
+ *       render: (value, row) => `<a href="/products/${row.slug}">${value}</a>` },
+ *     { key: 'stage', label: 'Stage', sortable: true }
  *   ]}
  *   data={products}
+ *   currentPage={parseInt(Astro.url.searchParams.get('page') || '1')}
+ *   sortColumn={Astro.url.searchParams.get('sort')}
+ *   sortDirection={Astro.url.searchParams.get('dir') || 'asc'}
  *   pageSize={10}
  * />
  * ```
@@ -81,33 +83,33 @@ export interface DataTableProps<T = any> {
   data: T[];
   
   /**
+   * Default sort column
+   */
+  defaultSort?: string;
+  
+  /**
+   * Default sort direction
+   * @default 'asc'
+   */
+  defaultSortDirection?: 'asc' | 'desc';
+  
+  /**
    * Number of rows to display per page
    * @default 10
    */
   pageSize?: number;
   
   /**
-   * Initial sorting column key
+   * Enable pagination
+   * @default false
    */
-  initialSortColumn?: string;
+  pagination?: boolean;
   
   /**
-   * Initial sorting direction
-   * @default 'asc'
+   * Enable search functionality
+   * @default false
    */
-  initialSortDirection?: 'asc' | 'desc';
-  
-  /**
-   * Enable CSV export functionality
-   * @default true
-   */
-  exportable?: boolean;
-  
-  /**
-   * Custom filename for the exported CSV
-   * @default 'data-export'
-   */
-  exportFilename?: string;
+  searchable?: boolean;
   
   /**
    * Custom CSS class for the container
@@ -140,42 +142,52 @@ const {
   id,
   columns,
   data,
+  defaultSort,
+  defaultSortDirection = 'asc',
   pageSize = 10,
-  initialSortColumn,
-  initialSortDirection = 'asc',
-  exportable = true,
-  exportFilename = 'data-export',
+  pagination = false,
+  searchable = false,
   class: className = '',
   enableRowHover = true,
   showEmptyState = true,
   emptyStateMessage = 'No data available'
 } = Astro.props;
 
-// Generate unique table ID if not provided
-const tableId = id || `table-${Math.random().toString(36).substring(2, 9)}`;
+// Get current URL for pagination/sorting links
+const currentUrl = new URL(Astro.request.url);
 
-// Pre-render the initial table state for better performance
-// This avoids client-side rendering on initial load
-const initialData = data.slice(0, pageSize);
+// Sort data based on defaultSort
+let sortedData = [...data];
+if (defaultSort) {
+  const sortCol = columns.find(col => col.key === defaultSort);
+  if (sortCol && sortCol.sortable) {
+    sortedData.sort((a, b) => {
+      let aVal = a[defaultSort];
+      let bVal = b[defaultSort];
+      
+      // Handle null/undefined values
+      if (aVal === null || aVal === undefined) return defaultSortDirection === 'asc' ? 1 : -1;
+      if (bVal === null || bVal === undefined) return defaultSortDirection === 'asc' ? -1 : 1;
+      
+      // Handle string comparison (case-insensitive)
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+      }
+      
+      // Comparison logic
+      if (aVal === bVal) return 0;
+      const result = aVal > bVal ? 1 : -1;
+      return defaultSortDirection === 'asc' ? result : -result;
+    });
+  }
+}
+
+// Generate unique ID if not provided
+const tableId = id || `table-${Math.random().toString(36).substring(2, 9)}`;
 ---
 
 <div class:list={["data-table-container", className]} id={tableId}>
-  {exportable && (
-    <div class="flex justify-end mb-4">
-      <button
-        type="button"
-        class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-        data-export-button
-        data-filename={exportFilename}
-      >
-        <svg class="-ml-0.5 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
-        Export to CSV
-      </button>
-    </div>
-  )}
-
   <div class="overflow-x-auto">
     <table class="min-w-full divide-y divide-gray-200" data-table>
       <thead class="bg-gray-50">
@@ -187,34 +199,25 @@ const initialData = data.slice(0, pageSize);
                 "px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap",
                 column.align === 'center' ? "text-center" : "",
                 column.align === 'right' ? "text-right" : "",
-                column.sortable ? "cursor-pointer hover:text-gray-700" : "",
                 column.width ? "" : "flex-1",
                 column.hideMobile ? "hidden sm:table-cell" : ""
               ]}
-              data-sort-key={column.sortable ? column.key : null}
-              data-sort-direction={column.key === initialSortColumn ? initialSortDirection : null}
               style={column.width ? `width: ${column.width}` : ""}
             >
-              <div class:list={["flex items-center gap-1", column.align === 'center' ? "justify-center" : "", column.align === 'right' ? "justify-end" : ""]}>
+              <div class:list={[
+                "flex items-center gap-1", 
+                column.align === 'center' ? "justify-center" : "", 
+                column.align === 'right' ? "justify-end" : ""
+              ]}>
                 {column.label}
-                {column.sortable && (
-                  <span class="sort-icon inline-flex flex-col h-3.5 w-3.5 ml-0.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 -mb-1" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
-                    </svg>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 -mt-1" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                    </svg>
-                  </span>
-                )}
               </div>
             </th>
           ))}
         </tr>
       </thead>
       <tbody class="bg-white divide-y divide-gray-200" data-tbody>
-        {data.length > 0 ? (
-          initialData.map((row, rowIndex) => (
+        {sortedData.length > 0 ? (
+          sortedData.map((row) => (
             <tr class:list={[enableRowHover && "hover:bg-gray-50"]} data-row>
               {columns.map((column) => {
                 const cellValue = row[column.key];
@@ -231,8 +234,8 @@ const initialData = data.slice(0, pageSize);
                     data-cell-key={column.key}
                   >
                     {typeof renderedValue === 'string' && renderedValue.startsWith('<') 
-                      ? <span set:html={renderedValue} />
-                      : <span>{renderedValue}</span>
+                      ? <Fragment set:html={renderedValue} />
+                      : renderedValue
                     }
                   </td>
                 );
@@ -251,435 +254,7 @@ const initialData = data.slice(0, pageSize);
       </tbody>
     </table>
   </div>
-
-  <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-    <div class="flex-1 flex justify-between sm:hidden">
-      <button 
-        data-prev-page 
-        class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
-        aria-label="Previous page"
-      >
-        Previous
-      </button>
-      <button 
-        data-next-page 
-        class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
-        aria-label="Next page"
-      >
-        Next
-      </button>
-    </div>
-    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-      <div>
-        <p class="text-sm text-gray-700">
-          Showing <span data-showing-start>1</span> to <span data-showing-end>{Math.min(pageSize, data.length)}</span> of <span data-total-items>{data.length}</span> results
-        </p>
-      </div>
-      <div>
-        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination" data-pagination>
-          <button 
-            data-prev-page 
-            class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            aria-label="Previous page"
-          >
-            <span class="sr-only">Previous</span>
-            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-            </svg>
-          </button>
-          <!-- Pagination numbers will be dynamically generated -->
-          <button 
-            data-next-page 
-            class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            aria-label="Next page"
-          >
-            <span class="sr-only">Next</span>
-            <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-            </svg>
-          </button>
-        </nav>
-      </div>
-    </div>
-  </div>
 </div>
-
-<script define:vars={{ columns, data, pageSize, tableId, initialSortColumn, initialSortDirection, exportFilename }}>
-  // Initialize the data table functionality
-  function initializeDataTable(tableId, columns, data, pageSize, initialSortColumn, initialSortDirection, exportFilename) {
-    const table = document.getElementById(tableId);
-    if (!table) return;
-
-    let currentPage = 1;
-    let sortKey = initialSortColumn || null;
-    let sortDirection = initialSortDirection || 'asc';
-    let filteredData = [...data];
-
-    // Elements
-    const tbody = table.querySelector('[data-tbody]');
-    const pagination = table.querySelector('[data-pagination]');
-    const prevPageBtn = table.querySelectorAll('[data-prev-page]');
-    const nextPageBtn = table.querySelectorAll('[data-next-page]');
-    const showingStart = table.querySelector('[data-showing-start]');
-    const showingEnd = table.querySelector('[data-showing-end]');
-    const totalItems = table.querySelector('[data-total-items]');
-    const exportBtn = table.querySelector('[data-export-button]');
-    
-    // Initialize with initial sort if provided
-    if (sortKey) {
-      sortData(sortKey, sortDirection);
-      
-      // Update sort header visual state
-      const sortHeader = table.querySelector(`[data-sort-key="${sortKey}"]`);
-      if (sortHeader) {
-        sortHeader.setAttribute('data-sort-direction', sortDirection);
-        updateSortHeaderStyles();
-      }
-    }
-    
-    // Sort data
-    function sortData(key, direction) {
-      sortKey = key;
-      sortDirection = direction;
-      
-      filteredData.sort((a, b) => {
-        let aVal = a[key];
-        let bVal = b[key];
-        
-        // Handle null/undefined values
-        if (aVal === null || aVal === undefined) return 1;
-        if (bVal === null || bVal === undefined) return -1;
-        
-        // Handle string comparison (case-insensitive)
-        if (typeof aVal === 'string' && typeof bVal === 'string') {
-          aVal = aVal.toLowerCase();
-          bVal = bVal.toLowerCase();
-        }
-        
-        // Handle numeric comparison
-        if (typeof aVal === 'number' && typeof bVal === 'number') {
-          return direction === 'asc' ? aVal - bVal : bVal - aVal;
-        }
-        
-        // Handle dates
-        if (aVal instanceof Date && bVal instanceof Date) {
-          return direction === 'asc' ? aVal - bVal : bVal - aVal;
-        }
-        
-        // Default comparison
-        if (aVal === bVal) return 0;
-        const modifier = direction === 'asc' ? 1 : -1;
-        return aVal > bVal ? modifier : -modifier;
-      });
-      
-      updateTable();
-    }
-
-    // Update table content
-    function updateTable() {
-      if (!tbody) return;
-
-      const start = (currentPage - 1) * pageSize;
-      const end = Math.min(start + pageSize, filteredData.length);
-      const pageData = filteredData.slice(start, end);
-
-      // Update showing text
-      if (showingStart) showingStart.textContent = filteredData.length > 0 ? start + 1 : 0;
-      if (showingEnd) showingEnd.textContent = end;
-      if (totalItems) totalItems.textContent = filteredData.length;
-
-      // Generate table rows
-      tbody.innerHTML = pageData.map(row => `
-        <tr class="hover:bg-gray-50" data-row>
-          ${columns.map(column => {
-            const cellValue = row[column.key];
-            const renderedValue = column.render 
-              ? column.render(cellValue, row)
-              : (cellValue !== null && cellValue !== undefined ? cellValue : '');
-            
-            return `
-              <td class="px-6 py-4 whitespace-nowrap text-sm ${
-                column.align === 'center' ? 'text-center' : 
-                column.align === 'right' ? 'text-right' : 'text-left'
-              } ${column.hideMobile ? 'hidden sm:table-cell' : ''}" data-cell-key="${column.key}">
-                ${typeof renderedValue === 'string' && renderedValue.startsWith('<') 
-                  ? renderedValue 
-                  : `<span>${renderedValue}</span>`
-                }
-              </td>
-            `;
-          }).join('')}
-        </tr>
-      `).join('');
-
-      updatePagination();
-    }
-
-    // Update pagination controls
-    function updatePagination() {
-      if (!pagination) return;
-      
-      const totalPages = Math.ceil(filteredData.length / pageSize);
-      
-      // Enable/disable prev/next buttons
-      prevPageBtn.forEach(btn => {
-        btn.disabled = currentPage <= 1;
-        btn.classList.toggle('opacity-50', currentPage <= 1);
-        btn.classList.toggle('cursor-not-allowed', currentPage <= 1);
-      });
-      
-      nextPageBtn.forEach(btn => {
-        btn.disabled = currentPage >= totalPages;
-        btn.classList.toggle('opacity-50', currentPage >= totalPages);
-        btn.classList.toggle('cursor-not-allowed', currentPage >= totalPages);
-      });
-      
-      // Generate page number buttons (only show 5 pages at a time)
-      const pageButtons = [];
-      const maxVisiblePages = 5;
-      let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-      
-      // Adjust start page if we're near the end
-      if (endPage - startPage + 1 < maxVisiblePages) {
-        startPage = Math.max(1, endPage - maxVisiblePages + 1);
-      }
-      
-      // Add first page button if not visible
-      if (startPage > 1) {
-        pageButtons.push(`
-          <button class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50" data-page="1">
-            1
-          </button>
-        `);
-        
-        if (startPage > 2) {
-          pageButtons.push(`
-            <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-              ...
-            </span>
-          `);
-        }
-      }
-      
-      // Add page number buttons
-      for (let i = startPage; i <= endPage; i++) {
-        pageButtons.push(`
-          <button class="relative inline-flex items-center px-4 py-2 border ${
-            i === currentPage 
-              ? 'border-primary-500 bg-primary-50 text-primary-600 z-10' 
-              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-          } text-sm font-medium" data-page="${i}">
-            ${i}
-          </button>
-        `);
-      }
-      
-      // Add last page button if not visible
-      if (endPage < totalPages) {
-        if (endPage < totalPages - 1) {
-          pageButtons.push(`
-            <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-              ...
-            </span>
-          `);
-        }
-        
-        pageButtons.push(`
-          <button class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50" data-page="${totalPages}">
-            ${totalPages}
-          </button>
-        `);
-      }
-      
-      // Insert page buttons between prev and next
-      const paginationHTML = pagination.innerHTML;
-      const prevButton = paginationHTML.substring(0, paginationHTML.indexOf('</button>') + 9);
-      const nextButton = paginationHTML.substring(paginationHTML.lastIndexOf('<button'));
-      
-      pagination.innerHTML = prevButton + pageButtons.join('') + nextButton;
-      
-      // Add click handlers to page buttons
-      pagination.querySelectorAll('[data-page]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          currentPage = parseInt(btn.getAttribute('data-page'));
-          updateTable();
-        });
-      });
-    }
-
-    // Update sort header styles
-    function updateSortHeaderStyles() {
-      // Reset all headers
-      table.querySelectorAll('[data-sort-key]').forEach(header => {
-        const key = header.getAttribute('data-sort-key');
-        const direction = header.getAttribute('data-sort-direction');
-        
-        // Remove active classes
-        header.classList.remove('text-primary-600');
-        
-        // Update sort icon visibility
-        const sortIcon = header.querySelector('.sort-icon');
-        if (sortIcon) {
-          if (key === sortKey) {
-            sortIcon.classList.add('text-primary-500');
-            
-            // Show appropriate arrow based on direction
-            const upArrow = sortIcon.querySelector('svg:first-child');
-            const downArrow = sortIcon.querySelector('svg:last-child');
-            
-            if (upArrow && downArrow) {
-              if (direction === 'asc') {
-                upArrow.classList.add('text-primary-600');
-                downArrow.classList.remove('text-primary-600');
-              } else {
-                upArrow.classList.remove('text-primary-600');
-                downArrow.classList.add('text-primary-600');
-              }
-            }
-          } else {
-            sortIcon.classList.remove('text-primary-500');
-            
-            // Reset arrows
-            sortIcon.querySelectorAll('svg').forEach(svg => {
-              svg.classList.remove('text-primary-600');
-            });
-          }
-        }
-      });
-    }
-
-    // Export table data to CSV
-    function exportToCSV() {
-      // Get column headers
-      const headers = columns.map(col => col.label);
-      
-      // Format data rows
-      const rows = filteredData.map(row => {
-        return columns.map(col => {
-          const value = row[col.key];
-          // Handle different data types and formatting
-          if (value === null || value === undefined) return '';
-          if (typeof value === 'string') return `"${value.replace(/"/g, '""')}"`;
-          return value;
-        });
-      });
-      
-      // Combine headers and rows
-      const csvContent = [
-        headers.join(','),
-        ...rows.map(row => row.join(','))
-      ].join('\n');
-      
-      // Create download link
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `${exportFilename || 'data-export'}.csv`);
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-
-    // Event Listeners
-    
-    // Sort headers
-    table.querySelectorAll('[data-sort-key]').forEach(header => {
-      header.addEventListener('click', () => {
-        const key = header.getAttribute('data-sort-key');
-        if (!key) return;
-        
-        // Toggle direction if already sorting by this column
-        let direction = 'asc';
-        if (key === sortKey) {
-          direction = sortDirection === 'asc' ? 'desc' : 'asc';
-        }
-        
-        // Update header attributes
-        table.querySelectorAll('[data-sort-key]').forEach(h => {
-          h.removeAttribute('data-sort-direction');
-        });
-        header.setAttribute('data-sort-direction', direction);
-        
-        // Sort data
-        sortData(key, direction);
-        updateSortHeaderStyles();
-      });
-    });
-    
-    // Pagination
-    prevPageBtn.forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (currentPage > 1) {
-          currentPage--;
-          updateTable();
-        }
-      });
-    });
-    
-    nextPageBtn.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const totalPages = Math.ceil(filteredData.length / pageSize);
-        if (currentPage < totalPages) {
-          currentPage++;
-          updateTable();
-        }
-      });
-    });
-    
-    // Export button
-    if (exportBtn) {
-      exportBtn.addEventListener('click', exportToCSV);
-    }
-    
-    // Initialize table
-    updateTable();
-  }
-
-  // Initialize all data tables when the DOM is ready
-  document.addEventListener('DOMContentLoaded', () => {
-    const tableId = '{tableId}';
-    const columns = {columns};
-    const data = {data};
-    const pageSize = {pageSize};
-    const initialSortColumn = '{initialSortColumn}';
-    const initialSortDirection = '{initialSortDirection}';
-    const exportFilename = '{exportFilename}';
-    
-    // Create an intersection observer to initialize the table only when visible
-    const table = document.getElementById(tableId);
-    if (!table) return;
-    
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          initializeDataTable(tableId, columns, data, pageSize, initialSortColumn, initialSortDirection, exportFilename);
-          observer.disconnect(); // Only need to initialize once
-        }
-      });
-    }, { threshold: 0.1 }); // Initialize when 10% of the table is visible
-    
-    observer.observe(table);
-  });
-  
-  // Re-initialize tables after Astro page transitions
-  document.addEventListener('astro:page-load', () => {
-    const tableId = '{tableId}';
-    const columns = {columns};
-    const data = {data};
-    const pageSize = {pageSize};
-    const initialSortColumn = '{initialSortColumn}';
-    const initialSortDirection = '{initialSortDirection}';
-    const exportFilename = '{exportFilename}';
-    
-    const table = document.getElementById(tableId);
-    if (table) {
-      initializeDataTable(tableId, columns, data, pageSize, initialSortColumn, initialSortDirection, exportFilename);
-    }
-  });
-</script>
 
 <style>
   .data-table-container {

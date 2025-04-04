@@ -197,6 +197,11 @@ const tabGroupId = `tabgroup-${Math.random().toString(36).substring(2, 9)}`;
         const isPanelActive = panel.id === `${tabPanelId}-${tabId}`;
         panel.classList.toggle('hidden', !isPanelActive);
         panel.setAttribute('aria-hidden', isPanelActive ? 'false' : 'true');
+        
+        // Dispatch a custom event when panel becomes visible
+        if (isPanelActive) {
+          panel.dispatchEvent(new CustomEvent('tab:visible'));
+        }
       });
     }
     
