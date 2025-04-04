@@ -1,5 +1,26 @@
 {
   "extends": "astro/tsconfigs/strict",
-  "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist"]
+  "compilerOptions": {
+    // Optional: Add any specific compiler options if needed later
+    // e.g., defining path aliases if you use them:
+    // "baseUrl": ".", 
+    // "paths": { "@/*": ["src/*"] } 
+  },
+  "include": [
+    "src/**/*.astro", // Include all .astro files in src
+    "src/**/*.ts",    // Include all .ts files in src
+    ".astro/types.d.ts" // Include the generated Astro types file
+    // Add other necessary file types in src if needed (e.g., src/**/*.js)
+  ],
+  "exclude": [
+    "node_modules",   // Standard exclusion
+    "dist",           // Standard exclusion for build output
+    // "../venv",     // No longer needed as venv is deleted
+    "../.vscode",     // Exclude VSCode specific settings if present
+    "../.github",     // Exclude GitHub specific files if present
+    "../_docs",       // Exclude documentation folder if present
+    "../scripts",     // Exclude python scripts folder if present
+    "../supabase"     // Exclude supabase cli folder if present
+    // Add any other top-level directories that shouldn't be checked
+  ]
 }

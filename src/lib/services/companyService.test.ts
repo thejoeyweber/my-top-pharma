@@ -1,20 +1,32 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { companyService } from "./companyService";
 import { dbCompanyToCompany } from "../../interfaces/entities"; // Import the real mapping function
-import type { DbCompany } from "../../interfaces/entities"; // Import DB type for mock data
-import type { Company } from "../../interfaces/entities"; // Import App type for expected result
+import type { DbCompany, Company } from "../../interfaces/entities"; // Import DB type for mock data and App type for expected result
 
-// Mock the supabase client
-const mockSelect = vi.fn();
+// --- Mock Setup ---
+const mockIlike = vi.fn();
+// Mock the builder object returned by select/ilike etc.
+const mockBuilder = {
+  ilike: mockIlike,
+  // Mock the implicit .then() when the query object is awaited
+  then: vi.fn(),
+};
+
+// Mock the select function to return the mock builder
+const mockSelect = vi.fn(() => mockBuilder);
+
+// Mock the from function
 const mockFrom = vi.fn(() => ({
   select: mockSelect,
 }));
 
+// Apply the mock to the supabase module
 vi.mock("../supabase", () => ({
   supabase: {
     from: mockFrom,
   },
 }));
+// --- End Mock Setup ---
 
 // Realistic Mock Raw DB Data (based on provided query results)
 const mockDbCompanies: DbCompany[] = [
@@ -84,12 +96,16 @@ describe("companyService", () => {
   beforeEach(() => {
     // Reset mocks before each test
     vi.clearAllMocks();
+    // Reset the mock builder's promise resolution
+    mockBuilder.then.mockReset();
+    // Ensure chained methods return the mock builder
+    mockIlike.mockReturnThis();
   });
 
   describe("getCompanies", () => {
     it("should fetch and map companies correctly when called without options", async () => {
-      // Arrange: Setup mock response
-      mockSelect.mockResolvedValue({ data: mockDbCompanies, error: null });
+      // Arrange: Setup mock response for the final await
+      mockBuilder.then.mockImplementation((resolve) => resolve({ data: mockDbCompanies, error: null }));
 
       // Act: Call the service method
       const result = await companyService.getCompanies();
@@ -97,20 +113,48 @@ describe("companyService", () => {
       // Assert: Check if Supabase was called correctly
       expect(mockFrom).toHaveBeenCalledWith("companies");
       expect(mockSelect).toHaveBeenCalledWith("*");
+      expect(mockIlike).not.toHaveBeenCalled(); // Filter should not be called
 
       // Assert: Check if the result matches the expected mapped data
       expect(result).toEqual(expectedCompanies);
     });
 
-    // Add more tests here later for options (filtering, sorting, pagination)
-    it.todo('should apply filterText option correctly');
-    it.todo('should apply sortBy option correctly');
-    it.todo('should apply pagination options correctly');
+    it("should apply filterText option correctly using case-insensitive search on name", async () => {
+      // Arrange
+      const filterText = "bio";
+      // Filter the raw mock data to get the expected raw result
+      const expectedRawFiltered = mockDbCompanies.filter(c => 
+        c.name.toLowerCase().includes(filterText.toLowerCase())
+      );
+      // Map the expected raw result to the Company type
+      const expectedFilteredCompanies = expectedRawFiltered.map(dbCompanyToCompany);
+      
+      // Setup mock response for the final await (after ilike)
+      mockBuilder.then.mockImplementation((resolve) => resolve({ data: expectedRawFiltered, error: null }));
+
+      // Act: Call the service method with filter option
+      const result = await companyService.getCompanies({ filterText });
+
+      // Assert: Check if Supabase was called correctly
+      expect(mockFrom).toHaveBeenCalledWith("companies");
+      expect(mockSelect).toHaveBeenCalledWith("*");
+      expect(mockIlike).toHaveBeenCalledWith('name', `%${filterText}%`); // Check ilike call
+
+      // Assert: Check if the result matches the expected filtered and mapped data
+      expect(result).toEqual(expectedFilteredCompanies);
+      // Ensure it returned only the matching companies
+      expect(result.length).toBe(2); 
+      expect(result[0].name).toContain("Biologics");
+      expect(result[1].name).toContain("Biotechnologies");
+    });
+    
+    it.todo('should apply filterText option correctly using case-insensitive search on name AND description'); // Future enhancement
 
     it('should handle Supabase errors', async () => {
       // Arrange: Setup mock error response
       const mockError = new Error('Supabase query failed');
-      mockSelect.mockResolvedValue({ data: null, error: mockError });
+      // Make the mock builder reject the promise
+      mockBuilder.then.mockImplementation((resolve, reject) => reject(mockError));
 
       // Act & Assert: Expect the error to be thrown
       await expect(companyService.getCompanies()).rejects.toThrow(mockError);
@@ -122,7 +166,7 @@ describe("companyService", () => {
 
      it('should return an empty array when Supabase returns null data and no error', async () => {
       // Arrange: Setup mock response with null data
-      mockSelect.mockResolvedValue({ data: null, error: null });
+      mockBuilder.then.mockImplementation((resolve) => resolve({ data: null, error: null }));
 
       // Act: Call the service method
       const result = await companyService.getCompanies();
@@ -134,6 +178,9 @@ describe("companyService", () => {
       // Assert: Check if the result is an empty array
       expect(result).toEqual([]);
     });
+    
+    it.todo('should apply sortBy option correctly');
+    it.todo('should apply pagination options correctly');
   });
 
   describe("getCompanyDetails", () => {
