@@ -64,15 +64,4 @@ export function getTherapeuticAreaIconUrl(areaId: string): string {
 export function getPlaceholderUrl(type: 'company' | 'product' | 'website'): string {
   const baseUrl = import.meta.env.PUBLIC_ASSETS_BASE_URL || '/assets';
   return `${baseUrl}/placeholders/${type}.svg`;
-}
-
-// Export a namespace for all asset utilities
-export const assetUtils = {
-  getCompanyLogoUrl,
-  getCompanyHeaderUrl,
-  getProductImageUrl,
-  getWebsiteScreenshotUrl,
-  getIconUrl,
-  getTherapeuticAreaIconUrl,
-  getPlaceholderUrl
-}; 
+} 
