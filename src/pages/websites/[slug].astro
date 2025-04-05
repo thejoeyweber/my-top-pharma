@@ -20,28 +20,26 @@ import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/Th
 import type { Website, Company, Product, TherapeuticArea } from '../../interfaces/entities';
 
 import { getWebsiteScreenshotUrl, getCompanyLogoUrl } from '../../utils/assetUtils';
+import { formatDate, formatRelativeDate } from '../../utils/dateUtils';
 
-// Helper function to create a URL-safe version of domain
-const getDomainSlug = (domain: string): string => {
-  if (!domain) return '';
-  return domain.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+// Helper function to create a URL-safe version of a string (can be url or name)
+const generateSlugFallback = (input: string): string => {
+  if (!input) return '';
+  return input.replace(/https?:\/\//, '').replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
 };
 
 // Generate static paths for all websites
 export async function getStaticPaths() {
   const { data: websites } = await supabase
     .from('websites')
-    .select('id, slug, domain');
+    .select('id, slug, url'); 
   
   if (!websites || websites.length === 0) {
     return [];
   }
   
-  return websites.map(website => {
-    // Use the slug field (which should be populated now thanks to the migration)
-    // If for some reason slug is missing, generate one from the domain
-    const slugParam = website.slug || getDomainSlug(website.domain);
-    
+  return websites.map((website: { id: number; slug: string | null; url: string }) => {
+    const slugParam = website.slug || generateSlugFallback(website.url);
     return {
       params: { slug: slugParam },
       props: { websiteId: website.id }
@@ -93,8 +91,8 @@ if (websiteError || !dbWebsite) {
   return Astro.redirect('/websites');
 }
 
-// Convert database record to application entity
-const website = dbWebsiteToWebsite(dbWebsite);
+// Type website
+const website: Website = dbWebsiteToWebsite(dbWebsite);
 
 // Fetch owning company data
 const { data: dbCompany } = await supabase
@@ -103,8 +101,8 @@ const { data: dbCompany } = await supabase
   .eq('id', website.companyId)
   .single();
 
-// Convert company data to entity
-const company = dbCompany ? dbCompanyToCompany(dbCompany) : null;
+// Type company
+const company: Company | null = dbCompany ? dbCompanyToCompany(dbCompany) : null;
 
 // Fetch products associated with this website
 const { data: websiteProductRelations } = await supabase
@@ -112,7 +110,8 @@ const { data: websiteProductRelations } = await supabase
   .select('product_id')
   .eq('website_id', website.id);
 
-const productIds = (websiteProductRelations || []).map(rel => rel.product_id);
+// Type rel parameter
+const productIds: number[] = (websiteProductRelations || []).map((rel: { product_id: number }) => rel.product_id);
 let associatedProducts: Product[] = [];
 
 if (productIds.length > 0) {
@@ -130,7 +129,8 @@ const { data: companyTARelations } = await supabase
   .select('therapeutic_area_id')
   .eq('company_id', website.companyId);
 
-const therapeuticAreaIds = (companyTARelations || []).map(rel => rel.therapeutic_area_id);
+// Type rel parameter
+const therapeuticAreaIds: number[] = (companyTARelations || []).map((rel: { therapeutic_area_id: number }) => rel.therapeutic_area_id);
 let therapeuticAreas: TherapeuticArea[] = [];
 
 if (therapeuticAreaIds.length > 0) {
@@ -147,11 +147,12 @@ const { data: similarWebsites } = await supabase
   .from('websites')
   .select('*')
   .eq('company_id', website.companyId)
-  .eq('category', website.category)
+  .eq('category_id', website.categoryId)
   .neq('id', website.id)
   .limit(5);
 
-const relatedWebsites = (similarWebsites || []).map(dbWebsiteToWebsite);
+// Type the map parameter
+const relatedWebsites: Website[] = (similarWebsites || []).map(dbWebsiteToWebsite);
 
 // Define website categories
 const websiteCategories = [
@@ -164,17 +165,18 @@ const websiteCategories = [
   { value: 'other', label: 'Other' }
 ];
 
-// Helper function to get category label
-const getCategoryLabel = (categoryId: string) => {
-  const category = websiteCategories.find(c => c.value === categoryId);
-  return category ? category.label : categoryId;
+// Helper function to get category label (using categoryId)
+// TODO: In future, map categoryId to actual name from DB if needed
+const getCategoryLabel = (categoryId?: number | null) => {
+  return categoryId ? `Category ${categoryId}` : 'Uncategorized';
 };
 
 // Set up breadcrumbs for navigation
 const breadcrumbs = [
   { label: 'Home', href: '/' },
   { label: 'Websites', href: '/websites' },
-  { label: website.domain, href: `/websites/${slug}`, active: true }
+  // Use siteName or url for breadcrumb label
+  { label: website.siteName ?? website.url, href: `/websites/${slug}`, active: true }
 ];
 
 // Default tab is "overview"
@@ -189,16 +191,18 @@ const tabs = [
   { id: "content", label: "Content & Compliance", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>' },
 ];
 
-// Get therapeutic area name
-const getTherapeuticAreaName = (areaId: string) => {
-  const area = therapeuticAreas.find(a => a.id === areaId);
-  return area ? area.name : areaId.replace(/-/g, ' ');
+// Get therapeutic area name - type find parameter
+const getTherapeuticAreaName = (areaId: number): string => {
+  const area = therapeuticAreas.find((a: TherapeuticArea) => a.id === areaId);
+  return area ? area.name : `TA ID ${areaId}`;
 };
 
-// Format date to readable format
-const formatDate = (dateString?: string) => {
-  if (!dateString) return 'Not available';
-  const date = new Date(dateString);
+// Format date to readable format - type parameter
+const formatDate = (dateInput?: Date | string | null): string => {
+  if (!dateInput) return 'Not available';
+  // Ensure it's a Date object
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) return 'Invalid Date'; // Check if date is valid
   return new Intl.DateTimeFormat('en-US', { 
     year: 'numeric', 
     month: 'long', 
@@ -211,13 +215,14 @@ export const prerender = false;
 ---
 
 <DashboardLayout 
-  title={`${website.domain} | Website Details | Top Pharma`}
-  description={`Detailed information about ${website.domain} pharmaceutical website`}
+  // Use siteName or url for title/description
+  title={`${website.siteName ?? website.url} | Website Details`}
+  description={`Detailed information about ${website.siteName ?? website.url} pharmaceutical website`}
   currentPath={`/websites/${slug}`}
   breadcrumbs={breadcrumbs}
 >
   <div class="space-y-6">
-    <!-- Website Header Section - Updated to match company header structure -->
+    <!-- Website Header Section -->
     <div class="relative">
       <!-- Header Background -->
       <div class="h-48 w-full bg-gradient-to-r from-purple-600 to-purple-700 relative overflow-hidden shadow-md">
@@ -240,25 +245,21 @@ export const prerender = false;
               <div class="flex-grow">
                 <div class="flex items-center justify-between flex-wrap">
                   <div>
-                    <h1 class="text-2xl font-bold text-gray-900 mr-4">{website.domain}</h1>
-                    {website.siteName && (
-                      <p class="text-gray-500 text-sm">{website.siteName}</p>
-                    )}
+                    {/* Use siteName or url */}
+                    <h1 class="text-2xl font-bold text-gray-900 mr-4">{website.siteName ?? website.url}</h1>
+                    {/* siteName check is already safe */}
                   </div>
                   
                   <div class="flex space-x-3 mt-2 md:mt-0">
+                    {/* Use website.url for link */}
                     <Button 
-                      href={`https://${website.domain}`} 
+                      href={website.url.startsWith('http') ? website.url : `https://${website.url}`}
                       target="_blank"
                       variant="outline"
                       size="sm"
                     >
-                      <span class="flex items-center">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                        Visit Website
-                      </span>
+                      {/* ... button content ... */}
+                      Visit Website
                     </Button>
                     <Button 
                       variant="outline"
@@ -275,11 +276,13 @@ export const prerender = false;
                 </div>
                 
                 <div class="mt-2 flex flex-wrap items-center text-sm text-gray-500">
+                  {/* Use categoryId */}
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 mr-2">
-                    {getCategoryLabel(website.category)}
+                    {getCategoryLabel(website.categoryId)}
                   </span>
-                  {website.lastUpdated && (
-                    <span class="mr-4">Updated: {formatDate(website.lastUpdated)}</span>
+                  {/* Use updatedAt */}
+                  {website.updatedAt && (
+                    <span class="mr-4">Updated: {formatDate(website.updatedAt)}</span>
                   )}
                 </div>
               </div>
@@ -321,9 +324,10 @@ export const prerender = false;
                 )}
                 
                 <div class="flex flex-wrap gap-2">
-                  {website.therapeuticAreas && website.therapeuticAreas.map(areaId => (
+                  {/* Type area parameter */}
+                  {Array.isArray(website.therapeuticAreas) && website.therapeuticAreas.map((area: TherapeuticArea) => (
                     <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                      {getTherapeuticAreaName(areaId)}
+                      {area.name}
                     </span>
                   ))}
                 </div>
@@ -332,29 +336,18 @@ export const prerender = false;
                   <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
                     <div>
                       <dt class="text-sm font-medium text-gray-500">Category</dt>
-                      <dd class="mt-1 text-sm text-gray-900">{getCategoryLabel(website.category)}</dd>
+                      {/* Use categoryId */}
+                      <dd class="mt-1 text-sm text-gray-900">{getCategoryLabel(website.categoryId)}</dd>
                     </div>
                     <div>
                       <dt class="text-sm font-medium text-gray-500">Created</dt>
-                      <dd class="mt-1 text-sm text-gray-900">{formatDate(website.created_at)}</dd>
+                      {/* Use createdAt */}
+                      <dd class="mt-1 text-sm text-gray-900">{formatDate(website.createdAt)}</dd>
                     </div>
                     <div>
                       <dt class="text-sm font-medium text-gray-500">Last Updated</dt>
-                      <dd class="mt-1 text-sm text-gray-900">{formatDate(website.updated_at)}</dd>
-                    </div>
-                    <div>
-                      <dt class="text-sm font-medium text-gray-500">Status</dt>
-                      <dd class="mt-1 text-sm text-gray-900">
-                        {website.status === 'active' ? (
-                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Active
-                          </span>
-                        ) : (
-                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            Inactive
-                          </span>
-                        )}
-                      </dd>
+                      {/* Use updatedAt */}
+                      <dd class="mt-1 text-sm text-gray-900">{formatDate(website.updatedAt)}</dd>
                     </div>
                   </dl>
                 </div>
@@ -362,11 +355,12 @@ export const prerender = false;
             </div>
             
             <div class="md:w-1/2 lg:w-1/3 border-t md:border-t-0 md:border-l border-gray-200">
+              {/* Use screenshotUrl directly */}
               {website.screenshotUrl ? (
                 <div class="relative h-64 md:h-full">
                   <img 
-                    src={getWebsiteScreenshotUrl(website.domain)}
-                    alt={`Screenshot of ${website.domain}`}
+                    src={website.screenshotUrl}
+                    alt={`Screenshot of ${website.siteName ?? website.url}`}
                     class="absolute inset-0 w-full h-full object-cover"
                   />
                 </div>
@@ -391,7 +385,8 @@ export const prerender = false;
             
             {associatedProducts.length > 0 ? (
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {associatedProducts.map(product => (
+                {/* Type product parameter */}
+                {associatedProducts.map((product: Product) => (
                   <div class="border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                     <div class="p-4">
                       <h3 class="font-medium text-gray-900">{product.name}</h3>
@@ -421,42 +416,33 @@ export const prerender = false;
       <div id="website-tab-content-technical" role="tabpanel" aria-labelledby="tab-technical" class="space-y-6 hidden">
         <Card>
           <div class="p-6">
-            <h2 class="text-xl font-medium text-gray-900 mb-4">Technical Information</h2>
+            <h2 class="text-xl font-semibold mb-4">Technical Details</h2>
             
-            <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6">
               <div>
-                <dt class="text-sm font-medium text-gray-500">Domain</dt>
-                <dd class="mt-1 text-sm text-gray-900">{website.domain}</dd>
+                <dt class="text-sm font-medium text-gray-500">Website URL</dt>
+                {/* Use website.url */}
+                <dd class="mt-1 text-sm text-gray-900">{website.url}</dd>
               </div>
               <div>
                 <dt class="text-sm font-medium text-gray-500">Registrar</dt>
+                {/* registrar check already ok */}
                 <dd class="mt-1 text-sm text-gray-900">{website.registrar || 'Unknown'}</dd>
               </div>
               <div>
-                <dt class="text-sm font-medium text-gray-500">SSL Certificate</dt>
-                <dd class="mt-1 text-sm text-gray-900">
-                  {website.hasSSL ? (
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Secure (HTTPS)
-                    </span>
-                  ) : (
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                      Not Secure (HTTP)
-                    </span>
-                  )}
-                </dd>
-              </div>
-              <div>
                 <dt class="text-sm font-medium text-gray-500">Host Provider</dt>
-                <dd class="mt-1 text-sm text-gray-900">{website.hosting_provider || 'Unknown'}</dd>
+                {/* Use hostingProvider (camelCase) */}
+                <dd class="mt-1 text-sm text-gray-900">{website.hostingProvider || 'Unknown'}</dd>
               </div>
               <div>
                 <dt class="text-sm font-medium text-gray-500">Domain Creation Date</dt>
-                <dd class="mt-1 text-sm text-gray-900">{formatDate(website.domain_created_at) || 'Unknown'}</dd>
+                {/* Use domainCreatedAt (camelCase) */}
+                <dd class="mt-1 text-sm text-gray-900">{formatDate(website.domainCreatedAt) || 'Unknown'}</dd>
               </div>
               <div>
                 <dt class="text-sm font-medium text-gray-500">Domain Expiry Date</dt>
-                <dd class="mt-1 text-sm text-gray-900">{formatDate(website.domain_expires_at) || 'Unknown'}</dd>
+                {/* Use domainExpiresAt (camelCase) */}
+                <dd class="mt-1 text-sm text-gray-900">{formatDate(website.domainExpiresAt) || 'Unknown'}</dd>
               </div>
             </dl>
           </div>
@@ -464,12 +450,13 @@ export const prerender = false;
         
         <Card>
           <div class="p-6">
-            <h2 class="text-xl font-medium text-gray-900 mb-4">Technology Stack</h2>
+            <h2 class="text-xl font-semibold mb-4">Technology Stack</h2>
             
             {website.technologies && website.technologies.length > 0 ? (
               <div class="space-y-4">
                 <div class="flex flex-wrap gap-2">
-                  {website.technologies.map(tech => (
+                  {/* Type tech parameter */}
+                  {website.technologies.map((tech: string) => (
                     <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
                       {tech}
                     </span>
@@ -508,7 +495,8 @@ export const prerender = false;
                   </div>
                 ) : (
                   <div class="w-16 h-16 flex-shrink-0 overflow-hidden rounded-md bg-gray-100 flex items-center justify-center">
-                    <span class="text-2xl font-bold text-gray-500">{company.name.charAt(0)}</span>
+                    {/* Add fallback for company name */}
+                    <span class="text-2xl font-bold text-gray-500">{(company.name ?? 'C').charAt(0)}</span>
                   </div>
                 )}
                 
@@ -539,20 +527,25 @@ export const prerender = false;
             
             {relatedWebsites.length > 0 ? (
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {relatedWebsites.map(relatedSite => (
+                {/* Type relatedSite parameter */}
+                {relatedWebsites.map((relatedSite: Website) => (
                   <div class="border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                     <div class="p-4">
                       <div class="flex justify-between items-start">
-                        <h3 class="font-medium text-gray-900">{relatedSite.domain}</h3>
+                        {/* Use siteName or url */}
+                        <h3 class="font-medium text-gray-900">{relatedSite.siteName ?? relatedSite.url}</h3>
                         <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
-                          {getCategoryLabel(relatedSite.category)}
+                          {/* Use categoryId */}
+                          {getCategoryLabel(relatedSite.categoryId)}
                         </span>
                       </div>
                       <div class="mt-2 flex justify-between items-center">
+                        {/* slug link ok */}
                         <a href={`/websites/${relatedSite.slug}`} class="text-sm font-medium text-blue-600 hover:text-blue-800">
                           View details
                         </a>
-                        <a href={`https://${relatedSite.domain}`} target="_blank" rel="noopener noreferrer" class="text-sm text-gray-500 hover:text-gray-700">
+                        {/* Use url for link */}
+                        <a href={relatedSite.url.startsWith('http') ? relatedSite.url : `https://${relatedSite.url}`} target="_blank" rel="noopener noreferrer" class="text-sm text-gray-500 hover:text-gray-700">
                           Visit site →
                         </a>
                       </div>

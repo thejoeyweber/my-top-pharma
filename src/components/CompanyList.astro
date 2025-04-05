@@ -26,9 +26,13 @@ try {
   }
   
   companies = data as Company[];
-} catch (err) {
+} catch (err: unknown) {
   console.error('Error fetching companies:', err);
-  error = err instanceof Error ? err.message : 'Failed to fetch companies';
+  if (err instanceof Error) {
+    error = err.message;
+  } else {
+    error = 'An unknown error occurred while fetching companies';
+  }
 }
 ---
 
@@ -47,18 +51,18 @@ try {
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold">{company.name}</h3>
-            <span class="text-sm text-gray-500">{company.tickerSymbol}</span>
+            <span class="text-sm text-gray-500">{company.tickerSymbol ?? 'N/A'}</span>
           </div>
           
           <div class="space-y-2">
             <p class="text-sm">
               <span class="font-medium">Market Cap:</span>
-              <span class="ml-2">{formatMarketCap(company.marketCapBillions ? company.marketCapBillions * 1e9 : 0)}</span>
+              <span class="ml-2">{formatMarketCap(company.marketCap ?? 0)}</span>
             </p>
             
             <p class="text-sm">
               <span class="font-medium">Exchange:</span>
-              <span class="ml-2">{company.exchange || 'N/A'}</span>
+              <span class="ml-2">{company.stockExchange || 'N/A'}</span>
             </p>
             
             <p class="text-sm">
@@ -67,10 +71,10 @@ try {
             </p>
           </div>
           
-          {company.websiteUrl && (
+          {company.website && (
             <div class="mt-4">
               <a 
-                href={company.websiteUrl}
+                href={company.website}
                 target="_blank"
                 rel="noopener noreferrer"
                 class="text-blue-500 hover:text-blue-600 text-sm"

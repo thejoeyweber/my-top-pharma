@@ -6,7 +6,6 @@
  * Provides the basic HTML structure, metadata, and common components.
  */
 import '../styles/global.css';
-import { ViewTransitions } from 'astro:transitions';
 
 export interface Props {
 	title: string;
@@ -49,7 +48,6 @@ const pageTitle = title !== 'Top Pharma'
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
-		<ViewTransitions />
 	</head>
 	<body class={`h-full flex flex-col min-h-screen ${bodyClass}`}>
 		<slot />

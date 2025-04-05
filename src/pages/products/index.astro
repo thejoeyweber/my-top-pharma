@@ -406,14 +406,13 @@ const updateUrlParams = (updates: Record<string, string | string[] | null>) => {
     ) : (
       <div class={`grid gap-4 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
         {filteredProducts.map(product => (
-          <ProductCard 
-            product={product} 
-            company={companyMap.get(product.companyId)}
+          <ProductCard
+            product={product}
+            company={companyNameMap.get(product.companyId)}
             therapeuticAreaNames={productTaNames.get(product.id) || []}
-            view={viewMode}
           />
-      ))}
-    </div>
+        ))}
+      </div>
     )}
     
     <!-- Data Source Indicator -->

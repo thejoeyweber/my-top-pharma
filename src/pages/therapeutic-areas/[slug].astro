@@ -210,7 +210,7 @@ const activeTab = Astro.url.searchParams.get('tab') || 'overview';
     
     <!-- Tabs Navigation -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-      <TabGroup tabs={tabs} activeTab={activeTab} baseUrl={`/therapeutic-areas/${slug}`} tabPanelId="ta-tab-content" />
+      <TabGroup tabs={tabs} activeTab={activeTab} tabPanelId="ta-tab-content" />
       
       <!-- Tab Content -->
       <div class="mt-6">
