@@ -372,7 +372,6 @@ const updateUrlParams = (updates: Record<string, string | string[] | null>) => {
             website={website} 
             companyName={website.companyId ? companyNameMap.get(website.companyId) : undefined}
             therapeuticAreaNames={websiteTaNames.get(website.id) || []}
-            view={viewMode}
           />
         ))}
       </div>

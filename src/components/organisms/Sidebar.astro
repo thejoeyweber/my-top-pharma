@@ -7,7 +7,6 @@
  */
 
 import SidebarLink from '../atoms/SidebarLink.astro';
-import { ViewTransitions } from 'astro:transitions';
 
 interface Props {
   currentPath?: string;
@@ -108,8 +107,6 @@ const navigation = [
   }
 ];
 ---
-
-<ViewTransitions />
 
 <aside class="sidebar" transition:persist>
   <div 
