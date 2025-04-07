@@ -13,12 +13,9 @@ import Timeline from '../../components/molecules/Timeline.astro';
 import DataTable from '../../components/molecules/DataTable.astro';
 import ProductCard from '../../components/molecules/ProductCard.astro';
 
-// Import Supabase client directly
-import { supabase } from '../../lib/supabase';
-import { dbProductToProduct } from '../../interfaces/entities/Product';
-import { dbCompanyToCompany } from '../../interfaces/entities/Company';
-import { dbWebsiteToWebsite } from '../../interfaces/entities/Website';
-import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/TherapeuticArea';
+// Import utility functions instead of direct Supabase client
+import { getProductBySlug, getProductTherapeuticAreas, getRelatedProducts } from '../../lib/utils/productUtils';
+import { getCompanyBySlug } from '../../lib/utils/companyUtils';
 import type { Product, Company, Website, TherapeuticArea } from '../../interfaces/entities';
 
 import { getProductImageUrl } from '../../utils/assetUtils';
@@ -38,8 +35,10 @@ const getStageName = (stage: string): string => {
   return stageMap[stage] || stage;
 };
 
-// Generate static paths for all products
+// Generate static paths for all products is still done with Supabase for now
+// This would be migrated to a utility function in a future phase
 export async function getStaticPaths() {
+  const { supabase } = await import('../../lib/supabase');
   const { data: dbProducts } = await supabase
     .from('products')
     .select('id, slug, name');
@@ -56,44 +55,33 @@ export async function getStaticPaths() {
 const { slug } = Astro.params;
 const { productId } = Astro.props;
 
-// Fetch product data directly from Supabase - first try by ID from props, then by slug
-let productResponse;
+// Fetch product data using our utility function
+let product: Product | null;
 
 if (productId) {
-  productResponse = await supabase
+  // If we have a productId from static paths, use that to fetch
+  const { supabase } = await import('../../lib/supabase');
+  const { data } = await supabase
     .from('products')
     .select('*')
     .eq('id', productId)
     .single();
-}
-
-// If not found or ID not provided, try to fetch by slug
-if (!productResponse || productResponse.error || !productResponse.data) {
-  productResponse = await supabase
-    .from('products')
-    .select('*')
-    .eq('slug', slug)
-    .single();
     
-  // Last resort, try to fetch by ID as fallback
-  if (productResponse.error || !productResponse.data) {
-    productResponse = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', slug)
-      .single();
+  if (data) {
+    const { dbProductToProduct } = await import('../../interfaces/entities/Product');
+    product = dbProductToProduct(data);
+  } else {
+    product = await getProductBySlug(slug);
   }
+} else {
+  // Otherwise use slug to fetch
+  product = await getProductBySlug(slug);
 }
-
-const { data: dbProduct, error: productError } = productResponse;
 
 // Handle product not found
-if (productError || !dbProduct) {
+if (!product) {
   return Astro.redirect('/products');
 }
-
-// Convert database record to application entity
-const product = dbProductToProduct(dbProduct);
 
 // Ensure product.approvals is initialized
 if (!product.approvals) {
@@ -101,76 +89,14 @@ if (!product.approvals) {
 }
 
 // Fetch company that manufactures the product
-const { data: dbCompany } = await supabase
-  .from('companies')
-  .select('*')
-  .eq('id', product.companyId)
-  .single();
-
-// Convert company data to entity
-const company = dbCompany ? dbCompanyToCompany(dbCompany) : null;
+const company = product.companyId ? await getCompanyBySlug(product.companyId) : null;
 
 // Fetch therapeutic areas for this product
-const { data: productTARelations } = await supabase
-  .from('product_therapeutic_areas')
-  .select('therapeutic_area_id')
-  .eq('product_id', slug);
+const therapeuticAreaNames = await getProductTherapeuticAreas(product.id);
+product.therapeuticAreas = therapeuticAreaNames;
 
-const therapeuticAreaIds = (productTARelations || []).map(rel => rel.therapeutic_area_id);
-let therapeuticAreas: TherapeuticArea[] = [];
-
-if (therapeuticAreaIds.length > 0) {
-  const { data: dbTherapeuticAreas } = await supabase
-    .from('therapeutic_areas')
-    .select('*')
-    .in('id', therapeuticAreaIds);
-  
-  therapeuticAreas = (dbTherapeuticAreas || []).map(dbTherapeuticAreaToTherapeuticArea);
-}
-
-// Fetch websites associated with this product
-const { data: productWebsites } = await supabase
-  .from('product_websites')
-  .select('website_id')
-  .eq('product_id', slug);
-
-const websiteIds = (productWebsites || []).map(rel => rel.website_id);
-let websites: Website[] = [];
-
-if (websiteIds.length > 0) {
-  const { data: dbWebsites } = await supabase
-    .from('websites')
-    .select('*')
-    .in('id', websiteIds);
-  
-  websites = (dbWebsites || []).map(dbWebsiteToWebsite);
-}
-
-// Fetch related products (same therapeutic areas)
-const { data: relatedProductsRelations } = await supabase
-  .from('product_therapeutic_areas')
-  .select('product_id')
-  .in('therapeutic_area_id', therapeuticAreaIds)
-  .neq('product_id', slug)
-  .limit(5);
-
-const relatedProductIds = [...new Set((relatedProductsRelations || []).map(rel => rel.product_id))];
-let relatedProducts: Product[] = [];
-
-if (relatedProductIds.length > 0) {
-  const { data: dbRelatedProducts } = await supabase
-    .from('products')
-    .select('*')
-    .in('id', relatedProductIds);
-  
-  relatedProducts = (dbRelatedProducts || []).map(dbProductToProduct);
-}
-
-// Function to get therapeutic area name
-const getTherapeuticAreaName = (id: string) => {
-  const area = therapeuticAreas.find(a => a.id === id);
-  return area ? area.name : id;
-};
+// Fetch related products based on shared therapeutic areas
+const relatedProducts = await getRelatedProducts(product.id, 5);
 
 // Set up breadcrumbs for navigation
 const breadcrumbs = [
@@ -178,22 +104,6 @@ const breadcrumbs = [
   { label: 'Products', href: '/products' },
   { label: product.name, href: `/products/${product.slug}`, active: true }
 ];
-
-// Function to get category label
-const getCategoryLabel = (categoryId: string) => {
-  const category = websites.find(c => c.value === categoryId);
-  return category ? category.label : categoryId;
-};
-
-// Group websites by category for display
-const websitesByCategory = websites.reduce((acc, website) => {
-  const category = website.category || 'other';
-  if (!acc[category]) {
-    acc[category] = [];
-  }
-  acc[category].push(website);
-  return acc;
-}, {} as Record<string, any[]>);
 
 // Default tab is "overview"
 const activeTab = "overview";
@@ -219,7 +129,7 @@ export const prerender = false;
 
 <DashboardLayout
   title={`${product.name} | Top Pharma`}
-  description={`Detailed information about ${product.name} (${product.genericName || 'no generic name'}), a ${product.moleculeType} for ${product.indications.join(', ')}`}
+  description={`Detailed information about ${product.name} (${product.genericName || 'no generic name'}), a ${product.moleculeType} for ${product.indications?.join(', ') || 'various conditions'}`}
   currentPath={`/products/${product.slug}`}
   breadcrumbs={breadcrumbs}
 >
@@ -249,315 +159,347 @@ export const prerender = false;
               <div class="flex-grow">
                 <div class="flex items-center justify-between flex-wrap">
                   <div>
-                    <h1 class="text-2xl font-bold text-gray-900 mr-4">{product.name}</h1>
+                    <h1 class="text-2xl font-bold text-gray-900 mb-1">{product.name}</h1>
                     {product.genericName && (
-                      <p class="text-gray-500 text-sm">{product.genericName}</p>
+                      <p class="text-sm text-gray-500 mb-2">{product.genericName}</p>
+                    )}
+                    <div class="flex flex-wrap gap-2 mb-3">
+                      {/* Stage Badge */}
+                      {product.stage && (
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {getStageName(product.stage)}
+                        </span>
+                      )}
+                      
+                      {/* Molecule Type Badge */}
+                      {product.moleculeType && (
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          {product.moleculeType}
+                        </span>
+                      )}
+                      
+                      {/* Year Badge */}
+                      {product.year && (
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          {product.year}
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* Company Info */}
+                    {company && (
+                      <p class="text-sm text-gray-600">
+                        Manufactured by: 
+                        <a href={`/companies/${company.slug}`} class="text-blue-600 hover:text-blue-800 font-medium">
+                          {company.name}
+                        </a>
+                      </p>
                     )}
                   </div>
                   
-                  <div class="flex space-x-3 mt-2 md:mt-0">
-                    {product.website && (
-                      <Button 
-                        href={product.website.startsWith('http') ? product.website : `https://${product.website}`} 
-                        target="_blank"
-                        variant="outline"
-                        size="sm"
-                      >
-                        <span class="flex items-center">
-                          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                          Website
-                        </span>
-                      </Button>
-                    )}
-                    
-                    <FollowButton 
-                      entityId={product.id} 
-                      entityType="product"
-                      size="sm"
-                    />
+                  <div class="mt-4 md:mt-0">
+                    <div class="flex space-x-2">
+                      <FollowButton entityId={product.id} entityType="product" initialFollowing={false} />
+                      
+                      {product.website && (
+                        <a href={product.website} target="_blank" rel="noopener noreferrer">
+                          <Button variant="secondary" icon="external-link">Visit Website</Button>
+                        </a>
+                      )}
+                    </div>
                   </div>
-                </div>
-                
-                <div class="mt-2 flex flex-wrap items-center text-sm text-gray-500">
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mr-2">
-                    {getStageName(product.stage)}
-                  </span>
-                  {product.moleculeType && (
-                    <span class="mr-4">{product.moleculeType}</span>
-                  )}
                 </div>
               </div>
             </div>
           </div>
-          
-          {/* Company attribution */}
-          {company && (
-            <div class="bg-gray-50 px-6 sm:px-8 py-3 border-t border-gray-200">
-              <div class="flex items-center text-gray-700">
-                <span class="text-sm mr-2">Developed by:</span>
-                <a href={`/companies/${company.slug}`} class="text-primary-600 hover:text-primary-800 font-medium text-sm">
-                  {company.name}
-                </a>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
     
-    <!-- Tabs Navigation -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-      <TabGroup tabs={tabs} activeTab={activeTab} tabPanelId="product-tab-content" />
-      
-      <!-- Tab Content -->
-      <div class="mt-6">
-        <!-- Overview Tab -->
-        <div id="product-tab-content-overview" role="tabpanel" aria-labelledby="tab-overview" class="space-y-6">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Key Metrics/Facts Column -->
-            <div class="col-span-1">
-              <Card>
-                <div class="p-4">
-                  <h3 class="text-lg font-medium text-gray-900 mb-4">Key Facts</h3>
-                  <div class="space-y-4">
-                    <div class="flex">
-                      <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                      </div>
-                      <div class="ml-3">
-                        <p class="text-sm font-medium text-gray-500">Status</p>
-                        <p class="text-sm text-gray-900">{getStageName(product.stage)}</p>
-                      </div>
-                    </div>
-                    {product.year && (
-                      <div class="flex">
-                        <div class="flex-shrink-0">
-                          <svg class="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                        <div class="ml-3">
-                          <p class="text-sm font-medium text-gray-500">Year</p>
-                          <p class="text-sm text-gray-900">{product.year}</p>
-                        </div>
-                      </div>
-                    )}
-                    {product.moleculeType && (
-                      <div class="flex">
-                        <div class="flex-shrink-0">
-                          <svg class="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                          </svg>
-                        </div>
-                        <div class="ml-3">
-                          <p class="text-sm font-medium text-gray-500">Type</p>
-                          <p class="text-sm text-gray-900">{product.moleculeType}</p>
-                        </div>
-                      </div>
-                    )}
-                    {/* Could add more key metrics here */}
-                  </div>
-                </div>
-              </Card>
-              
-              {therapeuticAreas.length > 0 && (
-                <Card class="mt-6">
-                  <div class="p-4">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Therapeutic Areas</h3>
-                    <div class="flex flex-wrap gap-2">
-                      {therapeuticAreas.map(area => (
-                        <a 
-                          href={`/therapeutic-areas/${area.slug}`} 
-                          class="inline-flex items-center rounded-full bg-blue-100 px-3 py-0.5 text-sm font-medium text-blue-800 hover:bg-blue-200"
-                        >
-                          {area.name}
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                </Card>
-              )}
-            </div>
-            
-            <!-- Product Description -->
-            <div class="col-span-2">
-              <Card>
-                <div class="p-4">
-                  <h3 class="text-lg font-medium text-gray-900 mb-4">About {product.name}</h3>
-                  {product.description ? (
-                    <p class="text-gray-600">{product.description}</p>
-                  ) : (
-                    <p class="text-gray-500 italic">No product description available</p>
-                  )}
-                </div>
-              </Card>
+    <!-- Page Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Main Content Area -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- Tabs -->
+        <Card>
+          <TabGroup tabs={tabs} activeTab={activeTab} />
+        </Card>
+        
+        <!-- Overview Section (default tab) -->
+        <div class="space-y-6" id="overview-content">
+          <!-- Description Card -->
+          <Card>
+            <Card.Header>
+              <h2 class="text-xl font-semibold text-gray-900">About {product.name}</h2>
+            </Card.Header>
+            <Card.Body>
+              <div class="prose max-w-none">
+                {product.description ? (
+                  <p>{product.description}</p>
+                ) : (
+                  <p class="text-gray-500 italic">No description available.</p>
+                )}
+              </div>
               
               <!-- Indications -->
-              <Card class="mt-6">
-                <div class="p-4">
-                  <h3 class="text-lg font-medium text-gray-900 mb-4">Indications</h3>
-                  {product.indications && product.indications.length > 0 ? (
-                    <ul class="list-disc pl-5 space-y-1 text-gray-700">
-                      {product.indications.map(indication => (
-                        <li>{indication}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p class="text-gray-500 italic">No indications listed.</p>
-                  )}
+              {product.indications && product.indications.length > 0 && (
+                <div class="mt-6">
+                  <h3 class="text-lg font-medium text-gray-900 mb-2">Indications</h3>
+                  <ul class="list-disc pl-5 space-y-1">
+                    {product.indications.map((indication: string) => (
+                      <li>{indication}</li>
+                    ))}
+                  </ul>
                 </div>
-              </Card>
-            </div>
+              )}
+              
+              <!-- Therapeutic Areas -->
+              {product.therapeuticAreas && product.therapeuticAreas.length > 0 && (
+                <div class="mt-6">
+                  <h3 class="text-lg font-medium text-gray-900 mb-2">Therapeutic Areas</h3>
+                  <div class="flex flex-wrap gap-2">
+                    {product.therapeuticAreas.map((area: string) => (
+                      <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                        {area}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+          
+          <!-- Key Details Card -->
+          <Card>
+            <Card.Header>
+              <h2 class="text-xl font-semibold text-gray-900">Key Details</h2>
+            </Card.Header>
+            <Card.Body>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {/* Basic Info Group */}
+                <div>
+                  <h3 class="text-lg font-medium text-gray-900 mb-3">Product Information</h3>
+                  <dl class="space-y-3">
+                    <div>
+                      <dt class="text-sm font-medium text-gray-500">Brand Name</dt>
+                      <dd class="mt-1 text-sm text-gray-900">{product.name}</dd>
+                    </div>
+                    
+                    {product.genericName && (
+                      <div>
+                        <dt class="text-sm font-medium text-gray-500">Generic Name</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{product.genericName}</dd>
+                      </div>
+                    )}
+                    
+                    {product.moleculeType && (
+                      <div>
+                        <dt class="text-sm font-medium text-gray-500">Molecule Type</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{product.moleculeType}</dd>
+                      </div>
+                    )}
+                    
+                    {product.year && (
+                      <div>
+                        <dt class="text-sm font-medium text-gray-500">Year Introduced</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{product.year}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+                
+                {/* Development Status Group */}
+                <div>
+                  <h3 class="text-lg font-medium text-gray-900 mb-3">Development Status</h3>
+                  <dl class="space-y-3">
+                    {product.stage && (
+                      <div>
+                        <dt class="text-sm font-medium text-gray-500">Current Stage</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{getStageName(product.stage)}</dd>
+                      </div>
+                    )}
+                    
+                    {product.status && (
+                      <div>
+                        <dt class="text-sm font-medium text-gray-500">Status</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{product.status}</dd>
+                      </div>
+                    )}
+                    
+                    {/* Maybe add FDA approvals or other key milestones here */}
+                    {product.approvals && product.approvals.length > 0 && (
+                      <div>
+                        <dt class="text-sm font-medium text-gray-500">Latest Approval</dt>
+                        <dd class="mt-1 text-sm text-gray-900">
+                          {formatDate(product.approvals[0].date)} ({product.approvals[0].agency})
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+          
+          <!-- Regulatory Approvals Section (hidden in overview tab) -->
+          <div class="hidden" id="regulatory-content">
+            <Card>
+              <Card.Header>
+                <h2 class="text-xl font-semibold text-gray-900">Regulatory Approvals</h2>
+              </Card.Header>
+              <Card.Body>
+                {product.approvals && product.approvals.length > 0 ? (
+                  <DataTable 
+                    headers={['Region', 'Agency', 'Date', 'Indication', 'Status']}
+                    data={product.approvals.map((approval) => [
+                      approval.region,
+                      approval.agency,
+                      formatDate(approval.date),
+                      approval.indication,
+                      approval.status
+                    ])}
+                  />
+                ) : (
+                  <p class="text-gray-500 italic">No regulatory approval information available.</p>
+                )}
+              </Card.Body>
+            </Card>
+          </div>
+          
+          <!-- Timeline Section (hidden in overview tab) -->
+          <div class="hidden" id="timeline-content">
+            <Card>
+              <Card.Header>
+                <h2 class="text-xl font-semibold text-gray-900">Development Timeline</h2>
+              </Card.Header>
+              <Card.Body>
+                {product.timeline && product.timeline.length > 0 ? (
+                  <Timeline 
+                    events={product.timeline.map((event) => ({
+                      date: formatDate(event.date),
+                      title: event.stage,
+                      description: event.description
+                    }))}
+                  />
+                ) : (
+                  <p class="text-gray-500 italic">No timeline information available.</p>
+                )}
+              </Card.Body>
+            </Card>
+          </div>
+          
+          <!-- Patents Section (hidden in overview tab) -->
+          <div class="hidden" id="patents-content">
+            <Card>
+              <Card.Header>
+                <h2 class="text-xl font-semibold text-gray-900">Patents</h2>
+              </Card.Header>
+              <Card.Body>
+                {product.patents && product.patents.length > 0 ? (
+                  <DataTable 
+                    headers={['Patent Number', 'Expiry Date', 'Description']}
+                    data={product.patents.map((patent) => [
+                      patent.number,
+                      formatDate(patent.expiryDate),
+                      patent.description
+                    ])}
+                  />
+                ) : (
+                  <p class="text-gray-500 italic">No patent information available.</p>
+                )}
+              </Card.Body>
+            </Card>
+          </div>
+          
+          <!-- Websites Section (hidden in overview tab) -->
+          <div class="hidden" id="websites-content">
+            <Card>
+              <Card.Header>
+                <h2 class="text-xl font-semibold text-gray-900">Official Websites</h2>
+              </Card.Header>
+              <Card.Body>
+                {product.website ? (
+                  <div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-3">Product Website</h3>
+                    <a 
+                      href={product.website} 
+                      class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      Visit Official Website
+                    </a>
+                  </div>
+                ) : (
+                  <p class="text-gray-500 italic">No official website information available.</p>
+                )}
+              </Card.Body>
+            </Card>
           </div>
         </div>
-        
-        <!-- Websites Tab -->
-        <div id="product-tab-content-websites" role="tabpanel" aria-labelledby="tab-websites" class="space-y-6 hidden">
+      </div>
+      
+      <!-- Sidebar -->
+      <div class="space-y-6">
+        <!-- Related Products -->
+        {relatedProducts && relatedProducts.length > 0 && (
           <Card>
-            <div class="p-4">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Official Websites</h3>
-              {websites.length > 0 ? (
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {websites.map(website => (
-                    <div class="border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                      <div class="p-4">
-                        <div class="flex justify-between items-start">
-                          <h3 class="font-medium text-gray-900">{website.domain}</h3>
-                          <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
-                            {website.category}
-                          </span>
-                        </div>
-                        <div class="mt-2 flex justify-between items-center">
-                          <a href={`/websites/${website.slug}`} class="text-sm font-medium text-blue-600 hover:text-blue-800">
-                            View details
-                          </a>
-                          <a href={`https://${website.domain}`} target="_blank" rel="noopener noreferrer" class="text-sm text-gray-500 hover:text-gray-700">
-                            Visit site →
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div class="text-center py-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                  </svg>
-                  <h3 class="mt-2 text-lg font-medium text-gray-900">No official websites found</h3>
-                  <p class="mt-1 text-gray-500">No official websites found for this product.</p>
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-        
-        <!-- Regulatory Tab -->
-        <div id="product-tab-content-regulatory" role="tabpanel" aria-labelledby="tab-regulatory" class="space-y-6 hidden">
-          <Card>
-            <div class="p-4">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Regulatory Information</h3>
-              {product.approvals && product.approvals.length > 0 ? (
-                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                  <table class="min-w-full divide-y divide-gray-300">
-                    <thead class="bg-gray-50">
-                      <tr>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Region</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Agency</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Date</th>
-                        <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Indication</th>
-                      </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200 bg-white">
-                      {product.approvals.map(approval => (
-                        <tr>
-                          <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{approval.region}</td>
-                          <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{approval.agency}</td>
-                          <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              {approval.status}
-                            </span>
-                          </td>
-                          <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{formatDate(approval.date)}</td>
-                          <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{approval.indication}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div class="text-center py-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                  <h3 class="mt-2 text-lg font-medium text-gray-900">No regulatory information</h3>
-                  <p class="mt-1 text-gray-500">No regulatory approvals or submissions found for this product.</p>
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-        
-        <!-- Development Timeline Tab -->
-        <div id="product-tab-content-timeline" role="tabpanel" aria-labelledby="tab-timeline" class="space-y-6 hidden">
-          <Card>
-            <div class="p-4">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Development Timeline</h3>
-              {/* Timeline component goes here - use placeholder for now */}
-              <div class="text-center py-6">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-                <h3 class="mt-2 text-lg font-medium text-gray-900">No development timeline</h3>
-                <p class="mt-1 text-gray-500">Development timeline information is not available for this product.</p>
+            <Card.Header>
+              <h2 class="text-xl font-semibold text-gray-900">Related Products</h2>
+            </Card.Header>
+            <Card.Body>
+              <div class="space-y-4">
+                {relatedProducts.map((relatedProduct) => (
+                  <ProductCard 
+                    product={relatedProduct}
+                    compact={true}
+                  />
+                ))}
               </div>
-            </div>
+            </Card.Body>
           </Card>
-        </div>
-        
-        <!-- Patents Tab -->
-        <div id="product-tab-content-patents" role="tabpanel" aria-labelledby="tab-patents" class="space-y-6 hidden">
-          <Card>
-            <div class="p-4">
-              <h3 class="text-lg font-medium text-gray-900 mb-4">Patent Information</h3>
-              {/* Patent information would go here - use placeholder for now */}
-              <div class="text-center py-6">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <h3 class="mt-2 text-lg font-medium text-gray-900">No patent information</h3>
-                <p class="mt-1 text-gray-500">Patent information is not available for this product.</p>
-              </div>
-            </div>
-          </Card>
-        </div>
+        )}
       </div>
     </div>
   </div>
 </DashboardLayout>
 
 <script>
-  // Handle "View more websites" link
+  // Simple tab switching logic
   document.addEventListener('DOMContentLoaded', () => {
-    const viewMoreWebsitesBtn = document.querySelector('.view-more-websites');
+    const tabs = document.querySelectorAll('[data-tab]');
+    const contents = {
+      overview: document.getElementById('overview-content'),
+      websites: document.getElementById('websites-content'),
+      regulatory: document.getElementById('regulatory-content'),
+      timeline: document.getElementById('timeline-content'),
+      patents: document.getElementById('patents-content'),
+    };
     
-    if (viewMoreWebsitesBtn) {
-      viewMoreWebsitesBtn.addEventListener('click', (e) => {
+    tabs.forEach(tab => {
+      tab.addEventListener('click', (e) => {
         e.preventDefault();
         
-        // Find tab link for websites tab and click it
-        const websitesTab = document.querySelector('[data-tab-id="websites"]');
-        if (websitesTab) {
-          websitesTab.click();
+        // Remove active class from all tabs
+        tabs.forEach(t => t.classList.remove('active-tab'));
+        
+        // Add active class to clicked tab
+        tab.classList.add('active-tab');
+        
+        // Hide all content
+        Object.values(contents).forEach(content => {
+          if (content) content.classList.add('hidden');
+        });
+        
+        // Show selected content
+        const tabId = tab.getAttribute('data-tab');
+        if (tabId && contents[tabId]) {
+          contents[tabId].classList.remove('hidden');
         }
       });
-    }
-    
-    // Additional product-specific functionality can go here
+    });
   });
 </script> 
