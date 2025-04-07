@@ -358,9 +358,9 @@ export async function getRelatedWebsites(
  * @returns Filter options for websites
  */
 export async function getWebsiteFilters(): Promise<{
-  companyOptions: { value: string; label: string }[];
-  therapeuticAreaOptions: { value: string; label: string }[];
-  websiteTypeOptions: { value: string; label: string }[];
+  companies: { id: string|number; name: string; count: number }[];
+  therapeuticAreas: { id: string|number; name: string; count: number }[];
+  websiteTypes: { id: string; name: string; count: number }[];
   sortOptions: { value: string; label: string }[];
 }> {
   try {
@@ -375,10 +375,31 @@ export async function getWebsiteFilters(): Promise<{
       throw companiesError;
     }
     
+    // Get website counts by company (for displaying counts)
+    const { data: companyWebsiteCounts, error: countError } = await supabase
+      .from('websites')
+      .select(`
+        company_id,
+        count:count(*)
+      `, { count: 'exact', head: false });
+      
+    if (countError) {
+      console.error('Error getting website counts by company:', countError);
+    }
+    
+    // Create a map of company ID to count
+    const companyCountMap = new Map<string, number>();
+    (companyWebsiteCounts || []).forEach((item: any) => {
+      if (item && item.company_id) {
+        companyCountMap.set(item.company_id, parseInt(item.count));
+      }
+    });
+    
     // Create company options for filtering
-    const companyOptions = (dbCompanies || []).map(company => ({
-      value: company.id,
-      label: company.name
+    const companies = (dbCompanies || []).map(company => ({
+      id: company.id,
+      name: company.name,
+      count: companyCountMap.get(company.id) || 0
     }));
     
     // Fetch therapeutic areas for filtering
@@ -392,23 +413,60 @@ export async function getWebsiteFilters(): Promise<{
       throw taError;
     }
     
+    // Get website counts by therapeutic area (via company_therapeutic_areas)
+    const { data: taWebsiteCounts, error: taCountError } = await supabase
+      .from('therapeutic_areas')
+      .select('id, name, company_therapeutic_areas(company_id)')
+      .order('name');
+      
+    if (taCountError) {
+      console.error('Error getting website counts by therapeutic area:', taCountError);
+    }
+    
     // Create therapeutic areas options for filtering
-    const therapeuticAreaOptions = (dbTherapeuticAreas || []).map(ta => ({
-      value: ta.id,
-      label: ta.name
-    }));
+    const therapeuticAreas = (dbTherapeuticAreas || []).map(ta => {
+      // Count for each therapeutic area estimated from associated companies
+      const taItem = taWebsiteCounts?.find(item => item.id === ta.id);
+      const count = taItem?.company_therapeutic_areas?.length || 0;
+      
+      return {
+        id: ta.id,
+        name: ta.name,
+        count: count
+      };
+    });
+    
+    // Define website types with counts
+    const { data: typeCountsData, error: typeCountsError } = await supabase
+      .from('websites')
+      .select(`
+        website_type,
+        count:count(*)
+      `, { count: 'exact', head: false });
+      
+    if (typeCountsError) {
+      console.error('Error getting website counts by type:', typeCountsError);
+    }
+    
+    // Create a map of type to count - explicitly type the items
+    const typeCountMap = new Map<string, number>();
+    (typeCountsData || []).forEach((item: any) => {
+      if (item.website_type) {
+        typeCountMap.set(item.website_type, parseInt(item.count));
+      }
+    });
     
     // Define website types for filtering
-    const websiteTypeOptions = [
-      { value: 'corporate', label: 'Corporate' },
-      { value: 'product', label: 'Product' },
-      { value: 'research', label: 'Research' },
-      { value: 'disease', label: 'Disease Awareness' },
-      { value: 'patient', label: 'Patient Support' },
-      { value: 'hcp', label: 'Healthcare Professional' },
-      { value: 'campaign', label: 'Campaign' },
-      { value: 'news', label: 'News' },
-      { value: 'other', label: 'Other' }
+    const websiteTypes = [
+      { id: 'corporate', name: 'Corporate', count: typeCountMap.get('corporate') || 0 },
+      { id: 'product', name: 'Product', count: typeCountMap.get('product') || 0 },
+      { id: 'research', name: 'Research', count: typeCountMap.get('research') || 0 },
+      { id: 'disease', name: 'Disease Awareness', count: typeCountMap.get('disease') || 0 },
+      { id: 'patient', name: 'Patient Support', count: typeCountMap.get('patient') || 0 },
+      { id: 'hcp', name: 'Healthcare Professional', count: typeCountMap.get('hcp') || 0 },
+      { id: 'campaign', name: 'Campaign', count: typeCountMap.get('campaign') || 0 },
+      { id: 'news', name: 'News', count: typeCountMap.get('news') || 0 },
+      { id: 'other', name: 'Other', count: typeCountMap.get('other') || 0 }
     ];
     
     // Define sort options
@@ -422,9 +480,9 @@ export async function getWebsiteFilters(): Promise<{
     ];
     
     return {
-      companyOptions,
-      therapeuticAreaOptions,
-      websiteTypeOptions,
+      companies,
+      therapeuticAreas,
+      websiteTypes,
       sortOptions
     };
   } catch (error) {

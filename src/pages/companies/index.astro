@@ -4,7 +4,7 @@
  * 
  * Lists all companies in the pharmaceutical directory with filtering options.
  */
-import DashboardLayout from '../../components/templates/DashboardLayout.astro';
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
 import Button from '../../components/atoms/Button.astro';
 import FilterBar from '../../components/organisms/FilterBar.astro';
@@ -14,12 +14,15 @@ import SortSelect from '../../components/molecules/SortSelect.astro';
 import ViewToggle from '../../components/molecules/ViewToggle.astro';
 import CompanyCard from '../../components/molecules/CompanyCard.astro';
 import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
+import Pagination from '../../components/molecules/Pagination.astro';
 
-// Import Supabase client directly
-import { supabase } from '../../lib/supabase';
-import { dbCompanyToCompany } from '../../interfaces/entities/Company';
-import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/TherapeuticArea';
-import type { Company, TherapeuticArea } from '../../interfaces/entities';
+// Import utility functions instead of direct Supabase access
+import { getCompanies, getCompanyFilters } from '../../lib/utils/companyUtils';
+import { updateUrlParams, getPaginationParams } from '../../lib/utils/urlUtils';
+import type { Company } from '../../interfaces/entities';
+
+// Set prerender to false for dynamic content
+export const prerender = false;
 
 // Get URL query parameters for filtering and sorting
 const url = new URL(Astro.request.url);
@@ -29,173 +32,55 @@ const params = url.searchParams;
 const sortParam = params.get('sort') || 'name_asc';
 const viewMode = params.get('view') || 'grid';
 const search = params.get('search') || '';
-const selectedRegions = params.get('regions')?.split(',') || [];
-const selectedTAs = params.get('tas')?.split(',') || [];
+const selectedRegions = params.get('regions')?.split(',').filter(Boolean) || [];
+const selectedTAs = params.get('tas')?.split(',').filter(Boolean) || [];
 const minMarketCap = params.get('minMarketCap') ? parseInt(params.get('minMarketCap')) : 0;
 const maxMarketCap = params.get('maxMarketCap') ? parseInt(params.get('maxMarketCap')) : 2000;
 
-// Parse sort parameter
+// Get pagination parameters
+const { page, limit, offset } = getPaginationParams(params);
+
+// Parse sort parameter into sortBy and sortDirection
 const [sortField, sortDirection] = sortParam.split('_');
 
-// Build Supabase query with filtering and sorting
-let query = supabase.from('companies').select('*');
-
-// Apply search filter if provided
-if (search) {
-  query = query.ilike('name', `%${search}%`);
-}
-
-// Apply region filter if provided
-if (selectedRegions.length > 0) {
-  query = query.in('headquarters', selectedRegions);
-}
-
-// Apply market cap filter - note: market_cap is stored in billions in database
-if (minMarketCap > 0) {
-  query = query.gte('market_cap', minMarketCap);
-}
-if (maxMarketCap < 2000) { // Only apply max if it's less than the default max
-  query = query.lte('market_cap', maxMarketCap);
-}
-
-// Apply sorting
-if (sortField === 'name') {
-  query = query.order('name', { ascending: sortDirection === 'asc' });
-} else if (sortField === 'marketCap') {
-  query = query.order('market_cap', { ascending: sortDirection === 'asc' });
-} else if (sortField === 'founded') {
-  query = query.order('founded', { ascending: sortDirection === 'asc' });
-}
-
-// Execute the query
-const { data: dbCompanies, error } = await query;
-
-// Handle potential errors
-if (error) {
-  console.error('Error fetching companies:', error);
-}
-
-// Convert database records to application entities
-const companies = (dbCompanies || []).map(dbCompanyToCompany);
-
-// Fetch therapeutic areas for filtering
-const { data: therapeuticAreasData, error: taError } = await supabase
-  .from('therapeutic_areas')
-  .select('*')
-  .order('name');
-
-if (taError) {
-  console.error('Error fetching therapeutic areas:', taError);
-}
-
-// Create therapeutic areas options for filtering
-const therapeuticAreas = (therapeuticAreasData || []).map(area => ({
-  value: area.id,
-  label: area.name
-}));
-
-// Filter companies by therapeutic areas (need to do this separately due to relation tables)
-let filteredCompanies = companies;
-if (selectedTAs.length > 0) {
-  // Fetch company-therapeutic area relations
-  const { data: companyTAs, error: ctaError } = await supabase
-    .from('company_therapeutic_areas')
-    .select('company_id, therapeutic_area_id')
-    .in('therapeutic_area_id', selectedTAs);
-    
-  if (ctaError) {
-    console.error('Error fetching company-therapeutic area relations:', ctaError);
-  }
-  
-  // Get unique company IDs that have the selected therapeutic areas
-  const companyIds = [...new Set((companyTAs || []).map(cta => cta.company_id))];
-  
-  // Filter companies by those IDs
-  filteredCompanies = companies.filter(company => companyIds.includes(company.id));
-}
-
-// Get therapeutic area names for each company
-const companyTaNames = new Map<string, string[]>();
-
-// Fetch all company-therapeutic area relations
-const { data: allCompanyTAs, error: allCtaError } = await supabase
-  .from('company_therapeutic_areas')
-  .select('company_id, therapeutic_area_id');
-  
-if (allCtaError) {
-  console.error('Error fetching all company-therapeutic area relations:', allCtaError);
-}
-
-// Group by company
-const companyTaMap = new Map<string, string[]>();
-(allCompanyTAs || []).forEach(cta => {
-  const taIds = companyTaMap.get(cta.company_id) || [];
-  companyTaMap.set(cta.company_id, [...taIds, cta.therapeutic_area_id]);
+// Fetch companies and filter options using utility functions
+const { companies, total: totalCount } = await getCompanies({
+  search,
+  regions: selectedRegions,
+  therapeuticAreaIds: selectedTAs,
+  minMarketCap,
+  maxMarketCap,
+  sortBy: sortField,
+  sortDirection: sortDirection as 'asc' | 'desc',
+  limit,
+  offset
 });
 
-// Get therapeutic area names
-const taNameMap = new Map<string, string>();
-therapeuticAreasData?.forEach(ta => {
-  taNameMap.set(ta.id, ta.name);
-});
+// Get filter options (regions, therapeutic areas, sort options)
+const filterOptions = await getCompanyFilters();
 
-// Create the final map of company ID to therapeutic area names
-filteredCompanies.forEach(company => {
-  const taIds = companyTaMap.get(company.id) || [];
-  const taNames = taIds.map(id => taNameMap.get(id)).filter(Boolean) as string[];
-  companyTaNames.set(company.id, taNames);
-});
+// Calculate pagination details
+const totalPages = Math.ceil(totalCount / limit);
 
-// Define regions for filtering
-const regions = [
-  { value: 'north-america', label: 'North America' },
-  { value: 'europe', label: 'Europe' },
-  { value: 'asia', label: 'Asia' },
-  { value: 'united-states', label: 'United States' },
-  { value: 'switzerland', label: 'Switzerland' },
-  { value: 'germany', label: 'Germany' },
-  { value: 'japan', label: 'Japan' },
-  { value: 'united-kingdom', label: 'United Kingdom' },
-  { value: 'france', label: 'France' },
-  { value: 'china', label: 'China' },
-  { value: 'other', label: 'Other' }
+// Generate breadcrumbs for navigation
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Companies', href: '/companies', isActive: true },
 ];
 
-// Define sort options
-const sortOptions = [
-  { value: 'name_asc', label: 'Name (A to Z)' },
-  { value: 'name_desc', label: 'Name (Z to A)' },
-  { value: 'marketCap_desc', label: 'Market Cap (High to Low)' },
-  { value: 'marketCap_asc', label: 'Market Cap (Low to High)' },
-  { value: 'founded_desc', label: 'Founded (Newest First)' },
-  { value: 'founded_asc', label: 'Founded (Oldest First)' }
-];
-
-// Helper function to build URLs with updated parameters
-const updateUrlParams = (updates: Record<string, string | string[] | null>) => {
-  const newUrl = new URL(Astro.request.url);
-  
-  Object.entries(updates).forEach(([key, value]) => {
-    if (value === null) {
-      newUrl.searchParams.delete(key);
-    } else if (Array.isArray(value)) {
-      if (value.length) {
-        newUrl.searchParams.set(key, value.join(','));
-      } else {
-        newUrl.searchParams.delete(key);
-      }
-    } else {
-      newUrl.searchParams.set(key, value);
-    }
-  });
-  
-  return newUrl.pathname + newUrl.search;
-};
+// Set page metadata
+const title = "Pharmaceutical Companies | Top Pharma";
+const description = "Browse and discover pharmaceutical companies in our database";
 ---
 
-<DashboardLayout title="Pharmaceutical Companies">
+<DashboardLayout 
+  title={title}
+  description={description}
+  currentPath="/companies"
+  breadcrumbs={breadcrumbs}
+>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Added visual header that connects to detail page design -->
+    <!-- Visual header -->
     <div class="mb-6 overflow-hidden">
       <div class="flex border border-gray-100 rounded-lg shadow-sm overflow-hidden">
         <div class="w-3 bg-gradient-to-b from-blue-600 to-blue-700"></div>
@@ -239,13 +124,13 @@ const updateUrlParams = (updates: Record<string, string | string[] | null>) => {
                     { value: 'list', label: 'List', icon: 'list' }
                   ]}
                   activeOption={viewMode}
-                  onChange={(value) => updateUrlParams({ view: value })}
+                  onChange={(value) => updateUrlParams({ view: value }, url)}
                 />
                 
                 <SortSelect 
-                  options={sortOptions}
+                  options={filterOptions.sortOptions}
                   selected={sortParam}
-                  onChange={(value) => updateUrlParams({ sort: value })}
+                  onChange={(value) => updateUrlParams({ sort: value }, url)}
                 />
               </div>
             </div>
@@ -258,7 +143,7 @@ const updateUrlParams = (updates: Record<string, string | string[] | null>) => {
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Regions</label>
                   <MultiSelect
-                    options={regions}
+                    options={filterOptions.regions}
                     selected={selectedRegions}
                     name="regions"
                     onChange={(values) => {
@@ -272,7 +157,7 @@ const updateUrlParams = (updates: Record<string, string | string[] | null>) => {
                 <div>
                   <label class="block text-sm font-medium text-gray-700 mb-1">Therapeutic Areas</label>
                   <MultiSelect
-                    options={therapeuticAreas}
+                    options={filterOptions.therapeuticAreas}
                     selected={selectedTAs}
                     name="tas"
                     onChange={(values) => {
@@ -320,6 +205,7 @@ const updateUrlParams = (updates: Record<string, string | string[] | null>) => {
             <!-- Maintain view and sort in form submission -->
             <input type="hidden" name="view" value={viewMode} />
             <input type="hidden" name="sort" value={sortParam} />
+            <input type="hidden" name="page" value="1" /> <!-- Reset to page 1 when filtering -->
           </form>
         </div>
       </Card>
@@ -328,12 +214,12 @@ const updateUrlParams = (updates: Record<string, string | string[] | null>) => {
     <!-- Results Count -->
     <div class="mb-4">
       <p class="text-sm text-gray-600">
-        Showing <span class="font-medium">{filteredCompanies.length}</span> companies
+        Showing <span class="font-medium">{companies.length > 0 ? (page - 1) * limit + 1 : 0} - {Math.min(page * limit, totalCount)}</span> of <span class="font-medium">{totalCount}</span> companies
       </p>
     </div>
     
     <!-- Companies Results -->
-    {filteredCompanies.length === 0 ? (
+    {companies.length === 0 ? (
       <Card>
         <div class="p-8 text-center">
           <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -353,9 +239,24 @@ const updateUrlParams = (updates: Record<string, string | string[] | null>) => {
       </Card>
     ) : (
       <div class={`grid gap-4 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
-        {filteredCompanies.map(company => (
+        {companies.map((company: Company) => (
           <CompanyCard company={company} />
         ))}
+      </div>
+    )}
+    
+    <!-- Pagination -->
+    {totalPages > 1 && (
+      <div class="flex justify-center mt-8">
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          getPageUrl={(pageNum) => {
+            const updatedUrl = new URL(Astro.url);
+            updatedUrl.searchParams.set('page', pageNum.toString());
+            return updatedUrl.pathname + updatedUrl.search;
+          }}
+        />
       </div>
     )}
     
@@ -367,9 +268,9 @@ const updateUrlParams = (updates: Record<string, string | string[] | null>) => {
 </DashboardLayout>
 
 <script>
-  // Client-side enhancement for form submission
+  // Client-side enhancements
   document.addEventListener('DOMContentLoaded', () => {
-    // No JavaScript needed for basic functionality
-    // Form submits naturally via GET method
+    // Form is already functional with native browser behavior
+    // Additional JS enhancements could be added here if needed
   });
 </script> 

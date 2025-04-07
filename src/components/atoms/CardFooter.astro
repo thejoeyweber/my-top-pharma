@@ -1,0 +1,13 @@
+---
+// src/components/atoms/CardFooter.astro
+import type { HTMLAttributes } from 'astro/types';
+
+interface Props extends HTMLAttributes<'div'> {
+  // Add any specific footer props if needed in the future
+}
+
+const { ...attrs } = Astro.props;
+---
+<div class:list={["px-4 py-4 sm:px-6 border-t border-gray-200 bg-gray-50", attrs.class]} {...attrs}>
+  <slot />
+</div> 

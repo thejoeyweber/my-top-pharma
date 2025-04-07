@@ -7,6 +7,7 @@
  */
 
 import type { Database } from '../../types/database';
+import type { TherapeuticArea } from './TherapeuticArea';
 
 // Database types for reference
 export type DbProduct = Database['public']['Tables']['products']['Row'];
@@ -117,145 +118,125 @@ export interface ProductPatent {
 }
 
 /**
- * Main Product interface representing a pharmaceutical product
+ * Product interface
+ * Represents a pharmaceutical product in the database
  */
 export interface Product {
-  /**
-   * Unique identifier for the product
-   */
   id: string;
-  
-  /**
-   * Commercial or brand name of the product
-   */
   name: string;
-  
-  /**
-   * URL-friendly version of the name
-   */
   slug: string;
-  
-  /**
-   * Non-proprietary or scientific name
-   */
-  genericName?: string;
-  
-  /**
-   * ID of the company that owns/markets the product
-   */
-  companyId: string;
-  
-  /**
-   * Product description
-   */
-  description?: string;
-  
-  /**
-   * Current development or market stage
-   */
-  stage?: string;
-  
-  /**
-   * Current status (approved, pending, etc.)
-   */
-  status?: string;
-  
-  /**
-   * Year of product release/approval
-   */
-  year?: number;
-  
-  /**
-   * IDs of therapeutic areas associated with this product
-   */
-  therapeuticAreas?: string[];
-  
-  /**
-   * Medical conditions the product is used to treat
-   */
-  indications?: string[];
-  
-  /**
-   * Type of molecule (small molecule, biologic, etc.)
-   */
-  moleculeType?: string;
-  
-  /**
-   * Key development and approval milestones
-   */
-  timeline?: ProductTimeline[];
-  
-  /**
-   * Regulatory approvals for the product
-   */
-  approvals?: ProductApproval[];
-  
-  /**
-   * URL to product image
-   */
-  imageUrl?: string;
-  
-  /**
-   * URL to product website
-   */
-  website?: string;
-  
-  /**
-   * Patents associated with the product
-   */
-  patents?: ProductPatent[];
-  
-  /**
-   * Creation timestamp
-   */
-  createdAt?: string;
-  
-  /**
-   * Last update timestamp
-   */
-  updatedAt?: string;
+  genericName: string | null;
+  companyId: string | null;
+  companyName?: string; // Derived field
+  companySlug?: string; // Derived field
+  description: string | null;
+  stage: string | null;
+  status: string | null;
+  year: number | null;
+  moleculeType: string | null;
+  imageUrl: string | null;
+  website: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  therapeuticAreas?: string[]; // Derived field from join table
 }
 
 /**
- * Converts a database product record to the application Product model
+ * Database Product interface
+ * Maps directly to the products table schema
  */
-export function dbProductToProduct(dbProduct: DbProduct): Product {
+export interface DBProduct {
+  id: string;
+  name: string;
+  slug: string;
+  generic_name: string | null;
+  company_id: string | null;
+  description: string | null;
+  stage: string | null;
+  status: string | null;
+  year: number | null;
+  molecule_type: string | null;
+  image_url: string | null;
+  website: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  companies?: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
+}
+
+/**
+ * Product filter interface
+ * Defines filtering and sorting options for product queries
+ */
+export interface ProductFilter {
+  search?: string;
+  stage?: string;
+  therapeuticAreaId?: string;
+  companyId?: string;
+  moleculeType?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+}
+
+/**
+ * Product list response interface
+ * For paginated product queries
+ */
+export interface ProductListResponse {
+  products: Product[];
+  total: number;
+}
+
+/**
+ * Converts a database product record to a Product object
+ * @param dbProduct The database product record
+ * @returns A Product object
+ */
+export function dbProductToProduct(dbProduct: DBProduct): Product {
   return {
     id: dbProduct.id,
     name: dbProduct.name,
-    genericName: dbProduct.generic_name || undefined,
-    companyId: dbProduct.company_id,
-    description: dbProduct.description || undefined,
-    status: dbProduct.status || undefined,
-    stage: dbProduct.stage || undefined,
-    year: dbProduct.year ? Number(dbProduct.year) : undefined,
-    moleculeType: dbProduct.molecule_type || undefined,
-    imageUrl: dbProduct.image_url || undefined,
-    website: dbProduct.website || undefined,
-    createdAt: dbProduct.created_at || undefined,
-    updatedAt: dbProduct.updated_at || undefined,
     slug: dbProduct.slug,
-    therapeuticAreas: [], // This will be populated separately by joining with product_therapeutic_areas
-    indications: [], // This will be populated separately by joining with product_indications
+    genericName: dbProduct.generic_name,
+    companyId: dbProduct.company_id,
+    companyName: dbProduct.companies?.name || undefined,
+    companySlug: dbProduct.companies?.slug || undefined,
+    description: dbProduct.description,
+    stage: dbProduct.stage,
+    status: dbProduct.status,
+    year: dbProduct.year,
+    moleculeType: dbProduct.molecule_type,
+    imageUrl: dbProduct.image_url,
+    website: dbProduct.website,
+    createdAt: dbProduct.created_at,
+    updatedAt: dbProduct.updated_at,
+    therapeuticAreas: []
   };
 }
 
 /**
  * Converts an application Product model to a database insert record
  */
-export function productToDbProduct(product: Partial<Product>): Partial<DbProduct> {
+export function productToDbProduct(product: Partial<Product>): Partial<DBProduct> {
   return {
     id: product.id,
     name: product.name,
     generic_name: product.genericName || null,
-    company_id: product.companyId,
+    company_id: product.companyId || null,
     description: product.description || null,
     stage: product.stage || null,
     molecule_type: product.moleculeType || null,
     image_url: product.imageUrl || null,
     website: product.website || null,
+    status: product.status || null,
+    year: product.year || null,
+    slug: product.slug || '',
     // Don't set created_at or updated_at, let the database handle those
-    slug: product.slug || null,
-    // therapeuticAreas and indications are handled separately through junction tables
+    // therapeuticAreas is handled separately through the junction table
   };
 } 

@@ -6,17 +6,16 @@
  * Supports different padding sizes and hover effects.
  */
 
-interface Props {
-  padding?: 'none' | 'sm' | 'md' | 'lg';
-  hover?: boolean;
+import type { HTMLAttributes } from 'astro/types';
+
+interface Props extends HTMLAttributes<'div'> {
+  /** Optional title, rendered if provided. Useful for simple cards without a separate Header component. */
+  title?: string;
+  /** Custom classes to apply to the card container */
   class?: string;
 }
 
-const {
-  padding = 'md',
-  hover = false,
-  class: className = '',
-} = Astro.props;
+const { title, class: className, ...attrs } = Astro.props;
 
 // Padding classes
 const paddingClasses = {
@@ -27,16 +26,21 @@ const paddingClasses = {
 };
 
 // Hover classes
-const hoverClasses = hover ? 'transition-shadow hover:shadow-card-hover' : '';
+const hoverClasses = 'transition-shadow hover:shadow-card-hover';
 
 const classes = [
   'bg-white rounded-lg shadow-card',
-  paddingClasses[padding],
+  paddingClasses['md'],
   hoverClasses,
   className,
 ].join(' ');
 ---
 
-<div class={classes}>
+<div class:list={["bg-white shadow overflow-hidden rounded-lg", className]} {...attrs}>
+  {title && (
+    <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+      <h3 class="text-lg leading-6 font-medium text-gray-900">{title}</h3>
+    </div>
+  )}
   <slot />
 </div> 

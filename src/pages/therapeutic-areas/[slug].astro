@@ -12,6 +12,8 @@ import CompanyCard from '../../components/molecules/CompanyCard.astro';
 import ProductCard from '../../components/molecules/ProductCard.astro';
 import WebsiteCard from '../../components/molecules/WebsiteCard.astro';
 import Card from '../../components/atoms/Card.astro';
+import CardHeader from '../../components/atoms/CardHeader.astro';
+import CardBody from '../../components/atoms/CardBody.astro';
 
 // Import therapeutic area utilities instead of direct Supabase access
 import { 
@@ -154,19 +156,23 @@ const activeTab = Astro.url.searchParams.get('tab') || 'overview';
         <div id="ta-tab-content-overview" role="tabpanel" aria-labelledby="tab-overview" class={activeTab === 'overview' ? '' : 'hidden'}>
           <div class="space-y-6">
             <Card>
-              <div class="p-4">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Overview</h3>
+              <CardHeader>
+                <h3 class="text-lg font-medium text-gray-900">Overview</h3>
+              </CardHeader>
+              <CardBody>
                 {therapeuticArea.description ? (
                   <p class="text-gray-700">{therapeuticArea.description}</p>
                 ) : (
                   <p class="text-gray-500 italic">No detailed description available for this therapeutic area.</p>
                 )}
-              </div>
+              </CardBody>
             </Card>
             
             <Card>
-              <div class="p-4">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Summary</h3>
+              <CardHeader>
+                <h3 class="text-lg font-medium text-gray-900">Summary</h3>
+              </CardHeader>
+              <CardBody>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div class="bg-blue-50 rounded-lg p-4">
                     <div class="flex items-center">
@@ -210,14 +216,16 @@ const activeTab = Astro.url.searchParams.get('tab') || 'overview';
                     </div>
                   </div>
                 </div>
-              </div>
+              </CardBody>
             </Card>
             
             <!-- Related Therapeutic Areas -->
             {relatedAreas.length > 0 && (
               <Card>
-                <div class="p-4">
-                  <h3 class="text-lg font-medium text-gray-900 mb-4">Related Therapeutic Areas</h3>
+                <CardHeader>
+                  <h3 class="text-lg font-medium text-gray-900">Related Therapeutic Areas</h3>
+                </CardHeader>
+                <CardBody>
                   <div class="flex flex-wrap gap-2">
                     {relatedAreas.map(area => (
                       <a 
@@ -228,7 +236,7 @@ const activeTab = Astro.url.searchParams.get('tab') || 'overview';
                       </a>
                     ))}
                   </div>
-                </div>
+                </CardBody>
               </Card>
             )}
           </div>
@@ -245,10 +253,10 @@ const activeTab = Astro.url.searchParams.get('tab') || 'overview';
               </div>
             ) : (
               <Card>
-                <div class="p-8 text-center">
+                <CardBody class="text-center">
                   <h3 class="text-lg font-medium text-gray-900">No companies found</h3>
                   <p class="mt-2 text-sm text-gray-500">There are no companies associated with this therapeutic area yet.</p>
-                </div>
+                </CardBody>
               </Card>
             )}
           </div>
@@ -265,10 +273,10 @@ const activeTab = Astro.url.searchParams.get('tab') || 'overview';
               </div>
             ) : (
               <Card>
-                <div class="p-8 text-center">
+                <CardBody class="text-center">
                   <h3 class="text-lg font-medium text-gray-900">No products found</h3>
                   <p class="mt-2 text-sm text-gray-500">There are no products associated with this therapeutic area yet.</p>
-                </div>
+                </CardBody>
               </Card>
             )}
           </div>
@@ -282,22 +290,24 @@ const activeTab = Astro.url.searchParams.get('tab') || 'overview';
                 {relatedAreas.map(area => (
                   <a href={`/therapeutic-areas/${area.slug}`} class="block">
                     <Card>
-                      <div class="p-4">
+                      <CardHeader>
                         <h3 class="text-lg font-medium text-gray-900">{area.name}</h3>
+                      </CardHeader>
+                      <CardBody>
                         {area.description && (
                           <p class="mt-2 text-sm text-gray-500 line-clamp-2">{area.description}</p>
                         )}
-                      </div>
+                      </CardBody>
                     </Card>
                   </a>
                 ))}
               </div>
             ) : (
               <Card>
-                <div class="p-8 text-center">
+                <CardBody class="text-center">
                   <h3 class="text-lg font-medium text-gray-900">No related areas found</h3>
                   <p class="mt-2 text-sm text-gray-500">There are no therapeutic areas related to this one yet.</p>
-                </div>
+                </CardBody>
               </Card>
             )}
           </div>

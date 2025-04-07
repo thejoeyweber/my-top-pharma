@@ -1,0 +1,13 @@
+---
+// src/components/atoms/CardHeader.astro
+import type { HTMLAttributes } from 'astro/types';
+
+interface Props extends HTMLAttributes<'div'> {
+  // Add any specific header props if needed in the future
+}
+
+const { ...attrs } = Astro.props;
+---
+<div class:list={["px-4 py-5 sm:px-6 border-b border-gray-200", attrs.class]} {...attrs}>
+  <slot />
+</div> 

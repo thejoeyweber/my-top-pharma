@@ -1,0 +1,93 @@
+---
+/**
+ * Pagination Component
+ * 
+ * Displays pagination controls for navigating between pages of results.
+ */
+
+interface Props {
+  currentPage: number;
+  totalPages: number;
+  getPageUrl: (page: number) => string;
+}
+
+const { currentPage, totalPages, getPageUrl } = Astro.props;
+
+// Calculate range of pages to show
+const MAX_VISIBLE_PAGES = 5;
+let startPage = Math.max(1, currentPage - Math.floor(MAX_VISIBLE_PAGES / 2));
+let endPage = Math.min(totalPages, startPage + MAX_VISIBLE_PAGES - 1);
+
+// Adjust if we're near the end
+if (endPage - startPage + 1 < MAX_VISIBLE_PAGES && startPage > 1) {
+  startPage = Math.max(1, endPage - MAX_VISIBLE_PAGES + 1);
+}
+
+// Generate page numbers to display
+const pageNumbers = Array.from(
+  { length: endPage - startPage + 1 },
+  (_, i) => startPage + i
+);
+---
+
+<nav class="inline-flex items-center justify-center rounded-md shadow-sm" aria-label="Pagination">
+  <!-- Previous page link -->
+  {currentPage > 1 ? (
+    <a
+      href={getPageUrl(currentPage - 1)}
+      class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+    >
+      <span class="sr-only">Previous</span>
+      <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+      </svg>
+    </a>
+  ) : (
+    <span
+      class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400 cursor-not-allowed"
+    >
+      <span class="sr-only">Previous</span>
+      <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+      </svg>
+    </span>
+  )}
+
+  <!-- Page numbers -->
+  {pageNumbers.map(pageNum => (
+    <a
+      href={pageNum === currentPage ? '#' : getPageUrl(pageNum)}
+      aria-current={pageNum === currentPage ? 'page' : undefined}
+      class:list={[
+        'relative inline-flex items-center px-4 py-2 border text-sm font-medium',
+        pageNum === currentPage 
+          ? 'z-10 bg-primary-50 border-primary-500 text-primary-600' 
+          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+      ]}
+    >
+      {pageNum}
+    </a>
+  ))}
+
+  <!-- Next page link -->
+  {currentPage < totalPages ? (
+    <a
+      href={getPageUrl(currentPage + 1)}
+      class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+    >
+      <span class="sr-only">Next</span>
+      <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+      </svg>
+    </a>
+  ) : (
+    <span
+      class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400 cursor-not-allowed"
+    >
+      <span class="sr-only">Next</span>
+      <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+      </svg>
+    </span>
+  )}
+</nav>

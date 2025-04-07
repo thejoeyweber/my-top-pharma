@@ -2,8 +2,7 @@
 /**
  * TabGroup Component
  * 
- * A responsive tab navigation component for organizing content into tabs.
- * Includes support for active state styling and accessibility features.
+ * Accessible tab navigation following WAI-ARIA patterns.
  * 
  * @example
  * ```astro
@@ -14,14 +13,19 @@
  *     { id: 'related', label: 'Related' }
  *   ]}
  *   activeTab="overview"
+ *   tabPanelId="company-tab-content" // Prefix for panel IDs
  * />
  * 
- * <!-- Then create tab panels with matching IDs -->
- * <div id="tab-content-overview" role="tabpanel" aria-labelledby="tab-overview">
- *   Overview content goes here
+ * <!-- Tab panels must have matching IDs: `prefix-tabId` -->
+ * <div id="company-tab-content-overview" role="tabpanel" aria-labelledby="tab-overview">
+ *   Overview content...
+ * </div>
+ * <div id="company-tab-content-details" role="tabpanel" aria-labelledby="tab-details" hidden>
+ *   Details content...
  * </div>
  * ```
  */
+import type { HTMLAttributes } from 'astro/types';
 
 export interface TabItem {
   /**
@@ -44,9 +48,14 @@ export interface TabItem {
    * @default false
    */
   disabled?: boolean;
+  
+  /**
+   * Optional count to display next to the tab label
+   */
+  count?: number | null;
 }
 
-export interface TabGroupProps {
+interface Props extends HTMLAttributes<'div'> {
   /**
    * Array of tab items to display
    */
@@ -67,7 +76,7 @@ export interface TabGroupProps {
    * ID prefix for the tab panels
    * @default 'tab-content'
    */
-  tabPanelId?: string;
+  tabPanelId: string;
   
   /**
    * CSS class to apply to the container
@@ -87,28 +96,24 @@ export interface TabGroupProps {
   fullWidth?: boolean;
 }
 
-// Type alias for Props
-type Props = TabGroupProps;
-
 const { 
-  tabs, 
-  activeTab, 
-  ariaLabel = 'Content tabs', 
-  tabPanelId = 'tab-content',
-  class: className = '',
+  tabs,
+  activeTab,
+  ariaLabel = 'Content tabs',
+  tabPanelId,
+  class: className,
   useHash = true,
   fullWidth = false
 } = Astro.props;
 
-// Generate a unique ID for this tab group to avoid conflicts with multiple instances
 const tabGroupId = `tabgroup-${Math.random().toString(36).substring(2, 9)}`;
 ---
 
 <div 
-  class:list={["tab-group border-b border-gray-200", className]} 
+  class:list={["tab-group border-b border-gray-200", className]}
   data-tab-group={tabGroupId}
   data-use-hash={useHash}
-  data-tab-panel-id={tabPanelId}
+  data-tab-panel-id={tabPanelId} 
 >
   <nav 
     class:list={[
@@ -121,10 +126,12 @@ const tabGroupId = `tabgroup-${Math.random().toString(36).substring(2, 9)}`;
     {tabs.map(tab => {
       const isActive = activeTab === tab.id;
       const isDisabled = tab.disabled === true;
+      const uniqueTabId = `${tabGroupId}-tab-${tab.id}`;
+      const uniquePanelId = `${tabPanelId}-${tab.id}`;
       
       return (
         <a
-          id={`tab-${tab.id}`}
+          id={uniqueTabId}
           href={useHash ? `#${tab.id}` : `javascript:void(0)`}
           class:list={[
             "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2",
@@ -134,15 +141,24 @@ const tabGroupId = `tabgroup-${Math.random().toString(36).substring(2, 9)}`;
               : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300",
             isDisabled && "opacity-50 cursor-not-allowed pointer-events-none"
           ]}
-          aria-controls={`${tabPanelId}-${tab.id}`}
+          aria-controls={uniquePanelId}
           aria-selected={isActive ? "true" : "false"}
           aria-disabled={isDisabled ? "true" : "false"}
           role="tab"
-          tabindex={isActive ? "0" : "-1"}
+          tabindex={isActive ? 0 : -1}
           data-tab-id={tab.id}
+          data-tab-panel-id={uniquePanelId}
         >
           {tab.icon && <span class="tab-icon" set:html={tab.icon} />}
           <span class="tab-label">{tab.label}</span>
+          {typeof tab.count === 'number' && (
+            <span class:list={[
+              "ml-2 rounded-full px-2 py-0.5 text-xs font-medium",
+              isActive ? 'bg-primary-100 text-primary-600' : 'bg-gray-100 text-gray-600'
+            ]}>
+              {tab.count}
+            </span>
+          )}
         </a>
       );
     })}
@@ -150,150 +166,117 @@ const tabGroupId = `tabgroup-${Math.random().toString(36).substring(2, 9)}`;
 </div>
 
 <script>
-  // Helper function to initialize a tab group
-  function initializeTabGroup(tabGroupEl: HTMLElement) {
-    // Get configuration from data attributes
-    const tabGroupId = tabGroupEl.dataset.tabGroup;
-    const useHash = tabGroupEl.dataset.useHash === 'true';
-    const tabPanelId = tabGroupEl.dataset.tabPanelId || 'tab-content';
-    
-    // Find all tab buttons in this group
-    const tabButtons = tabGroupEl.querySelectorAll<HTMLElement>('[role="tab"]');
-    
-    // Store tab IDs for this group
-    const tabIds = Array.from(tabButtons).map(tab => tab.dataset.tabId);
-    
-    // Function to activate a tab
-    function activateTab(tabId: string) {
-      // Skip if tabId is not valid
-      if (!tabIds.includes(tabId)) return;
+  class TabGroupController {
+    tabGroupEl: HTMLElement;
+    tabPanelId: string;
+    tabButtons: NodeListOf<HTMLAnchorElement>;
+    tabPanels: NodeListOf<HTMLElement>;
+    tabIds: string[];
+    currentTabIndex: number;
+
+    constructor(tabGroupEl: HTMLElement) {
+      this.tabGroupEl = tabGroupEl;
+      this.tabPanelId = tabGroupEl.dataset.tabPanelId || 'tab-content';
+      this.tabButtons = tabGroupEl.querySelectorAll('a[role="tab"]');
+      this.tabPanels = document.querySelectorAll(`[id^="${this.tabPanelId}-"]`);
+      this.tabIds = Array.from(this.tabButtons).map(tab => tab.dataset.tabId || '');
+      this.currentTabIndex = this.tabIds.findIndex(id => this.tabButtons[this.tabIds.indexOf(id)]?.getAttribute('aria-selected') === 'true');
+      if (this.currentTabIndex === -1) this.currentTabIndex = 0;
+
+      this.addEventListeners();
+      this.initializeActiveTab();
+    }
+
+    initializeActiveTab() {
+      const hash = window.location.hash.substring(1);
+      const initialTabId = this.tabIds.includes(hash) ? hash : this.tabIds[this.currentTabIndex];
+      if (initialTabId) {
+        this.activateTab(initialTabId, false);
+      }
+    }
+
+    addEventListeners() {
+      this.tabButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (button.getAttribute('aria-disabled') === 'true') return;
+          const tabId = button.dataset.tabId;
+          if (tabId) {
+            this.activateTab(tabId);
+          }
+        });
+      });
+
+      this.tabGroupEl.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          const direction = e.key === 'ArrowLeft' ? -1 : 1;
+          let nextIndex = (this.currentTabIndex + direction + this.tabIds.length) % this.tabIds.length;
+
+          while (this.tabButtons[nextIndex]?.getAttribute('aria-disabled') === 'true') {
+            nextIndex = (nextIndex + direction + this.tabIds.length) % this.tabIds.length;
+            if (nextIndex === this.currentTabIndex) return;
+          }
+          
+          this.tabButtons[nextIndex].focus();
+          this.activateTab(this.tabIds[nextIndex]);
+        }
+      });
       
-      // Update URL hash if enabled
-      if (useHash && tabId && window.location.hash !== `#${tabId}`) {
+      window.addEventListener('hashchange', () => {
+        const hash = window.location.hash.substring(1);
+        if (this.tabIds.includes(hash)) {
+          this.activateTab(hash, false);
+        }
+      });
+    }
+
+    activateTab(tabId: string, pushState = true) {
+      if (!this.tabIds.includes(tabId)) return;
+
+      this.currentTabIndex = this.tabIds.indexOf(tabId);
+
+      if (pushState && window.location.hash !== `#${tabId}`) {
         history.pushState(null, '', `#${tabId}`);
       }
-      
-      // Update tab buttons
-      tabButtons.forEach(button => {
-        const isActive = button.dataset.tabId === tabId;
-        
-        // Update ARIA attributes
+
+      this.tabButtons.forEach((button, index) => {
+        const isActive = index === this.currentTabIndex;
         button.setAttribute('aria-selected', isActive ? 'true' : 'false');
         button.setAttribute('tabindex', isActive ? '0' : '-1');
         
-        // Update classes
+        const activeClasses = ['border-primary-500', 'text-primary-600'];
+        const inactiveClasses = ['border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300'];
+        const countActiveClasses = ['bg-primary-100', 'text-primary-600'];
+        const countInactiveClasses = ['bg-gray-100', 'text-gray-600'];
+
         if (isActive) {
-          button.classList.remove('border-transparent', 'text-gray-500');
-          button.classList.add('border-primary-500', 'text-primary-600');
+          button.classList.add(...activeClasses);
+          button.classList.remove(...inactiveClasses);
+          button.querySelector('.ml-2')?.classList.add(...countActiveClasses);
+          button.querySelector('.ml-2')?.classList.remove(...countInactiveClasses);
         } else {
-          button.classList.add('border-transparent', 'text-gray-500');
-          button.classList.remove('border-primary-500', 'text-primary-600');
+          button.classList.remove(...activeClasses);
+          button.classList.add(...inactiveClasses);
+          button.querySelector('.ml-2')?.classList.remove(...countActiveClasses);
+          button.querySelector('.ml-2')?.classList.add(...countInactiveClasses);
         }
       });
-      
-      // Find and update tab panels
-      const allPanels = document.querySelectorAll(`[id^="${tabPanelId}-"]`);
-      allPanels.forEach(panel => {
-        const isPanelActive = panel.id === `${tabPanelId}-${tabId}`;
-        panel.classList.toggle('hidden', !isPanelActive);
-        panel.setAttribute('aria-hidden', isPanelActive ? 'false' : 'true');
-        
-        // Dispatch a custom event when panel becomes visible
+
+      this.tabPanels.forEach(panel => {
+        const panelTabId = panel.id.replace(`${this.tabPanelId}-`, '');
+        const isPanelActive = panelTabId === tabId;
+        panel.toggleAttribute('hidden', !isPanelActive);
+        panel.setAttribute('aria-hidden', String(!isPanelActive));
+
         if (isPanelActive) {
-          panel.dispatchEvent(new CustomEvent('tab:visible'));
+          panel.dispatchEvent(new CustomEvent('tab:visible', { bubbles: true }));
         }
       });
     }
-    
-    // Add click handlers to tabs
-    tabButtons.forEach(button => {
-      button.addEventListener('click', (e) => {
-        // Don't process disabled tabs
-        if (button.getAttribute('aria-disabled') === 'true') {
-          e.preventDefault();
-          return;
-        }
-        
-        const tabId = button.dataset.tabId;
-        if (tabId) {
-          e.preventDefault();
-          activateTab(tabId);
-        }
-      });
-    });
-    
-    // Handle keyboard navigation
-    tabGroupEl.addEventListener('keydown', (e) => {
-      // Only handle arrow keys
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-      
-      const activeTab = tabGroupEl.querySelector<HTMLElement>('[aria-selected="true"]');
-      if (!activeTab) return;
-      
-      const currentIndex = tabIds.indexOf(activeTab.dataset.tabId || '');
-      if (currentIndex === -1) return;
-      
-      let newIndex;
-      if (e.key === 'ArrowLeft') {
-        // Move left, wrap around to end
-        newIndex = currentIndex === 0 ? tabIds.length - 1 : currentIndex - 1;
-      } else {
-        // Move right, wrap around to beginning
-        newIndex = currentIndex === tabIds.length - 1 ? 0 : currentIndex + 1;
-      }
-      
-      // Skip disabled tabs
-      const newButton = tabGroupEl.querySelector<HTMLElement>(`[data-tab-id="${tabIds[newIndex]}"]`);
-      if (newButton?.getAttribute('aria-disabled') === 'true') return;
-      
-      // Activate the new tab and focus it
-      activateTab(tabIds[newIndex]);
-      newButton?.focus();
-    });
-    
-    // Set initial active tab based on URL hash if enabled
-    if (useHash && window.location.hash) {
-      const hashTabId = window.location.hash.replace('#', '');
-      if (tabIds.includes(hashTabId)) {
-        activateTab(hashTabId);
-        return; // Exit early, no need to set default
-      }
-    }
-    
-    // Otherwise activate the first available tab
-    const firstTabId = tabIds[0];
-    if (firstTabId) {
-      activateTab(firstTabId);
-    }
   }
-  
-  // Initialize all tab groups when the DOM is ready
-  function initializeAllTabGroups() {
-    document.querySelectorAll<HTMLElement>('.tab-group[data-tab-group]').forEach(tabGroup => {
-      initializeTabGroup(tabGroup);
-    });
-  }
-  
-  // Run on page load
-  document.addEventListener('DOMContentLoaded', initializeAllTabGroups);
-  
-  // Run after page transitions in Astro
-  document.addEventListener('astro:page-load', initializeAllTabGroups);
-  
-  // Handle hash changes to update tabs
-  window.addEventListener('hashchange', () => {
-    const hash = window.location.hash.replace('#', '');
-    if (!hash) return;
-    
-    document.querySelectorAll<HTMLElement>('.tab-group[data-tab-group][data-use-hash="true"]').forEach(tabGroup => {
-      const tabIds = Array.from(tabGroup.querySelectorAll('[role="tab"]')).map(tab => 
-        (tab as HTMLElement).dataset.tabId
-      );
-      
-      if (tabIds.includes(hash)) {
-        const activeTab = tabGroup.querySelector<HTMLElement>(`[data-tab-id="${hash}"]`);
-        activeTab?.click();
-      }
-    });
+
+  document.querySelectorAll<HTMLElement>('.tab-group[data-tab-group]').forEach(tabGroupEl => {
+    new TabGroupController(tabGroupEl);
   });
 </script> 

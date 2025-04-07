@@ -23,63 +23,53 @@ import { supabase } from '../../lib/supabase';
 function setupMocks() {
   // Get the mocked functions
   const mockFrom = vi.mocked(supabase.from);
-  const mockSelect = vi.fn();
-  const mockIlike = vi.fn();
-  const mockEq = vi.fn();
-  const mockOrder = vi.fn();
-  const mockLimit = vi.fn();
-  const mockRange = vi.fn();
-  const mockSingle = vi.fn();
-  const mockIn = vi.fn();
   
-  // Reset them
+  // Create a chainable mock with default implementations
+  const createChainableMock = () => {
+    // Define a mock response that can be returned by any method
+    const mockResponse = {
+      then: vi.fn()
+    };
+    
+    // Create the chainable mock object with all methods returning itself
+    const chainableMock = {
+      select: vi.fn(() => chainableMock),
+      eq: vi.fn(() => chainableMock),
+      ilike: vi.fn(() => chainableMock),
+      in: vi.fn(() => chainableMock),
+      not: vi.fn(() => chainableMock),
+      is: vi.fn(() => chainableMock),
+      neq: vi.fn(() => chainableMock),
+      gt: vi.fn(() => chainableMock),
+      lt: vi.fn(() => chainableMock),
+      gte: vi.fn(() => chainableMock),
+      lte: vi.fn(() => chainableMock),
+      or: vi.fn(() => chainableMock),
+      order: vi.fn(() => chainableMock),
+      range: vi.fn(() => chainableMock),
+      limit: vi.fn(() => chainableMock),
+      single: vi.fn(() => chainableMock),
+      count: vi.fn(() => chainableMock),
+      then: vi.fn((callback) => callback({
+        data: [],
+        count: 0,
+        error: null
+      }))
+    };
+    
+    return chainableMock;
+  };
+  
+  // Reset mocks
   mockFrom.mockReset();
   
   // Set up the chain
-  mockFrom.mockReturnValue({ select: mockSelect } as any);
-  mockSelect.mockReturnValue({
-    eq: mockEq,
-    ilike: mockIlike,
-    order: mockOrder,
-    limit: mockLimit,
-    in: mockIn,
-    single: mockSingle
-  } as any);
-  
-  mockIlike.mockReturnValue({
-    order: mockOrder,
-    limit: mockLimit
-  } as any);
-  
-  mockEq.mockReturnValue({
-    select: mockSelect,
-    single: mockSingle
-  } as any);
-  
-  mockOrder.mockReturnValue({
-    limit: mockLimit
-  } as any);
-  
-  mockLimit.mockReturnValue({
-    range: mockRange
-  } as any);
-  
-  mockRange.mockReturnValue({} as any);
-  mockSingle.mockReturnValue({} as any);
-  mockIn.mockReturnValue({
-    select: mockSelect
-  } as any);
+  const chainableMock = createChainableMock();
+  mockFrom.mockReturnValue(chainableMock);
   
   return {
     mockFrom,
-    mockSelect,
-    mockIlike,
-    mockEq,
-    mockOrder,
-    mockLimit,
-    mockRange,
-    mockSingle,
-    mockIn
+    chainableMock
   };
 }
 
@@ -118,61 +108,62 @@ describe('companyUtils', () => {
   
   describe('getCompanies', () => {
     it('should fetch all companies with no options', async () => {
-      // Setup mock response
-      mocks.mockSelect.mockImplementationOnce(() => {
-        return {
-          then: (callback: Function) => callback({
-            data: mockCompanies,
-            error: null
-          })
-        };
-      });
+      // Set up mock response for the count query
+      mocks.chainableMock.select.mockImplementationOnce(() => mocks.chainableMock);
+      
+      // Set up mock response for the main query
+      mocks.chainableMock.then.mockImplementationOnce((callback) => callback({
+        data: mockCompanies,
+        count: mockCompanies.length,
+        error: null
+      }));
       
       const result = await getCompanies();
       
       // Verify the correct Supabase calls were made
       expect(mocks.mockFrom).toHaveBeenCalledWith('companies');
-      expect(mocks.mockSelect).toHaveBeenCalledWith('*');
+      expect(mocks.chainableMock.select).toHaveBeenCalled();
       
       // Verify the result contains mapped companies
-      expect(result).toHaveLength(2);
-      expect(result[0].name).toBe('Acme Pharma');
-      expect(result[1].name).toBe('Bio Solutions');
+      expect(result.companies).toHaveLength(2);
+      expect(result.companies[0].name).toBe('Acme Pharma');
+      expect(result.companies[1].name).toBe('Bio Solutions');
     });
     
     it('should apply text filtering correctly', async () => {
-      // Setup mock response with filtered data
-      mocks.mockIlike.mockImplementationOnce(() => {
-        return {
-          then: (callback: Function) => callback({
-            data: [mockCompanies[1]],  // Only Bio Solutions matches the filter
-            error: null
-          })
-        };
-      });
+      // Setup mock responses
+      mocks.chainableMock.select.mockImplementationOnce(() => mocks.chainableMock);
+      mocks.chainableMock.ilike.mockImplementationOnce(() => mocks.chainableMock);
       
-      const result = await getCompanies({ filterText: 'bio' });
+      // Setup mock response for the main query
+      mocks.chainableMock.then.mockImplementationOnce((callback) => callback({
+        data: [mockCompanies[1]],  // Only Bio Solutions matches the filter
+        count: 1,
+        error: null
+      }));
+      
+      const result = await getCompanies({ search: 'bio' });
       
       // Verify the correct filtering was applied
       expect(mocks.mockFrom).toHaveBeenCalledWith('companies');
-      expect(mocks.mockSelect).toHaveBeenCalledWith('*');
-      expect(mocks.mockIlike).toHaveBeenCalledWith('name', '%bio%');
+      expect(mocks.chainableMock.ilike).toHaveBeenCalled();
       
       // Verify the filtered result
-      expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Bio Solutions');
+      expect(result.companies).toHaveLength(1);
+      expect(result.companies[0].name).toBe('Bio Solutions');
     });
     
     it('should apply sorting correctly', async () => {
-      // Setup mock response
-      mocks.mockOrder.mockImplementationOnce(() => {
-        return {
-          then: (callback: Function) => callback({
-            data: [...mockCompanies].reverse(), // Reversed for desc sort
-            error: null
-          })
-        };
-      });
+      // Setup mock responses
+      mocks.chainableMock.select.mockImplementationOnce(() => mocks.chainableMock);
+      mocks.chainableMock.order.mockImplementationOnce(() => mocks.chainableMock);
+      
+      // Setup mock response for the main query with reversed data (for descending sort)
+      mocks.chainableMock.then.mockImplementationOnce((callback) => callback({
+        data: [...mockCompanies].reverse(), // Reversed for desc sort
+        count: mockCompanies.length,
+        error: null
+      }));
       
       const result = await getCompanies({ 
         sortBy: 'name', 
@@ -181,52 +172,47 @@ describe('companyUtils', () => {
       
       // Verify sorting was applied
       expect(mocks.mockFrom).toHaveBeenCalledWith('companies');
-      expect(mocks.mockSelect).toHaveBeenCalledWith('*');
-      expect(mocks.mockOrder).toHaveBeenCalledWith('name', { ascending: false });
+      expect(mocks.chainableMock.order).toHaveBeenCalled();
       
       // Verify the sorted result
-      expect(result).toHaveLength(2);
-      expect(result[0].name).toBe('Bio Solutions');
-      expect(result[1].name).toBe('Acme Pharma');
+      expect(result.companies).toHaveLength(2);
+      expect(result.companies[0].name).toBe('Bio Solutions');
+      expect(result.companies[1].name).toBe('Acme Pharma');
     });
     
     it('should handle errors properly', async () => {
       // Setup mock to throw an error
-      mocks.mockSelect.mockImplementationOnce(() => {
-        return {
-          then: (_: Function, reject: Function) => reject(
-            new Error('Database error')
-          )
-        };
+      mocks.chainableMock.select.mockImplementationOnce(() => mocks.chainableMock);
+      mocks.chainableMock.then.mockImplementationOnce(() => {
+        throw new Error('Database error');
       });
       
       // Verify that the error is thrown
       await expect(getCompanies()).rejects.toThrow('Database error');
       
       expect(mocks.mockFrom).toHaveBeenCalledWith('companies');
-      expect(mocks.mockSelect).toHaveBeenCalledWith('*');
+      expect(mocks.chainableMock.select).toHaveBeenCalled();
     });
   });
   
   describe('getCompanyBySlug', () => {
     it('should fetch a single company by slug', async () => {
+      // Setup mock responses
+      mocks.chainableMock.eq.mockReturnValueOnce(mocks.chainableMock);
+      mocks.chainableMock.single.mockReturnValueOnce(mocks.chainableMock);
+      
       // Setup mock response
-      mocks.mockSingle.mockImplementationOnce(() => {
-        return {
-          then: (callback: Function) => callback({
-            data: mockCompanies[0],
-            error: null
-          })
-        };
-      });
+      mocks.chainableMock.then.mockImplementationOnce((callback) => callback({
+        data: mockCompanies[0],
+        error: null
+      }));
       
       const result = await getCompanyBySlug('acme-pharma');
       
       // Verify correct query was made
       expect(mocks.mockFrom).toHaveBeenCalledWith('companies');
-      expect(mocks.mockSelect).toHaveBeenCalledWith('*');
-      expect(mocks.mockEq).toHaveBeenCalledWith('slug', 'acme-pharma');
-      expect(mocks.mockSingle).toHaveBeenCalled();
+      expect(mocks.chainableMock.eq).toHaveBeenCalledWith('slug', 'acme-pharma');
+      expect(mocks.chainableMock.single).toHaveBeenCalled();
       
       // Verify the result
       expect(result).not.toBeNull();
@@ -235,22 +221,21 @@ describe('companyUtils', () => {
     });
     
     it('should return null for non-existent company', async () => {
+      // Setup mock responses
+      mocks.chainableMock.eq.mockReturnValueOnce(mocks.chainableMock);
+      mocks.chainableMock.single.mockReturnValueOnce(mocks.chainableMock);
+      
       // Setup mock response for not found
-      mocks.mockSingle.mockImplementationOnce(() => {
-        return {
-          then: (callback: Function) => callback({
-            data: null,
-            error: { code: 'PGRST116', message: 'Not found' }
-          })
-        };
-      });
+      mocks.chainableMock.then.mockImplementationOnce((callback) => callback({
+        data: null,
+        error: { code: 'PGRST116', message: 'Not found' }
+      }));
       
       const result = await getCompanyBySlug('non-existent');
       
       // Verify the query
       expect(mocks.mockFrom).toHaveBeenCalledWith('companies');
-      expect(mocks.mockSelect).toHaveBeenCalledWith('*');
-      expect(mocks.mockEq).toHaveBeenCalledWith('slug', 'non-existent');
+      expect(mocks.chainableMock.eq).toHaveBeenCalledWith('slug', 'non-existent');
       
       // Verify null result
       expect(result).toBeNull();
@@ -259,15 +244,51 @@ describe('companyUtils', () => {
   
   describe('getCompanyTherapeuticAreas', () => {
     it('should fetch therapeutic areas for a company', async () => {
-      // We'll skip this test for now until we improve the mocking
-      // The challenge is mocking multiple different responses from 'select'
-      console.log("Skipping test: should fetch therapeutic areas for a company");
+      // Setup mock responses for company therapeutic areas
+      mocks.chainableMock.eq.mockReturnValueOnce(mocks.chainableMock);
+      
+      mocks.chainableMock.then.mockImplementationOnce((callback) => callback({
+        data: [{ therapeutic_area_id: 'ta1' }, { therapeutic_area_id: 'ta2' }],
+        error: null
+      }));
+      
+      // Setup mock response for therapeutic area names
+      mocks.chainableMock.in.mockReturnValueOnce(mocks.chainableMock);
+      
+      mocks.chainableMock.then.mockImplementationOnce((callback) => callback({
+        data: [{ name: 'Oncology' }, { name: 'Cardiology' }],
+        error: null
+      }));
+      
+      const result = await getCompanyTherapeuticAreas('1');
+      
+      // Verify correct queries were made
+      expect(mocks.mockFrom).toHaveBeenCalledWith('company_therapeutic_areas');
+      expect(mocks.chainableMock.eq).toHaveBeenCalledWith('company_id', '1');
+      expect(mocks.mockFrom).toHaveBeenCalledWith('therapeutic_areas');
+      expect(mocks.chainableMock.in).toHaveBeenCalledWith('id', ['ta1', 'ta2']);
+      
+      // Verify result contains therapeutic area names
+      expect(result).toEqual(['Oncology', 'Cardiology']);
     });
     
     it('should return empty array when company has no therapeutic areas', async () => {
-      // We'll skip this test for now until we improve the mocking
-      // The challenge is mocking multiple different responses from 'select'
-      console.log("Skipping test: should return empty array when company has no therapeutic areas");
+      // Setup mock response with no therapeutic areas
+      mocks.chainableMock.eq.mockReturnValueOnce(mocks.chainableMock);
+      
+      mocks.chainableMock.then.mockImplementationOnce((callback) => callback({
+        data: [],
+        error: null
+      }));
+      
+      const result = await getCompanyTherapeuticAreas('1');
+      
+      // Verify the query
+      expect(mocks.mockFrom).toHaveBeenCalledWith('company_therapeutic_areas');
+      expect(mocks.chainableMock.eq).toHaveBeenCalledWith('company_id', '1');
+      
+      // Verify empty result
+      expect(result).toEqual([]);
     });
   });
 }); 

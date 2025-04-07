@@ -72,12 +72,12 @@ export interface Company {
   /**
    * Company description or overview
    */
-  description?: string;
+  description: string;
   
   /**
    * URL to the company logo image
    */
-  logoUrl?: string;
+  logoUrl: string;
   
   /**
    * URL to the company header image (optional)
@@ -92,12 +92,12 @@ export interface Company {
   /**
    * Location of company headquarters
    */
-  headquarters?: string;
+  headquarters: string;
   
   /**
    * Year the company was founded
    */
-  founded?: string;
+  founded?: number;
   
   /**
    * Approximate number of employees
@@ -107,7 +107,7 @@ export interface Company {
   /**
    * Market capitalization in billions USD
    */
-  marketCap?: number;
+  marketCap: number;
   
   /**
    * Stock ticker symbol
@@ -157,41 +157,75 @@ export interface Company {
   /**
    * Creation timestamp
    */
-  createdAt?: string;
+  createdAt: string;
   
   /**
    * Last update timestamp
    */
-  updatedAt?: string;
+  updatedAt: string;
 }
 
 /**
- * Converts a database company record to the application Company model
+ * Interface for Company with Therapeutic Areas
  */
-export function dbCompanyToCompany(dbCompany: DbCompany): Company {
+export interface CompanyWithTAs extends Company {
+  therapeuticAreas: string[];
+}
+
+/**
+ * Options for filtering and sorting company data
+ */
+export interface CompanyFilter {
+  search?: string;
+  regions?: string[];
+  minMarketCap?: number;
+  maxMarketCap?: number;
+  therapeuticAreaIds?: string[];
+  limit?: number;
+  offset?: number;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+}
+
+/**
+ * Result type for paginated company queries
+ */
+export interface CompanyListResponse {
+  companies: Company[];
+  total: number;
+}
+
+/**
+ * Interface for Company database records
+ */
+export interface DBCompany {
+  id: string;
+  name: string;
+  slug: string | null;
+  description: string | null;
+  logo_url: string | null;
+  market_cap: number | null;
+  headquarters: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  founded: number | null;
+}
+
+/**
+ * Convert a database company record to a Company
+ */
+export function dbCompanyToCompany(dbCompany: DBCompany): Company {
   return {
     id: dbCompany.id,
     name: dbCompany.name,
-    description: dbCompany.description || undefined,
-    logoUrl: dbCompany.logo_url || undefined,
-    headerImageUrl: dbCompany.header_image_url || undefined,
-    headquarters: dbCompany.headquarters || undefined,
-    founded: dbCompany.founded ? String(dbCompany.founded) : undefined,
-    website: dbCompany.website || undefined,
-    marketCap: dbCompany.market_cap ? 
-      (typeof dbCompany.market_cap === 'string' ? 
-        parseFloat(dbCompany.market_cap) : 
-        dbCompany.market_cap) : 
-      undefined,
-    employees: dbCompany.employees || undefined,
-    tickerSymbol: dbCompany.ticker_symbol || undefined,
-    stockExchange: dbCompany.stock_exchange || undefined,
-    ownershipType: dbCompany.ownership_type || undefined,
-    parentCompanyId: dbCompany.parent_company_id || undefined,
-    createdAt: dbCompany.created_at || undefined,
-    updatedAt: dbCompany.updated_at || undefined,
     slug: dbCompany.slug || '',
-    therapeuticAreas: [], // This will be populated separately by joining with company_therapeutic_areas
+    description: dbCompany.description || '',
+    logoUrl: dbCompany.logo_url || '',
+    marketCap: dbCompany.market_cap || 0,
+    headquarters: dbCompany.headquarters || '',
+    founded: dbCompany.founded || undefined,
+    createdAt: dbCompany.created_at || '',
+    updatedAt: dbCompany.updated_at || ''
   };
 }
 

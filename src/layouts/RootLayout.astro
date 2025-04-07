@@ -1,6 +1,6 @@
 ---
 /**
- * Core Layout Component
+ * RootLayout Component
  * 
  * The foundational layout for all pages in the Top Pharma application.
  * Provides the basic HTML structure, metadata, and common components.
@@ -39,11 +39,6 @@ const pageTitle = title !== 'Top Pharma'
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
 		<meta name="description" content={description} />
-		<meta property="og:title" content={pageTitle} />
-		<meta property="og:description" content={description} />
-		<meta property="og:image" content={ogImage} />
-		<meta property="og:type" content="website" />
-		<meta name="twitter:card" content="summary_large_image" />
 		<title>{pageTitle}</title>
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -53,6 +48,11 @@ const pageTitle = title !== 'Top Pharma'
 		<slot />
 		
 		{/* Development Tools (Dev Mode Only) */}
+		{showDevTools && (
+			<div class="fixed bottom-0 right-0 bg-gray-800 text-white p-2 text-xs">
+				<p>Dev Mode</p>
+			</div>
+		)}
 	</body>
 </html>
 

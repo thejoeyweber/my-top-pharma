@@ -5,7 +5,7 @@
  * Provides a user login form with email/password fields.
  * This is a UI mockup with no actual authentication functionality.
  */
-import Layout from '../layouts/Layout.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
 import Card from '../components/atoms/Card.astro';
 import Button from '../components/atoms/Button.astro';
 
@@ -16,7 +16,7 @@ const handleLogin = () => {
 };
 ---
 
-<Layout title="Sign In | Top Pharma" description="Sign in to your Top Pharma account">
+<BaseLayout title="Sign In | Top Pharma" description="Sign in to your Top Pharma account">
   <div class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
     <div class="sm:mx-auto sm:w-full sm:max-w-md">
       <div class="text-center">
@@ -124,7 +124,7 @@ const handleLogin = () => {
       </div>
     </div>
   </div>
-</Layout>
+</BaseLayout>
 
 <script>
   // Client-side script for handling form submission

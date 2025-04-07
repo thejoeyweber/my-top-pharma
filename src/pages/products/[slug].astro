@@ -6,6 +6,9 @@
  */
 import DashboardLayout from '../../components/templates/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
+import CardHeader from '../../components/atoms/CardHeader.astro';
+import CardBody from '../../components/atoms/CardBody.astro';
+import CardFooter from '../../components/atoms/CardFooter.astro';
 import Button from '../../components/atoms/Button.astro';
 import FollowButton from '../../components/molecules/FollowButton.astro';
 import TabGroup from '../../components/molecules/TabGroup.astro';
@@ -229,10 +232,10 @@ export const prerender = false;
         <div class="space-y-6" id="overview-content">
           <!-- Description Card -->
           <Card>
-            <Card.Header>
+            <CardHeader>
               <h2 class="text-xl font-semibold text-gray-900">About {product.name}</h2>
-            </Card.Header>
-            <Card.Body>
+            </CardHeader>
+            <CardBody>
               <div class="prose max-w-none">
                 {product.description ? (
                   <p>{product.description}</p>
@@ -266,15 +269,15 @@ export const prerender = false;
                   </div>
                 </div>
               )}
-            </Card.Body>
+            </CardBody>
           </Card>
           
           <!-- Key Details Card -->
           <Card>
-            <Card.Header>
+            <CardHeader>
               <h2 class="text-xl font-semibold text-gray-900">Key Details</h2>
-            </Card.Header>
-            <Card.Body>
+            </CardHeader>
+            <CardBody>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {/* Basic Info Group */}
                 <div>
@@ -338,16 +341,16 @@ export const prerender = false;
                   </dl>
                 </div>
               </div>
-            </Card.Body>
+            </CardBody>
           </Card>
           
           <!-- Regulatory Approvals Section (hidden in overview tab) -->
           <div class="hidden" id="regulatory-content">
             <Card>
-              <Card.Header>
+              <CardHeader>
                 <h2 class="text-xl font-semibold text-gray-900">Regulatory Approvals</h2>
-              </Card.Header>
-              <Card.Body>
+              </CardHeader>
+              <CardBody>
                 {product.approvals && product.approvals.length > 0 ? (
                   <DataTable 
                     headers={['Region', 'Agency', 'Date', 'Indication', 'Status']}
@@ -362,17 +365,17 @@ export const prerender = false;
                 ) : (
                   <p class="text-gray-500 italic">No regulatory approval information available.</p>
                 )}
-              </Card.Body>
+              </CardBody>
             </Card>
           </div>
           
           <!-- Timeline Section (hidden in overview tab) -->
           <div class="hidden" id="timeline-content">
             <Card>
-              <Card.Header>
+              <CardHeader>
                 <h2 class="text-xl font-semibold text-gray-900">Development Timeline</h2>
-              </Card.Header>
-              <Card.Body>
+              </CardHeader>
+              <CardBody>
                 {product.timeline && product.timeline.length > 0 ? (
                   <Timeline 
                     events={product.timeline.map((event) => ({
@@ -384,17 +387,17 @@ export const prerender = false;
                 ) : (
                   <p class="text-gray-500 italic">No timeline information available.</p>
                 )}
-              </Card.Body>
+              </CardBody>
             </Card>
           </div>
           
           <!-- Patents Section (hidden in overview tab) -->
           <div class="hidden" id="patents-content">
             <Card>
-              <Card.Header>
+              <CardHeader>
                 <h2 class="text-xl font-semibold text-gray-900">Patents</h2>
-              </Card.Header>
-              <Card.Body>
+              </CardHeader>
+              <CardBody>
                 {product.patents && product.patents.length > 0 ? (
                   <DataTable 
                     headers={['Patent Number', 'Expiry Date', 'Description']}
@@ -407,17 +410,17 @@ export const prerender = false;
                 ) : (
                   <p class="text-gray-500 italic">No patent information available.</p>
                 )}
-              </Card.Body>
+              </CardBody>
             </Card>
           </div>
           
           <!-- Websites Section (hidden in overview tab) -->
           <div class="hidden" id="websites-content">
             <Card>
-              <Card.Header>
+              <CardHeader>
                 <h2 class="text-xl font-semibold text-gray-900">Official Websites</h2>
-              </Card.Header>
-              <Card.Body>
+              </CardHeader>
+              <CardBody>
                 {product.website ? (
                   <div>
                     <h3 class="text-lg font-medium text-gray-900 mb-3">Product Website</h3>
@@ -436,7 +439,7 @@ export const prerender = false;
                 ) : (
                   <p class="text-gray-500 italic">No official website information available.</p>
                 )}
-              </Card.Body>
+              </CardBody>
             </Card>
           </div>
         </div>
@@ -447,10 +450,10 @@ export const prerender = false;
         <!-- Related Products -->
         {relatedProducts && relatedProducts.length > 0 && (
           <Card>
-            <Card.Header>
+            <CardHeader>
               <h2 class="text-xl font-semibold text-gray-900">Related Products</h2>
-            </Card.Header>
-            <Card.Body>
+            </CardHeader>
+            <CardBody>
               <div class="space-y-4">
                 {relatedProducts.map((relatedProduct) => (
                   <ProductCard 
@@ -459,7 +462,7 @@ export const prerender = false;
                   />
                 ))}
               </div>
-            </Card.Body>
+            </CardBody>
           </Card>
         )}
       </div>

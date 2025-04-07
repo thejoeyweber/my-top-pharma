@@ -11,6 +11,8 @@ import CompanyCard from '../../components/molecules/CompanyCard.astro';
 import ProductCard from '../../components/molecules/ProductCard.astro';
 import TherapeuticAreaCard from '../../components/molecules/TherapeuticAreaCard.astro';
 import Card from '../../components/atoms/Card.astro';
+import CardHeader from '../../components/atoms/CardHeader.astro';
+import CardBody from '../../components/atoms/CardBody.astro';
 
 // Import website utilities instead of direct Supabase access
 import { 
@@ -177,8 +179,10 @@ const websiteTypeDisplay = website.websiteType ?
         <div id="website-tab-content-overview" role="tabpanel" aria-labelledby="tab-overview" class={activeTab === 'overview' ? '' : 'hidden'}>
           <div class="space-y-6">
             <Card>
-              <div class="p-4">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Website Details</h3>
+              <CardHeader>
+                <h3 class="text-lg font-medium text-gray-900">Website Details</h3>
+              </CardHeader>
+              <CardBody>
                 <div class="space-y-4">
                   {/* Website Type */}
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -204,12 +208,14 @@ const websiteTypeDisplay = website.websiteType ?
                     </div>
                   )}
                 </div>
-              </div>
+              </CardBody>
             </Card>
             
             <Card>
-              <div class="p-4">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Summary</h3>
+              <CardHeader>
+                <h3 class="text-lg font-medium text-gray-900">Summary</h3>
+              </CardHeader>
+              <CardBody>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Companies */}
                   <div class="bg-blue-50 rounded-lg p-4">
@@ -275,7 +281,7 @@ const websiteTypeDisplay = website.websiteType ?
                     </div>
                   </div>
                 </div>
-              </div>
+              </CardBody>
             </Card>
           </div>
         </div>
@@ -287,10 +293,10 @@ const websiteTypeDisplay = website.websiteType ?
               <CompanyCard company={company} />
             ) : (
               <Card>
-                <div class="p-8 text-center">
+                <CardBody class="text-center">
                   <h3 class="text-lg font-medium text-gray-900">No company found</h3>
                   <p class="mt-2 text-sm text-gray-500">This website is not associated with any company yet.</p>
-                </div>
+                </CardBody>
               </Card>
             )}
           </div>
@@ -307,10 +313,10 @@ const websiteTypeDisplay = website.websiteType ?
               </div>
             ) : (
               <Card>
-                <div class="p-8 text-center">
+                <CardBody class="text-center">
                   <h3 class="text-lg font-medium text-gray-900">No products found</h3>
                   <p class="mt-2 text-sm text-gray-500">This website is not associated with any products yet.</p>
-                </div>
+                </CardBody>
               </Card>
             )}
           </div>
@@ -327,10 +333,10 @@ const websiteTypeDisplay = website.websiteType ?
               </div>
             ) : (
               <Card>
-                <div class="p-8 text-center">
+                <CardBody class="text-center">
                   <h3 class="text-lg font-medium text-gray-900">No therapeutic areas found</h3>
                   <p class="mt-2 text-sm text-gray-500">This website is not associated with any therapeutic areas yet.</p>
-                </div>
+                </CardBody>
               </Card>
             )}
           </div>
@@ -344,25 +350,27 @@ const websiteTypeDisplay = website.websiteType ?
                 {relatedWebsites.map(relatedWebsite => (
                   <a href={`/websites/${relatedWebsite.slug}`} class="block">
                     <Card>
-                      <div class="p-4">
+                      <CardHeader>
                         <h3 class="text-base font-medium text-gray-900 truncate">{relatedWebsite.name || relatedWebsite.url}</h3>
+                      </CardHeader>
+                      <CardBody>
                         <p class="mt-1 text-sm text-gray-500 truncate">{relatedWebsite.url}</p>
                         {relatedWebsite.websiteType && (
                           <span class="mt-2 inline-block px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-800">
                             {relatedWebsite.websiteType.charAt(0).toUpperCase() + relatedWebsite.websiteType.slice(1).replace(/_/g, ' ')}
                           </span>
                         )}
-                      </div>
+                      </CardBody>
                     </Card>
                   </a>
                 ))}
               </div>
             ) : (
               <Card>
-                <div class="p-8 text-center">
+                <CardBody class="text-center">
                   <h3 class="text-lg font-medium text-gray-900">No related websites found</h3>
                   <p class="mt-2 text-sm text-gray-500">There are no websites related to this one yet.</p>
-                </div>
+                </CardBody>
               </Card>
             )}
           </div>

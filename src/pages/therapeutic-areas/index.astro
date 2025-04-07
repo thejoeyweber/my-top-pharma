@@ -1,19 +1,24 @@
 ---
 /**
- * Therapeutic Areas Index Page
+ * Therapeutic Area Index Page
  * 
- * Displays a list of all therapeutic areas with statistics (number of companies, products, websites).
+ * Displays a filterable grid of therapeutic areas.
  */
-import DashboardLayout from '../../components/templates/DashboardLayout.astro';
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
 import Button from '../../components/atoms/Button.astro';
 import SortSelect from '../../components/molecules/SortSelect.astro';
 import TherapeuticAreaCard from '../../components/molecules/TherapeuticAreaCard.astro';
 import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
+import Pagination from '../../components/molecules/Pagination.astro';
 
 // Import therapeutic area utilities instead of direct Supabase access
 import { getTherapeuticAreas, getTherapeuticAreaFilters } from '../../lib/utils/therapeuticAreaUtils';
+import { updateUrlParams, getPaginationParams } from '../../lib/utils/urlUtils';
 import type { TherapeuticArea } from '../../interfaces/entities';
+
+// Explicitly set to false for dynamic content
+export const prerender = false;
 
 // Get URL query parameters for filtering and sorting
 const url = new URL(Astro.request.url);
@@ -25,6 +30,9 @@ const search = params.get('search') || '';
 const minCompanies = params.get('minCompanies') ? parseInt(params.get('minCompanies')) : 0;
 const minProducts = params.get('minProducts') ? parseInt(params.get('minProducts')) : 0;
 
+// Get pagination parameters
+const { page, limit, offset } = getPaginationParams(params);
+
 // Parse sort parameter 
 const [sortField, sortDirection] = sortParam.split('_');
 
@@ -34,31 +42,36 @@ const { therapeuticAreas: areaStats, totalCount } = await getTherapeuticAreas({
   sortBy: sortField,
   sortDirection: sortDirection as 'asc' | 'desc', 
   minCompanies,
-  minProducts
+  minProducts,
+  limit,
+  offset
 });
+
+// Calculate pagination details
+const totalPages = Math.ceil(totalCount / limit);
 
 // Get sort options from the utility function
 const { sortOptions } = await getTherapeuticAreaFilters();
 
-// Helper function to build URLs with updated parameters
-const updateUrlParams = (updates: Record<string, string | null>) => {
-  const newUrl = new URL(Astro.request.url);
-  
-  Object.entries(updates).forEach(([key, value]) => {
-    if (value === null) {
-      newUrl.searchParams.delete(key);
-    } else {
-      newUrl.searchParams.set(key, value);
-    }
-  });
-  
-  return newUrl.pathname + newUrl.search;
-};
+// Set up breadcrumbs
+const breadcrumbs = [
+  { label: 'Home', href: '/' },
+  { label: 'Therapeutic Areas', href: '/therapeutic-areas', isActive: true }
+];
+
+// Set page metadata
+const title = "Therapeutic Areas | Top Pharma";
+const description = "Find medical and therapeutic domains across the pharmaceutical industry, browse companies, products, and websites by therapeutic area.";
 ---
 
-<DashboardLayout title="Therapeutic Areas">
+<DashboardLayout 
+  title={title}
+  description={description}
+  currentPath="/therapeutic-areas"
+  breadcrumbs={breadcrumbs}
+>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Added visual header that connects to detail page design -->
+    <!-- Visual header -->
     <div class="mb-6 overflow-hidden">
       <div class="flex border border-gray-100 rounded-lg shadow-sm overflow-hidden">
         <div class="w-3 bg-gradient-to-b from-amber-500 to-amber-600"></div>
@@ -109,7 +122,7 @@ const updateUrlParams = (updates: Record<string, string | null>) => {
                   name="search" 
                   value={search}
                   placeholder="Search therapeutic areas..."
-                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
                 />
               </div>
               
@@ -118,18 +131,20 @@ const updateUrlParams = (updates: Record<string, string | null>) => {
                 <SortSelect 
                   options={sortOptions}
                   selected={sortParam}
-                  onChange={(value) => updateUrlParams({ sort: value })}
+                  onChange={(value) => updateUrlParams({ sort: value }, url)}
                 />
               </div>
             </div>
             
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <!-- Company Count Filter -->
-              <div>
-                <label for="minCompanies" class="block text-sm font-medium text-gray-700">
-                  Minimum Companies
-                </label>
-                <div class="mt-1 flex rounded-md shadow-sm">
+            <!-- Advanced Filters (collapsible) -->
+            <details class="mt-4">
+              <summary class="cursor-pointer text-amber-600 font-medium mb-3">Advanced Filters</summary>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-md">
+                <!-- Company Count Filter -->
+                <div>
+                  <label for="minCompanies" class="block text-sm font-medium text-gray-700 mb-1">
+                    Minimum Companies
+                  </label>
                   <input
                     type="number"
                     name="minCompanies"
@@ -137,17 +152,15 @@ const updateUrlParams = (updates: Record<string, string | null>) => {
                     min="0"
                     value={minCompanies > 0 ? minCompanies : ""}
                     placeholder="0"
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm"
                   />
                 </div>
-              </div>
-              
-              <!-- Product Count Filter -->
-              <div>
-                <label for="minProducts" class="block text-sm font-medium text-gray-700">
-                  Minimum Products
-                </label>
-                <div class="mt-1 flex rounded-md shadow-sm">
+                
+                <!-- Product Count Filter -->
+                <div>
+                  <label for="minProducts" class="block text-sm font-medium text-gray-700 mb-1">
+                    Minimum Products
+                  </label>
                   <input
                     type="number"
                     name="minProducts"
@@ -155,20 +168,29 @@ const updateUrlParams = (updates: Record<string, string | null>) => {
                     min="0"
                     value={minProducts > 0 ? minProducts : ""}
                     placeholder="0"
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm"
                   />
                 </div>
               </div>
-            </div>
             
-            <div class="mt-4 flex justify-end">
-              <Button type="submit" variant="primary" size="md" name="Action" value="filter">
-                Apply Filters
-              </Button>
-              <Button type="submit" variant="secondary" size="md" name="Action" value="reset" class="ml-3">
-                Reset
-              </Button>
-            </div>
+              <!-- Filter Action Buttons -->
+              <div class="flex justify-end mt-4 space-x-2">
+                <Button type="submit" variant="primary">Apply Filters</Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    window.location.href = "/therapeutic-areas";
+                  }}
+                >
+                  Reset
+                </Button>
+              </div>
+            </details>
+            
+            <!-- Maintain sort in form submission and reset page -->
+            <input type="hidden" name="sort" value={sortParam} />
+            <input type="hidden" name="page" value="1" /> <!-- Reset to page 1 when filtering -->
           </form>
         </div>
       </Card>
@@ -177,26 +199,49 @@ const updateUrlParams = (updates: Record<string, string | null>) => {
     <!-- Results Count -->
     <div class="mb-4">
       <p class="text-sm text-gray-600">
-        Showing <span class="font-semibold">{areaStats.length}</span> of <span class="font-semibold">{totalCount}</span> therapeutic areas
+        Showing <span class="font-semibold">{areaStats.length > 0 ? (page - 1) * limit + 1 : 0} - {Math.min(page * limit, totalCount)}</span> of <span class="font-semibold">{totalCount}</span> therapeutic areas
       </p>
     </div>
     
     <!-- Therapeutic Areas Grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {areaStats.map(stats => (
-        <TherapeuticAreaCard 
-          area={stats.area || stats}  
-          companyCount={stats.companyCount} 
-          productCount={stats.productCount}
-          websiteCount={stats.websiteCount}
-        />
-      ))}
-    </div>
+    {areaStats.length > 0 ? (
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {areaStats.map(stats => (
+          <TherapeuticAreaCard 
+            area={stats.area || stats}  
+            companyCount={stats.companyCount} 
+            productCount={stats.productCount}
+            websiteCount={stats.websiteCount}
+          />
+        ))}
+      </div>
+    ) : (
+      <Card>
+        <div class="text-center py-12">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h3 class="mt-2 text-lg font-medium text-gray-900">No therapeutic areas found</h3>
+          <p class="mt-1 text-gray-500">Try adjusting your search or filter criteria.</p>
+          <div class="mt-6">
+            <Button href="/therapeutic-areas" variant="outline">Reset all filters</Button>
+          </div>
+        </div>
+      </Card>
+    )}
     
-    {areaStats.length === 0 && (
-      <div class="bg-white p-10 rounded-lg shadow-sm border border-gray-100 text-center">
-        <h3 class="text-lg font-medium text-gray-900 mb-2">No therapeutic areas found</h3>
-        <p class="text-gray-600">Try adjusting your search or filter criteria.</p>
+    <!-- Pagination -->
+    {totalPages > 1 && (
+      <div class="flex justify-center mt-8">
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          getPageUrl={(pageNum) => {
+            const updatedUrl = new URL(Astro.url);
+            updatedUrl.searchParams.set('page', pageNum.toString());
+            return updatedUrl.pathname + updatedUrl.search;
+          }}
+        />
       </div>
     )}
     
@@ -208,6 +253,6 @@ const updateUrlParams = (updates: Record<string, string | null>) => {
 </DashboardLayout>
 
 <script>
-  // No client-side JavaScript needed for basic functionality
-  // Form submits naturally via GET method
+  // All filter functionality handled by form submission
+  // No client-side JS needed for basic functionality
 </script> 

@@ -5,10 +5,13 @@
  * A flexible container for search and filter components.
  * Includes collapsible sections for filters and selected filter chips.
  */
+import type { HTMLAttributes } from 'astro/types';
 import SearchBar from '../molecules/SearchBar.astro';
 import FilterChip from '../atoms/FilterChip.astro';
 import Card from '../atoms/Card.astro';
 import Button from '../atoms/Button.astro';
+import SortSelect from '../molecules/SortSelect.astro';
+import MultiSelect from '../molecules/MultiSelect.astro';
 
 interface FilterOption {
   value: string;
@@ -25,13 +28,12 @@ interface Filter {
   step?: number;
 }
 
-interface Props {
+interface FilterBarProps extends HTMLAttributes<'div'> {
   filters: Filter[];
   selectedFilters?: {
     [key: string]: any;
   };
   showFilterButton?: boolean;
-  class?: string;
 }
 
 const {
@@ -39,6 +41,7 @@ const {
   selectedFilters = {},
   showFilterButton = true,
   class: className = "",
+  ...attrs
 } = Astro.props;
 
 // Process selected filters to create chips
@@ -98,6 +101,7 @@ Object.entries(selectedFilters).forEach(([filterId, value]) => {
               id="global-search" 
               name="q" 
               placeholder="Search companies, products, therapeutics..."
+              client:load
             />
           </div>
           
@@ -267,4 +271,8 @@ Object.entries(selectedFilters).forEach(([filterId, value]) => {
       });
     });
   });
-</script> 
+</script>
+
+<SearchBar client:load />
+<SortSelect client:load />
+<MultiSelect client:load /> 

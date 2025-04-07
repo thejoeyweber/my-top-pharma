@@ -1,9 +1,10 @@
 ---
-import BaseLayout from '../components/templates/BaseLayout.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
 import Button from '../components/atoms/Button.astro';
 import Card from '../components/atoms/Card.astro';
 import Hero from '../components/molecules/Hero.astro';
 import { formatMarketCap } from '../utils/stringUtils';
+import CompanyCard from '../components/molecules/CompanyCard.astro';
 
 // Import Supabase client directly
 import { supabase } from '../lib/supabase';
@@ -35,9 +36,6 @@ if (companiesError) {
   console.error('Error fetching featured companies:', companiesError);
 }
 
-// Convert database records to application entities
-const featuredCompanies: Company[] = (dbFeaturedCompanies || []).map(dbCompanyToCompany);
-
 // Fetch therapeutic areas for company display
 async function getCompanyTherapeuticAreas(companyId: string): Promise<string[]> {
   const { data, error } = await supabase
@@ -51,6 +49,16 @@ async function getCompanyTherapeuticAreas(companyId: string): Promise<string[]> 
   
   return data.map(item => item.therapeutic_areas?.name).filter(Boolean);
 }
+
+// Convert database records to application entities and fetch therapeutic areas
+const featuredCompanies = await Promise.all(
+  (dbFeaturedCompanies || []).map(async (dbCompany) => {
+    const company = dbCompanyToCompany(dbCompany);
+    // Fetch and attach therapeutic areas
+    company.therapeuticAreas = await getCompanyTherapeuticAreas(company.id);
+    return company;
+  })
+);
 
 // Fetch trending products from Supabase
 const { data: dbTrendingProducts, error: productsError } = await supabase
@@ -259,35 +267,10 @@ const formatNumber = (num) => {
 
       <div class="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
         {featuredCompanies.map((company) => (
-          <Card>
-            <div class="flex items-center mb-4">
-              <div class="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mr-4">
-                <span class="text-xl font-bold text-primary-600">{company.name.charAt(0)}</span>
-              </div>
-              <h3 class="text-xl font-semibold text-gray-900">{company.name}</h3>
-            </div>
-            <p class="text-gray-600 mb-4 flex-grow">{company.description}</p>
-            <div class="border-t border-gray-200 pt-4 mt-auto">
-              <dl class="grid grid-cols-2 gap-x-4 gap-y-2">
-                <dt class="text-sm font-medium text-gray-500">Headquarters</dt>
-                <dd class="text-sm text-gray-900">{company.headquarters}</dd>
-                <dt class="text-sm font-medium text-gray-500">Market Cap</dt>
-                <dd class="text-sm text-gray-900">{formatMarketCap(company.marketCap)}</dd>
-              </dl>
-              <div class="mt-4 flex flex-wrap gap-2">
-                {company.therapeuticAreas.map((area) => (
-                  <span class="inline-flex items-center rounded-full bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700">
-                    {area}
-                  </span>
-                ))}
-              </div>
-              <div class="mt-6">
-                <Button href={`/companies/${company.slug}`} variant="outline" size="sm" class="w-full">
-                  View Profile
-                </Button>
-              </div>
-            </div>
-          </Card>
+          <CompanyCard 
+            company={company} 
+            therapeuticAreaNames={company.therapeuticAreas || []}
+          />
         ))}
       </div>
 

@@ -5,12 +5,12 @@
  * Provides a user registration form with name, email, and password fields.
  * This is a UI mockup with no actual authentication functionality.
  */
-import Layout from '../layouts/Layout.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
 import Card from '../components/atoms/Card.astro';
 import Button from '../components/atoms/Button.astro';
 ---
 
-<Layout title="Create Account | Top Pharma" description="Create a new Top Pharma account">
+<BaseLayout title="Create Account | Top Pharma" description="Create a new Top Pharma account">
   <div class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
     <div class="sm:mx-auto sm:w-full sm:max-w-md">
       <div class="text-center">
@@ -130,7 +130,7 @@ import Button from '../components/atoms/Button.astro';
       </div>
     </div>
   </div>
-</Layout>
+</BaseLayout>
 
 <script>
   // Client-side script for handling form submission

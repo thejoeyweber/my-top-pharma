@@ -1,0 +1,13 @@
+---
+// src/components/atoms/CardBody.astro
+import type { HTMLAttributes } from 'astro/types';
+
+interface Props extends HTMLAttributes<'div'> {
+  // Add any specific body props if needed in the future
+}
+
+const { ...attrs } = Astro.props;
+---
+<div class:list={["px-4 py-5 sm:p-6", attrs.class]} {...attrs}>
+  <slot />
+</div> 
