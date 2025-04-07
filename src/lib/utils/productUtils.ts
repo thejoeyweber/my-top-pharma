@@ -1,57 +1,24 @@
 /**
- * Product Utils
+ * Product Data Utilities
  * 
- * Utility functions for fetching and manipulating product data.
- * Centralizes all product-related data access to promote reusability
- * and consistent data handling.
+ * This module provides functions to fetch and manipulate product data from Supabase.
+ * It centralizes data access logic to improve maintainability and testing.
  */
 
 import { supabase } from '../supabase';
-import type { 
-  Product, 
-  TherapeuticArea, 
-  Company 
-} from '../../interfaces/entities';
-import { dbProductToProduct, type DBProduct } from '../../interfaces/entities/Product';
+import type { Product, TherapeuticArea } from '../../interfaces/entities';
+import { dbProductToProduct } from '../../interfaces/entities/Product';
 import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/TherapeuticArea';
 import { DEFAULT_LIMIT } from '../constants';
-import type { ProductFilter, ProductListResponse } from '../../interfaces/entities/Product';
 
 /**
- * Interface for filter options with count
+ * Options for filtering and sorting product data
  */
-interface FilterOption {
-  value: string;
-  label: string;
-  count: number;
-}
-
-/**
- * SQL result types for aggregated queries
- */
-interface TherapeuticAreaCount {
-  therapeutic_area_id: string;
-  count: string;
-}
-
-interface StageCount {
-  stage: string;
-  count: string;
-}
-
-interface MoleculeTypeCount {
-  molecule_type: string;
-  count: string;
-}
-
-/**
- * Interface for product filter parameters
- */
-interface ProductFilterParams {
+export interface ProductFilter {
   search?: string;
-  stage?: string;
-  therapeuticAreaId?: string;
   companyId?: string;
+  therapeuticAreaId?: string;
+  stage?: string;
   moleculeType?: string;
   limit?: number;
   offset?: number;
@@ -60,140 +27,105 @@ interface ProductFilterParams {
 }
 
 /**
- * Get a product by slug
- * @param slug The product slug or ID
- * @returns Product entity or null if not found
+ * Interface for product filter options
  */
-export async function getProductBySlug(slug: string): Promise<Product | null> {
-  try {
-    // First try to fetch by slug
-    const { data, error } = await supabase
-      .from('products')
-      .select('*, companies(*)')
-      .eq('slug', slug)
-      .single();
-    
-    if (error) {
-      if (error.code === 'PGRST116') {
-        // Not found
-        return null;
-      }
-      throw error;
-    }
-    
-    if (!data) {
-      return null;
-    }
-    
-    // Get therapeutic areas for this product
-    const therapeuticAreas = await getProductTherapeuticAreas(data.id);
-    
-    // Convert to Product entity and return with manual type assertion to handle Supabase types
-    const product = dbProductToProduct(data as unknown as DBProduct);
-    product.therapeuticAreas = therapeuticAreas;
-    
-    return product;
-  } catch (error) {
-    console.error(`Error fetching product by slug ${slug}:`, error);
-    throw error;
-  }
+export interface ProductFilterOptions {
+  therapeuticAreas: { id: string; name: string }[];
+  stages: { value: string; label: string }[];
+  moleculeTypes: { value: string; label: string }[];
+  sortOptions: { value: string; label: string }[];
 }
 
 /**
- * Get a list of products with filtering options
- * @param filters Object containing filter parameters
+ * Fetches products from the database with filtering, sorting and pagination
+ * 
+ * @param options Filtering and sorting options
  * @returns Object containing products array and total count
  */
-export async function getProducts(filters: ProductFilter = {}): Promise<ProductListResponse> {
+export async function getProducts(options: ProductFilter = {}): Promise<{
+  products: Product[];
+  total: number;
+}> {
   try {
-    const { 
-      search, 
-      stage, 
-      therapeuticAreaId, 
-      companyId, 
+    const {
+      search,
+      companyId,
+      therapeuticAreaId,
+      stage,
       moleculeType,
-      limit = DEFAULT_LIMIT,
-      offset = 0,
       sortBy = 'name',
-      sortDirection = 'asc'
-    } = filters;
+      sortDirection = 'asc',
+      limit = DEFAULT_LIMIT,
+      offset = 0
+    } = options;
 
     // Start building the query
-    let query = supabase
-      .from('products')
-      .select('*', { count: 'exact', head: false });
-
-    // Apply search filter
+    let query = supabase.from('products').select('*', { count: 'exact' });
+    
+    // Apply search filter if provided
     if (search) {
-      query = query.or(`name.ilike.%${search}%,generic_name.ilike.%${search}%`);
+      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%,generic_name.ilike.%${search}%`);
     }
-
-    // Apply stage filter
-    if (stage) {
-      query = query.eq('stage', stage);
-    }
-
-    // Apply molecule type filter
-    if (moleculeType) {
-      query = query.eq('molecule_type', moleculeType);
-    }
-
-    // Apply company filter
+    
+    // Apply company filter if provided
     if (companyId) {
       query = query.eq('company_id', companyId);
     }
-
-    // Apply sorting
-    if (sortBy) {
-      const field = sortBy.replace('_asc', '').replace('_desc', '');
-      const ascending = !sortBy.endsWith('_desc');
-      query = query.order(field);
-    } else {
-      // Default sorting
-      query = query.order('name');
+    
+    // Apply stage filter if provided
+    if (stage) {
+      query = query.eq('stage', stage);
     }
-
-    // Apply pagination
-    query = query.range(offset, offset + limit - 1);
-
-    // Execute the query
-    const { data, count, error } = await query;
-
-    if (error) {
-      throw error;
+    
+    // Apply molecule type filter if provided
+    if (moleculeType) {
+      query = query.eq('molecule_type', moleculeType);
     }
-
-    // Start with products from the main query
-    // Use type assertion to handle Supabase types
-    let products = (data || []).map(product => dbProductToProduct(product as unknown as DBProduct));
-    let total = count || 0;
-
-    // If we need to filter by therapeutic area, we do it separately
-    // because it requires a join that's easier to handle this way
+    
+    // Apply therapeutic area filter (handled separately after initial query)
+    let taFilteredProductIds: string[] | null = null;
     if (therapeuticAreaId) {
-      // Get product IDs that match the therapeutic area
       const { data: productTAs } = await supabase
         .from('product_therapeutic_areas')
         .select('product_id')
         .eq('therapeutic_area_id', therapeuticAreaId);
-        
+      
       if (productTAs && productTAs.length > 0) {
-        const productIds = productTAs.map(pta => pta.product_id);
-        products = products.filter(product => productIds.includes(product.id));
-        total = products.length; // Adjust count for filtered results
+        taFilteredProductIds = productTAs.map(relation => relation.product_id);
+        query = query.in('id', taFilteredProductIds);
       } else {
-        // No products match this therapeutic area
+        // No products match the TA filter, return empty
         return { products: [], total: 0 };
       }
     }
-
-    // Fetch therapeutic areas for all products
-    for (const product of products) {
-      product.therapeuticAreas = await getProductTherapeuticAreas(product.id);
+    
+    // Apply sorting
+    const sortField = (() => {
+      if (sortBy === 'name') return 'name';
+      if (sortBy === 'stage') return 'stage';
+      if (sortBy === 'date') return 'created_at';
+      return 'name'; // Default sort field
+    })();
+    
+    query = query.order(sortField, { ascending: sortDirection !== 'desc' });
+    
+    // Apply pagination
+    query = query.range(offset, offset + limit - 1);
+    
+    // Execute the query
+    const { data, count, error } = await query;
+    
+    if (error) {
+      throw error;
     }
-
-    // Return the products and total count
-    return { products, total: total };
+    
+    // Convert database records to application entities
+    const products = (data || []).map(dbProduct => dbProductToProduct(dbProduct as any));
+    
+    return { 
+      products, 
+      total: count || 0 
+    };
   } catch (error) {
     console.error('Error fetching products:', error);
     throw error;
@@ -201,153 +133,201 @@ export async function getProducts(filters: ProductFilter = {}): Promise<ProductL
 }
 
 /**
- * Gets the therapeutic areas associated with a product
- * @param productId - The product ID
- * @returns Array of therapeutic area names
+ * Fetches a product by its slug
+ * 
+ * @param slug The product slug
+ * @returns The product if found, null otherwise
  */
-export async function getProductTherapeuticAreas(productId: string): Promise<string[]> {
+export async function getProductBySlug(slug: string): Promise<Product | null> {
   try {
-    // Get therapeutic area IDs for the product
-    const { data: productTAs, error: ptaError } = await supabase
-      .from('product_therapeutic_areas')
-      .select('therapeutic_area_id')
-      .eq('product_id', productId);
+    // Try by slug first
+    let response = await supabase
+      .from('products')
+      .select('*')
+      .eq('slug', slug)
+      .single();
     
-    if (ptaError) {
-      throw ptaError;
+    // If not found by slug, try by ID (in case the slug is actually an ID)
+    if (response.error || !response.data) {
+      response = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', slug)
+        .single();
     }
     
-    if (!productTAs || !Array.isArray(productTAs) || productTAs.length === 0) {
-      return [];
-    }
-    
-    // Get therapeutic area names
-    try {
-      const therapeuticAreaIds = productTAs.map(pta => pta.therapeutic_area_id);
-      const { data: taData, error: taError } = await supabase
-        .from('therapeutic_areas')
-        .select('name')
-        .in('id', therapeuticAreaIds);
-      
-      if (taError) {
-        throw taError;
+    // Handle not found case
+    if (response.error || !response.data) {
+      if (response.error?.code === 'PGRST116') {
+        return null; // Not found
       }
-      
-      return (taData || []).map(ta => ta.name);
-    } catch (error) {
-      console.error(`Error in getProductTherapeuticAreas mapping: ${error}`);
-      return [];
+      throw response.error;
     }
+    
+    return dbProductToProduct(response.data as any);
   } catch (error) {
-    console.error(`Error fetching therapeutic areas for product ${productId}:`, error);
+    console.error(`Error in getProductBySlug for slug "${slug}":`, error);
     throw error;
   }
 }
 
 /**
- * Get all available filter options for products
- * @returns Object containing filter options for stages, therapeutic areas, and molecule types
+ * Fetches therapeutic areas for a product
+ * 
+ * @param productId The product ID
+ * @returns Array of therapeutic area names
  */
-export async function getProductFilters(): Promise<{
-  stages: FilterOption[],
-  therapeuticAreas: (TherapeuticArea & { count: number })[],
-  moleculeTypes: FilterOption[],
-  sortOptions: { value: string; label: string }[]
-}> {
+export async function getProductTherapeuticAreas(productId: string): Promise<string[]> {
   try {
-    // Get all therapeutic areas
-    const { data: dbTherapeuticAreas } = await supabase
+    // Get therapeutic area IDs for this product
+    const { data: productTAs, error: taError } = await supabase
+      .from('product_therapeutic_areas')
+      .select('therapeutic_area_id')
+      .eq('product_id', productId);
+    
+    if (taError) {
+      throw taError;
+    }
+    
+    if (!productTAs?.length) {
+      return [];
+    }
+    
+    // Get the therapeutic area names
+    const taIds = productTAs.map(relation => relation.therapeutic_area_id);
+    const { data: tas, error: tasError } = await supabase
       .from('therapeutic_areas')
+      .select('name')
+      .in('id', taIds);
+    
+    if (tasError) {
+      throw tasError;
+    }
+    
+    return (tas || []).map(ta => ta.name);
+  } catch (error) {
+    console.error(`Error in getProductTherapeuticAreas for product ${productId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Fetches related products based on shared therapeutic areas
+ * 
+ * @param productId The product ID
+ * @param limit Maximum number of related products to return
+ * @returns Array of related products
+ */
+export async function getRelatedProducts(
+  productId: string,
+  limit: number = 4
+): Promise<Product[]> {
+  try {
+    // Get therapeutic area IDs for this product
+    const { data: productTAs, error: taError } = await supabase
+      .from('product_therapeutic_areas')
+      .select('therapeutic_area_id')
+      .eq('product_id', productId);
+    
+    if (taError) {
+      throw taError;
+    }
+    
+    if (!productTAs?.length) {
+      return [];
+    }
+    
+    // Get product IDs that share these therapeutic areas
+    const taIds = productTAs.map(relation => relation.therapeutic_area_id);
+    const { data: relatedProductTAs, error: relatedError } = await supabase
+      .from('product_therapeutic_areas')
+      .select('product_id')
+      .in('therapeutic_area_id', taIds)
+      .neq('product_id', productId);
+    
+    if (relatedError) {
+      throw relatedError;
+    }
+    
+    if (!relatedProductTAs?.length) {
+      return [];
+    }
+    
+    // Count occurrences to find products with most shared TAs
+    const productIdCounts = new Map<string, number>();
+    relatedProductTAs.forEach(relation => {
+      const count = productIdCounts.get(relation.product_id) || 0;
+      productIdCounts.set(relation.product_id, count + 1);
+    });
+    
+    // Sort by count and take top N
+    const topProductIds = [...productIdCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([id]) => id);
+    
+    if (!topProductIds.length) {
+      return [];
+    }
+    
+    // Get product details
+    const { data: relatedProducts, error: productsError } = await supabase
+      .from('products')
       .select('*')
+      .in('id', topProductIds)
+      .limit(limit);
+    
+    if (productsError) {
+      throw productsError;
+    }
+    
+    return (relatedProducts || []).map(product => dbProductToProduct(product as any));
+  } catch (error) {
+    console.error(`Error in getRelatedProducts for product ${productId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Gets filter options for products
+ * 
+ * @returns Filter options for products
+ */
+export async function getProductFilters(): Promise<ProductFilterOptions> {
+  try {
+    // Get therapeutic areas
+    const { data: therapeuticAreas, error: taError } = await supabase
+      .from('therapeutic_areas')
+      .select('id, name')
       .order('name');
     
-    const therapeuticAreas = (dbTherapeuticAreas || []).map(ta => ({
-      ...dbTherapeuticAreaToTherapeuticArea(ta),
-      count: 0 // Initialize count, will be updated later
-    }));
-    
-    // Get counts for each therapeutic area using raw SQL
-    const { data: taCountsData } = await supabase
-      .from('product_therapeutic_areas')
-      .select('therapeutic_area_id, count(*)')
-      // We need to use .count() without .group() for Supabase
-      .select('therapeutic_area_id');
-    
-    // Type assertion for SQL query result
-    const taCounts = taCountsData as unknown as TherapeuticAreaCount[] | null;
-    
-    if (taCounts) {
-      // Update counts in therapeutic areas array
-      taCounts.forEach(item => {
-        const taIndex = therapeuticAreas.findIndex(ta => ta.id === item.therapeutic_area_id);
-        if (taIndex >= 0) {
-          therapeuticAreas[taIndex].count = parseInt(item.count);
-        }
-      });
+    if (taError) {
+      throw taError;
     }
     
-    // Get counts for stages using direct SQL query
-    const { data: stageCountsData } = await supabase
-      .from('products')
-      .select('stage, count(*)')
-      .select('stage');
+    // Define development stages
+    const stages = [
+      { value: 'discovery', label: 'Discovery' },
+      { value: 'preclinical', label: 'Preclinical' },
+      { value: 'phase1', label: 'Phase 1' },
+      { value: 'phase2', label: 'Phase 2' },
+      { value: 'phase3', label: 'Phase 3' },
+      { value: 'filed', label: 'Filed' },
+      { value: 'approved', label: 'Approved' },
+      { value: 'market', label: 'Market' }
+    ];
     
-    // Type assertion for SQL query result
-    const stageCounts = stageCountsData as unknown as StageCount[] | null;
-    
-    // Define stage options with counts
-    const stageMap: Record<string, string> = {
-      'discovery': 'Discovery',
-      'preclinical': 'Preclinical',
-      'phase1': 'Phase 1',
-      'phase2': 'Phase 2',
-      'phase3': 'Phase 3',
-      'approved': 'Approved',
-      'market': 'Market',
-      'discontinued': 'Discontinued'
-    };
-    
-    const stages: FilterOption[] = Object.entries(stageMap).map(([value, label]) => ({
-      value,
-      label,
-      count: 0
-    }));
-    
-    if (stageCounts) {
-      stageCounts.forEach(item => {
-        const stage = stages.find(s => s.value === item.stage);
-        if (stage) {
-          stage.count = parseInt(item.count);
-        }
-      });
-    }
-    
-    // Get counts for molecule types using direct SQL query
-    const { data: moleculeCountsData } = await supabase
-      .from('products')
-      .select('molecule_type, count(*)')
-      .select('molecule_type');
-    
-    // Type assertion for SQL query result
-    const moleculeTypeCounts = moleculeCountsData as unknown as MoleculeTypeCount[] | null;
-    
-    const moleculeTypes: FilterOption[] = [];
-    
-    if (moleculeTypeCounts) {
-      // Transform the SQL results into FilterOption objects
-      moleculeTypeCounts.forEach(item => {
-        if (item.molecule_type) {
-          moleculeTypes.push({
-            value: item.molecule_type,
-            label: item.molecule_type,
-            count: parseInt(item.count)
-          });
-        }
-      });
-      
-      // Sort by label
-      moleculeTypes.sort((a, b) => a.label.localeCompare(b.label));
-    }
+    // Define molecule types
+    const moleculeTypes = [
+      { value: 'small_molecule', label: 'Small Molecule' },
+      { value: 'biologic', label: 'Biologic' },
+      { value: 'peptide', label: 'Peptide' },
+      { value: 'cell_therapy', label: 'Cell Therapy' },
+      { value: 'gene_therapy', label: 'Gene Therapy' },
+      { value: 'oligonucleotide', label: 'Oligonucleotide' },
+      { value: 'radiopharmaceutical', label: 'Radiopharmaceutical' },
+      { value: 'other', label: 'Other' }
+    ];
     
     // Define sort options
     const sortOptions = [
@@ -355,211 +335,18 @@ export async function getProductFilters(): Promise<{
       { value: 'name_desc', label: 'Name (Z to A)' },
       { value: 'stage_asc', label: 'Stage (Early to Late)' },
       { value: 'stage_desc', label: 'Stage (Late to Early)' },
-      { value: 'created_at_desc', label: 'Newest First' },
-      { value: 'created_at_asc', label: 'Oldest First' }
+      { value: 'date_desc', label: 'Newest First' },
+      { value: 'date_asc', label: 'Oldest First' }
     ];
     
     return {
+      therapeuticAreas: therapeuticAreas || [],
       stages,
-      therapeuticAreas,
       moleculeTypes,
       sortOptions
     };
   } catch (error) {
-    console.error('Error fetching product filters:', error);
-    throw error;
-  }
-}
-
-/**
- * Get products related to a specific product (shared therapeutic areas)
- * @param productId The product ID to find related products for
- * @param limit Maximum number of related products to return
- * @returns Array of related Product entities
- */
-export async function getRelatedProducts(productId: string, limit: number = 5): Promise<Product[]> {
-  try {
-    // Get therapeutic area IDs for the product
-    const { data: productTAs } = await supabase
-      .from('product_therapeutic_areas')
-      .select('therapeutic_area_id')
-      .eq('product_id', productId);
-      
-    if (!productTAs || !Array.isArray(productTAs) || productTAs.length === 0) {
-      return [];
-    }
-    
-    // Get related product IDs (same therapeutic areas but different product)
-    const therapeuticAreaIds = productTAs.map(pta => pta.therapeutic_area_id);
-    const { data: relatedPTAs } = await supabase
-      .from('product_therapeutic_areas')
-      .select('product_id')
-      .in('therapeutic_area_id', therapeuticAreaIds)
-      .neq('product_id', productId);
-      
-    if (!relatedPTAs || !Array.isArray(relatedPTAs) || relatedPTAs.length === 0) {
-      return [];
-    }
-    
-    // Count occurrences to find products with most therapeutic areas in common
-    const productCounts: Record<string, number> = {};
-    relatedPTAs.forEach(pta => {
-      productCounts[pta.product_id] = (productCounts[pta.product_id] || 0) + 1;
-    });
-    
-    // Sort by count (most related first) and take top N
-    const relatedProductIds = Object.entries(productCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, limit)
-      .map(([id]) => id);
-    
-    // Get product details
-    const { data: dbProducts } = await supabase
-      .from('products')
-      .select('*')
-      .in('id', relatedProductIds);
-      
-    if (!dbProducts || !Array.isArray(dbProducts) || dbProducts.length === 0) {
-      return [];
-    }
-    
-    // Convert to Product entities with type assertion
-    const products = dbProducts.map(product => dbProductToProduct(product as unknown as DBProduct));
-    
-    // Fetch therapeutic areas for all products
-    for (const product of products) {
-      product.therapeuticAreas = await getProductTherapeuticAreas(product.id);
-    }
-    
-    return products;
-  } catch (error) {
-    console.error(`Error fetching related products for product ${productId}:`, error);
-    return []; // Return empty array instead of throwing to prevent cascading errors
-  }
-}
-
-/**
- * Retrieves a list of products for a specific company
- * @param companyId - The company ID
- * @param options - Filter options
- * @returns Products for the company
- */
-export async function getProductsByCompany(
-  companyId: string,
-  options: Omit<ProductFilter, 'companyId'> = {}
-): Promise<ProductListResponse> {
-  try {
-    // Add the company ID to the filter
-    return getProducts({
-      ...options,
-      companyId
-    });
-  } catch (error) {
-    console.error(`Error fetching products for company ${companyId}:`, error);
-    throw error;
-  }
-}
-
-/**
- * Creates a new product
- * @param product - The product data
- * @returns The created product
- */
-export async function createProduct(product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Promise<Product> {
-  try {
-    const { data, error } = await supabase
-      .from('products')
-      .insert([
-        {
-          name: product.name,
-          slug: product.slug,
-          description: product.description,
-          generic_name: product.genericName,
-          molecule_type: product.moleculeType,
-          image_url: product.imageUrl,
-          website: product.website,
-          company_id: product.companyId,
-          stage: product.stage,
-          status: product.status,
-          year: product.year
-        }
-      ])
-      .select()
-      .single();
-    
-    if (error) {
-      throw error;
-    }
-    
-    // Map to our Product interface
-    return dbProductToProduct(data as unknown as DBProduct);
-  } catch (error) {
-    console.error('Error creating product:', error);
-    throw error;
-  }
-}
-
-/**
- * Updates an existing product
- * @param id - The product ID
- * @param product - The updated product data
- * @returns The updated product
- */
-export async function updateProduct(
-  id: string, 
-  product: Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>
-): Promise<Product> {
-  try {
-    const { data, error } = await supabase
-      .from('products')
-      .update({
-        ...(product.name !== undefined && { name: product.name }),
-        ...(product.slug !== undefined && { slug: product.slug }),
-        ...(product.description !== undefined && { description: product.description }),
-        ...(product.genericName !== undefined && { generic_name: product.genericName }),
-        ...(product.moleculeType !== undefined && { molecule_type: product.moleculeType }),
-        ...(product.imageUrl !== undefined && { image_url: product.imageUrl }),
-        ...(product.website !== undefined && { website: product.website }),
-        ...(product.companyId !== undefined && { company_id: product.companyId }),
-        ...(product.stage !== undefined && { stage: product.stage }),
-        ...(product.status !== undefined && { status: product.status }),
-        ...(product.year !== undefined && { year: product.year })
-      })
-      .eq('id', id)
-      .select()
-      .single();
-    
-    if (error) {
-      throw error;
-    }
-    
-    // Map to our Product interface
-    return dbProductToProduct(data as unknown as DBProduct);
-  } catch (error) {
-    console.error(`Error updating product ${id}:`, error);
-    throw error;
-  }
-}
-
-/**
- * Deletes a product by ID
- * @param id - The product ID
- * @returns Success indicator
- */
-export async function deleteProduct(id: string): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', id);
-    
-    if (error) {
-      throw error;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error(`Error deleting product ${id}:`, error);
+    console.error('Error in getProductFilters:', error);
     throw error;
   }
 } 

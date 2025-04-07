@@ -36,6 +36,16 @@ export interface FilterOption {
 }
 
 /**
+ * Interface for filter options returned by getWebsiteFilters
+ */
+export interface WebsiteFilterOptions {
+  companies: { id: string; name: string }[];
+  therapeuticAreas: { id: string; name: string }[];
+  websiteTypes: { value: string; label: string }[];
+  sortOptions: { value: string; label: string }[];
+}
+
+/**
  * Helper function to create a URL-safe slug from a string
  */
 export function generateSlugFallback(input: string): string {
@@ -211,44 +221,51 @@ export async function getWebsiteCompany(companyId: string | null): Promise<Compa
 }
 
 /**
- * Fetches products associated with a website
- * 
+ * Get products associated with a website
  * @param websiteId The website ID
- * @returns Array of associated products
+ * @returns Array of products associated with the website
  */
 export async function getWebsiteProducts(websiteId: string): Promise<Product[]> {
   try {
-    // Get product IDs associated with this website
-    const { data: websiteProductRelations, error: relError } = await supabase
-      .from('product_websites')
-      .select('product_id')
-      .eq('website_id', websiteId);
-    
-    if (relError) {
-      console.error(`Error fetching product relations for website ${websiteId}:`, relError);
-      throw relError;
-    }
-    
-    if (!websiteProductRelations?.length) {
+    // Query using direct Supabase SQL to fetch product IDs associated with this website
+    const { data, error } = await supabase
+      .from('websites')
+      .select(`
+        product_websites(
+          product_id
+        )
+      `)
+      .eq('id', websiteId)
+      .single();
+
+    if (error) {
+      console.error(`Error fetching products for website ${websiteId}:`, error);
       return [];
     }
+
+    // Check if we have product_websites data and it's an array
+    if (!data?.product_websites || !Array.isArray(data.product_websites) || data.product_websites.length === 0) {
+      return [];
+    }
+
+    // Extract product IDs and fetch full product details
+    const productIds = data.product_websites.map((rel: { product_id: string }) => rel.product_id);
     
-    // Get the product details
-    const productIds = websiteProductRelations.map(rel => rel.product_id);
-    const { data: products, error: productError } = await supabase
+    const { data: products, error: productsError } = await supabase
       .from('products')
       .select('*')
       .in('id', productIds);
-    
-    if (productError) {
-      console.error('Error fetching product details:', productError);
-      throw productError;
+
+    if (productsError) {
+      console.error(`Error fetching product details for website ${websiteId}:`, productsError);
+      return [];
     }
-    
-    return (products || []).map(dbProductToProduct);
+
+    // Convert to Product entities
+    return (products || []).map(product => dbProductToProduct(product as any));
   } catch (error) {
     console.error(`Error in getWebsiteProducts for website ${websiteId}:`, error);
-    throw error;
+    return [];
   }
 }
 
@@ -297,58 +314,33 @@ export async function getWebsiteTherapeuticAreas(companyId: string | null): Prom
 }
 
 /**
- * Fetches similar websites based on company, category, or both
- * 
- * @param websiteId The current website ID
- * @param companyId The company ID for finding related websites
- * @param categoryId The category ID for finding related websites
+ * Get websites related to a specific website (same category)
+ * @param websiteId The website ID
+ * @param categoryId The website category ID (string)
  * @param limit Maximum number of related websites to return
- * @returns Array of related websites
+ * @returns Array of related Website entities
  */
 export async function getRelatedWebsites(
   websiteId: string, 
-  companyId?: string | null, 
-  categoryId?: number | null, 
+  categoryId: string, 
   limit: number = 5
 ): Promise<Website[]> {
   try {
-    let query = supabase.from('websites').select('*');
-    
-    // Don't include the current website
-    query = query.neq('id', websiteId);
-    
-    // Add filters if provided
-    let hasFilter = false;
-    
-    if (companyId) {
-      query = query.eq('company_id', companyId);
-      hasFilter = true;
-    }
-    
-    if (categoryId) {
-      query = query.eq('category_id', categoryId);
-      hasFilter = true;
-    }
-    
-    // If no filters were applied, return an empty array
-    if (!hasFilter) {
-      return [];
-    }
-    
-    // Limit results
-    query = query.limit(limit);
-    
-    const { data, error } = await query;
-    
+    const { data, error } = await supabase
+      .from('websites')
+      .select('*')
+      .eq('category_id', categoryId)
+      .neq('id', websiteId)
+      .limit(limit);
+
     if (error) {
-      console.error('Error fetching related websites:', error);
       throw error;
     }
-    
+
     return (data || []).map(dbWebsiteToWebsite);
   } catch (error) {
-    console.error(`Error in getRelatedWebsites for website ${websiteId}:`, error);
-    throw error;
+    console.error(`Error fetching related websites for website ${websiteId}:`, error);
+    return [];
   }
 }
 

@@ -287,52 +287,43 @@ export async function getTherapeuticAreaCompanies(
 }
 
 /**
- * Fetches products related to a therapeutic area
- * 
- * @param therapeuticAreaId The therapeutic area ID
- * @param limit Maximum number of products to return
- * @param offset Offset for pagination
- * @returns Array of products in the therapeutic area
+ * Fetches products for a therapeutic area
+ * @param id The therapeutic area ID 
+ * @returns Products associated with the therapeutic area
  */
-export async function getTherapeuticAreaProducts(
-  therapeuticAreaId: string,
-  limit: number = 20,
-  offset: number = 0
-): Promise<Product[]> {
+export async function getTherapeuticAreaProducts(id: string): Promise<Product[]> {
   try {
     // Get product IDs for this therapeutic area
-    const { data: productTAs, error: taError } = await supabase
+    const { data: productTAs, error: productTAError } = await supabase
       .from('product_therapeutic_areas')
       .select('product_id')
-      .eq('therapeutic_area_id', therapeuticAreaId);
+      .eq('therapeutic_area_id', id);
     
-    if (taError) {
-      console.error(`Error fetching products for therapeutic area ${therapeuticAreaId}:`, taError);
-      throw taError;
+    if (productTAError) {
+      throw productTAError;
     }
     
     if (!productTAs?.length) {
       return [];
     }
     
-    // Get the product details
-    const productIds = productTAs.map(relation => relation.product_id);
-    const { data: products, error: productError } = await supabase
+    // Get full product details
+    const productIds = productTAs.map(pta => pta.product_id);
+    const { data: products, error: productsError } = await supabase
       .from('products')
       .select('*')
-      .in('id', productIds)
-      .range(offset, offset + limit - 1)
-      .order('name');
+      .in('id', productIds);
     
-    if (productError) {
-      console.error('Error fetching product details:', productError);
-      throw productError;
+    if (productsError) {
+      throw productsError;
     }
     
-    return (products || []).map(dbProductToProduct);
+    // Need to use type assertion (as any) to avoid TypeScript errors with the 
+    // Supabase types vs. our DBProduct interface
+    return (products || []).map(product => dbProductToProduct(product as any));
   } catch (error) {
-    console.error(`Error in getTherapeuticAreaProducts for TA ${therapeuticAreaId}:`, error);
-    throw error;
+    console.error(`Error fetching products for therapeutic area ${id}:`, error);
+    return [];
   }
 }
 

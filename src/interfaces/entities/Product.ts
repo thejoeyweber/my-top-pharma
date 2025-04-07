@@ -136,35 +136,29 @@ export interface Product {
   moleculeType: string | null;
   imageUrl: string | null;
   website: string | null;
-  createdAt: string | null;
-  updatedAt: string | null;
+  createdAt: string | Date | null;
+  updatedAt: string | Date | null;
   therapeuticAreas?: string[]; // Derived field from join table
 }
 
 /**
- * Database Product interface
- * Maps directly to the products table schema
+ * Interface for Product database records
  */
 export interface DBProduct {
   id: string;
   name: string;
-  slug: string;
-  generic_name: string | null;
-  company_id: string | null;
-  description: string | null;
-  stage: string | null;
-  status: string | null;
-  year: number | null;
-  molecule_type: string | null;
-  image_url: string | null;
-  website: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  companies?: {
-    id: string;
-    name: string;
-    slug: string;
-  } | null;
+  slug: string | null;
+  description?: string;
+  generic_name?: string;
+  molecule_type?: string;
+  image_url?: string;
+  website?: string;
+  company_id: string;
+  stage?: string;
+  status?: string;
+  year?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 /**
@@ -193,29 +187,29 @@ export interface ProductListResponse {
 }
 
 /**
- * Converts a database product record to a Product object
- * @param dbProduct The database product record
- * @returns A Product object
+ * Converts a database product record to a Product entity
+ * @param dbProduct Database product record
+ * @returns Product entity
  */
 export function dbProductToProduct(dbProduct: DBProduct): Product {
   return {
     id: dbProduct.id,
     name: dbProduct.name,
-    slug: dbProduct.slug,
-    genericName: dbProduct.generic_name,
+    slug: dbProduct.slug || '',
+    description: dbProduct.description || null,
+    genericName: dbProduct.generic_name || null,
+    moleculeType: dbProduct.molecule_type || null,
+    imageUrl: dbProduct.image_url || null,
+    website: dbProduct.website || null,
     companyId: dbProduct.company_id,
-    companyName: dbProduct.companies?.name || undefined,
-    companySlug: dbProduct.companies?.slug || undefined,
-    description: dbProduct.description,
-    stage: dbProduct.stage,
-    status: dbProduct.status,
-    year: dbProduct.year,
-    moleculeType: dbProduct.molecule_type,
-    imageUrl: dbProduct.image_url,
-    website: dbProduct.website,
-    createdAt: dbProduct.created_at,
-    updatedAt: dbProduct.updated_at,
-    therapeuticAreas: []
+    companyName: undefined, // Will be populated separately if needed
+    companySlug: undefined, // Will be populated separately if needed
+    stage: dbProduct.stage || null,
+    status: dbProduct.status || null,
+    year: dbProduct.year || null,
+    therapeuticAreas: [], // Will be populated separately
+    createdAt: new Date(dbProduct.created_at),
+    updatedAt: new Date(dbProduct.updated_at)
   };
 }
 
@@ -226,15 +220,15 @@ export function productToDbProduct(product: Partial<Product>): Partial<DBProduct
   return {
     id: product.id,
     name: product.name,
-    generic_name: product.genericName || null,
-    company_id: product.companyId || null,
-    description: product.description || null,
-    stage: product.stage || null,
-    molecule_type: product.moleculeType || null,
-    image_url: product.imageUrl || null,
-    website: product.website || null,
-    status: product.status || null,
-    year: product.year || null,
+    generic_name: product.genericName || undefined,
+    company_id: product.companyId || undefined,
+    description: product.description || undefined,
+    stage: product.stage || undefined,
+    molecule_type: product.moleculeType || undefined,
+    image_url: product.imageUrl || undefined,
+    website: product.website || undefined,
+    status: product.status || undefined,
+    year: product.year || undefined,
     slug: product.slug || '',
     // Don't set created_at or updated_at, let the database handle those
     // therapeuticAreas is handled separately through the junction table

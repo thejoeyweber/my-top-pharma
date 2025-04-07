@@ -238,28 +238,49 @@ export interface WebsiteDisclaimers {
  * Main Website interface representing a pharmaceutical company website
  */
 export interface Website {
-  id: number;
+  id: string;
+  companyId: string;
+  company?: {
+    name: string;
+    id: string;
+  };
+  domain: string;
+  title: string;
+  description?: string;
+  type: string;
+  createdAt: string;
+  updatedAt: string;
   url: string;
   slug: string;
-  siteName?: string | null;
-  description?: string | null;
-  companyId?: number | null;
-  companyName?: string | null;
-  therapeuticAreaIds?: number[] | null; // Array of TA IDs
-  therapeuticAreas?: TherapeuticArea[] | null; // Populated TA objects
-  categoryId?: number | null;
-  logoUrl?: string | null;
-  screenshotUrl?: string | null;
-  isPrimary?: boolean | null;
-  trafficRank?: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-  // New nullable properties added based on usage in websites/[slug].astro
+  siteName?: string;
+  screenshotUrl?: string;
+  status?: string;
+  categories?: string[];
+  companyName?: string;
+  therapeuticAreaIds: number[];
+  therapeuticAreas: TherapeuticArea[];
+  categoryId: number;
+  logoUrl?: string;
+  isPrimary: boolean;
+  trafficRank: number;
   domainExpiresAt?: Date | null;
   domainCreatedAt?: Date | null;
-  hostingProvider?: string | null;
-  registrar?: string | null;
-  technologies?: string[] | null; // Assuming technologies is an array of strings
+  hostingProvider?: string;
+  registrar?: string;
+  technologies?: string[];
+}
+
+/**
+ * Product Website Join Table
+ * 
+ * Represents the product_websites join table in the database
+ */
+export interface ProductWebsite {
+  id: string;
+  product_id: string;
+  website_id: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -268,27 +289,36 @@ export interface Website {
 export function dbWebsiteToWebsite(dbWebsite: any): Website {
   return {
     id: dbWebsite.id,
-    url: dbWebsite.url,
-    slug: dbWebsite.slug,
+    domain: dbWebsite.domain || '',
+    title: dbWebsite.title || '',
+    type: dbWebsite.website_type || dbWebsite.type || '',
+    url: dbWebsite.url || '',
+    slug: dbWebsite.slug || '',
     siteName: dbWebsite.site_name,
     description: dbWebsite.description,
     companyId: dbWebsite.company_id,
     companyName: dbWebsite.company?.name, // Assuming relation 'company' exists and has 'name'
-    therapeuticAreaIds: dbWebsite.therapeutic_area_ids,
-    therapeuticAreas: dbWebsite.therapeutic_areas?.map(dbTherapeuticAreaToTherapeuticArea), // Use imported function
-    categoryId: dbWebsite.category_id,
+    company: dbWebsite.company ? {
+      id: dbWebsite.company.id || '',
+      name: dbWebsite.company.name || ''
+    } : undefined,
+    therapeuticAreaIds: dbWebsite.therapeutic_area_ids || [],
+    therapeuticAreas: dbWebsite.therapeutic_areas?.map(dbTherapeuticAreaToTherapeuticArea) || [],
+    categoryId: dbWebsite.category_id || 0,
     logoUrl: dbWebsite.logo_url,
     screenshotUrl: dbWebsite.screenshot_url,
-    isPrimary: dbWebsite.is_primary,
-    trafficRank: dbWebsite.traffic_rank,
-    createdAt: new Date(dbWebsite.created_at),
-    updatedAt: new Date(dbWebsite.updated_at),
+    isPrimary: dbWebsite.is_primary || false,
+    trafficRank: dbWebsite.traffic_rank || 0,
+    createdAt: new Date(dbWebsite.created_at).toISOString(),
+    updatedAt: new Date(dbWebsite.updated_at).toISOString(),
     // Map new properties (handle potential nulls from DB)
     domainExpiresAt: dbWebsite.domain_expires_at ? new Date(dbWebsite.domain_expires_at) : null,
     domainCreatedAt: dbWebsite.domain_created_at ? new Date(dbWebsite.domain_created_at) : null,
     hostingProvider: dbWebsite.hosting_provider,
     registrar: dbWebsite.registrar,
-    technologies: dbWebsite.technologies, // Assuming DB returns an array or null
+    technologies: dbWebsite.technologies || [],
+    categories: dbWebsite.categories || [],
+    status: dbWebsite.status
   };
 }
 
@@ -326,12 +356,12 @@ export function websiteToDbWebsite(website: Partial<Website>): Partial<DbWebsite
 
 // Zod schema for validating website data (aligned with the Website interface)
 export const WebsiteSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   url: z.string().url(),
   slug: z.string(),
   siteName: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
-  companyId: z.number().nullable().optional(),
+  companyId: z.string().nullable().optional(),
   companyName: z.string().nullable().optional(), // Added based on interface
   therapeuticAreaIds: z.array(z.number()).nullable().optional(), // Corrected type
   // therapeuticAreas: z.array(TherapeuticAreaSchema).nullable().optional(), // Can't use interface directly here easily, rely on IDs

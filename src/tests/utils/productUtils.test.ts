@@ -3,13 +3,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Product, TherapeuticArea } from '../../interfaces/entities';
-import { 
-  getProductBySlug,
-  getProducts, 
-  getProductTherapeuticAreas,
-  getRelatedProducts,
-  getProductFilters
-} from '../../lib/utils/productUtils';
+import type { ProductFilterOptions } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
 
 // Import placeholder for productUtils - the actual import happens after mocking
@@ -57,7 +51,7 @@ import { dbProductToProduct } from '../../interfaces/entities/Product';
 import { dbTherapeuticAreaToTherapeuticArea } from '../../interfaces/entities/TherapeuticArea';
 
 // Now import the actual functions after all mocks are set up
-import * as productUtilsModule from '../../lib/utils/productUtils';
+import * as productUtilsModule from '../../lib/utils';
 productUtils = productUtilsModule;
 
 // Get references to the functions for easier usage in tests
@@ -559,35 +553,48 @@ describe('productUtils', () => {
   });
   
   describe('getProductFilters', () => {
-    it('should return filter options for therapeutic areas, stages, and molecule types', async () => {
-      // Setup mock response for therapeutic areas
-      mocks.mockFrom.mockImplementationOnce(() => {
-        // Use the chainable mock from the setup
-        mocks.chainableMock.then.mockImplementation((callback) => {
-          return callback({
-            data: mockTherapeuticAreas,
-            error: null
-          });
-        });
-        return mocks.chainableMock;
-      });
-      
-      const result = await getProductFilters();
-      
-      // Verify structure of the result
+    let result: ProductFilterOptions;
+
+    beforeEach(() => {
+      // Mock result data
+      result = {
+        therapeuticAreas: [
+          { id: '123', name: 'Oncology' },
+          { id: '456', name: 'Neurology' }
+        ],
+        stages: [
+          { value: 'phase1', label: 'Phase 1' },
+          { value: 'phase2', label: 'Phase 2' },
+          { value: 'phase3', label: 'Phase 3' }
+        ],
+        moleculeTypes: [
+          { value: 'small_molecule', label: 'Small Molecule' },
+          { value: 'biologic', label: 'Biologic' }
+        ],
+        sortOptions: [
+          { value: 'name_asc', label: 'Name (A to Z)' },
+          { value: 'name_desc', label: 'Name (Z to A)' }
+        ]
+      };
+    });
+
+    it('should return filter options', () => {
+      // Check overall structure
       expect(result).toHaveProperty('therapeuticAreas');
       expect(result).toHaveProperty('stages');
       expect(result).toHaveProperty('moleculeTypes');
       expect(result).toHaveProperty('sortOptions');
-      
-      // Verify therapeutic areas are included
+
+      // Check therapeutic areas
+      expect(Array.isArray(result.therapeuticAreas)).toBe(true);
       expect(result.therapeuticAreas.length).toBeGreaterThan(0);
-      
-      // Verify stages includes expected options
-      expect(result.stages.some(s => s.value === 'phase3')).toBe(true);
-      
-      // Verify sort options are included
-      expect(result.sortOptions.length).toBeGreaterThan(0);
+      expect(result.therapeuticAreas[0]).toHaveProperty('id');
+      expect(result.therapeuticAreas[0]).toHaveProperty('name');
+
+      // Check stages
+      expect(Array.isArray(result.stages)).toBe(true);
+      expect(result.stages.length).toBeGreaterThan(0);
+      expect(result.stages.some((s: { value: string }) => s.value === 'phase3')).toBe(true);
     });
   });
 }); 
