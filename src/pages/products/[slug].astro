@@ -4,7 +4,7 @@
  * 
  * Displays detailed information about a specific pharmaceutical product.
  */
-import DashboardLayout from '../../components/templates/DashboardLayout.astro';
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
 import CardHeader from '../../components/atoms/CardHeader.astro';
 import CardBody from '../../components/atoms/CardBody.astro';
@@ -105,11 +105,11 @@ const relatedProducts = await getRelatedProducts(product.id, 5);
 const breadcrumbs = [
   { label: 'Home', href: '/' },
   { label: 'Products', href: '/products' },
-  { label: product.name, href: `/products/${product.slug}`, active: true }
+  { label: product.name, href: `/products/${product.slug}`, isActive: true }
 ];
 
 // Default tab is "overview"
-const activeTab = "overview";
+const activeTab = Astro.url.searchParams.get('tab') || "overview";
 
 // Define tabs
 const tabs = [
@@ -154,7 +154,9 @@ export const prerender = false;
                 {product.imageUrl ? (
                   <img src={product.imageUrl} alt={product.name} class="max-w-full max-h-full p-2" />
                 ) : (
-                  <span class="text-3xl font-bold text-green-600">{product.name.charAt(0)}</span>
+                  <div class="bg-green-100 w-full h-full flex items-center justify-center">
+                    <span class="text-3xl font-bold text-green-600">{product.name.charAt(0)}</span>
+                  </div>
                 )}
               </div>
               
@@ -220,289 +222,271 @@ export const prerender = false;
     </div>
     
     <!-- Page Content -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Main Content Area -->
-      <div class="lg:col-span-2 space-y-6">
-        <!-- Tabs -->
-        <Card>
-          <TabGroup tabs={tabs} activeTab={activeTab} />
-        </Card>
-        
-        <!-- Overview Section (default tab) -->
-        <div class="space-y-6" id="overview-content">
-          <!-- Description Card -->
-          <Card>
-            <CardHeader>
-              <h2 class="text-xl font-semibold text-gray-900">About {product.name}</h2>
-            </CardHeader>
-            <CardBody>
-              <div class="prose max-w-none">
-                {product.description ? (
-                  <p>{product.description}</p>
-                ) : (
-                  <p class="text-gray-500 italic">No description available.</p>
-                )}
-              </div>
-              
-              <!-- Indications -->
-              {product.indications && product.indications.length > 0 && (
-                <div class="mt-6">
-                  <h3 class="text-lg font-medium text-gray-900 mb-2">Indications</h3>
-                  <ul class="list-disc pl-5 space-y-1">
-                    {product.indications.map((indication: string) => (
-                      <li>{indication}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              
-              <!-- Therapeutic Areas -->
-              {product.therapeuticAreas && product.therapeuticAreas.length > 0 && (
-                <div class="mt-6">
-                  <h3 class="text-lg font-medium text-gray-900 mb-2">Therapeutic Areas</h3>
-                  <div class="flex flex-wrap gap-2">
-                    {product.therapeuticAreas.map((area: string) => (
-                      <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                        {area}
-                      </span>
-                    ))}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <!-- Tabs Navigation -->
+      <TabGroup tabs={tabs} activeTab={activeTab} tabPanelId="product-tab-content" />
+      
+      <!-- Tab Content -->
+      <div class="mt-6">
+        <!-- Overview Section -->
+        <div id="product-tab-content-overview" role="tabpanel" aria-labelledby="tab-overview" class={activeTab === 'overview' ? '' : 'hidden'}>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Left Column -->
+            <div class="md:col-span-2 space-y-6">
+              <!-- Description Card -->
+              <Card>
+                <CardHeader>
+                  <h2 class="text-xl font-semibold text-gray-900">About {product.name}</h2>
+                </CardHeader>
+                <CardBody>
+                  <div class="prose max-w-none">
+                    {product.description ? (
+                      <p>{product.description}</p>
+                    ) : (
+                      <p class="text-gray-500 italic">No description available.</p>
+                    )}
                   </div>
-                </div>
-              )}
-            </CardBody>
-          </Card>
-          
-          <!-- Key Details Card -->
-          <Card>
-            <CardHeader>
-              <h2 class="text-xl font-semibold text-gray-900">Key Details</h2>
-            </CardHeader>
-            <CardBody>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {/* Basic Info Group */}
-                <div>
-                  <h3 class="text-lg font-medium text-gray-900 mb-3">Product Information</h3>
-                  <dl class="space-y-3">
+                  
+                  <!-- Indications -->
+                  {product.indications && product.indications.length > 0 && (
+                    <div class="mt-6">
+                      <h3 class="text-lg font-medium text-gray-900 mb-2">Indications</h3>
+                      <ul class="list-disc pl-5 space-y-1">
+                        {product.indications.map((indication: string) => (
+                          <li>{indication}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  <!-- Therapeutic Areas -->
+                  {product.therapeuticAreas && product.therapeuticAreas.length > 0 && (
+                    <div class="mt-6">
+                      <h3 class="text-lg font-medium text-gray-900 mb-2">Therapeutic Areas</h3>
+                      <div class="flex flex-wrap gap-2">
+                        {product.therapeuticAreas.map((area: string) => (
+                          <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                            {area}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
+              
+              <!-- Key Details Card -->
+              <Card>
+                <CardHeader>
+                  <h2 class="text-xl font-semibold text-gray-900">Key Details</h2>
+                </CardHeader>
+                <CardBody>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {/* Basic Info Group */}
                     <div>
-                      <dt class="text-sm font-medium text-gray-500">Brand Name</dt>
-                      <dd class="mt-1 text-sm text-gray-900">{product.name}</dd>
+                      <h3 class="text-lg font-medium text-gray-900 mb-3">Product Information</h3>
+                      <dl class="space-y-3">
+                        <div>
+                          <dt class="text-sm font-medium text-gray-500">Brand Name</dt>
+                          <dd class="mt-1 text-sm text-gray-900">{product.name}</dd>
+                        </div>
+                        
+                        {product.genericName && (
+                          <div>
+                            <dt class="text-sm font-medium text-gray-500">Generic Name</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{product.genericName}</dd>
+                          </div>
+                        )}
+                        
+                        {product.moleculeType && (
+                          <div>
+                            <dt class="text-sm font-medium text-gray-500">Molecule Type</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{product.moleculeType}</dd>
+                          </div>
+                        )}
+                        
+                        {product.year && (
+                          <div>
+                            <dt class="text-sm font-medium text-gray-500">Year Introduced</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{product.year}</dd>
+                          </div>
+                        )}
+                      </dl>
                     </div>
                     
-                    {product.genericName && (
-                      <div>
-                        <dt class="text-sm font-medium text-gray-500">Generic Name</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{product.genericName}</dd>
-                      </div>
-                    )}
-                    
-                    {product.moleculeType && (
-                      <div>
-                        <dt class="text-sm font-medium text-gray-500">Molecule Type</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{product.moleculeType}</dd>
-                      </div>
-                    )}
-                    
-                    {product.year && (
-                      <div>
-                        <dt class="text-sm font-medium text-gray-500">Year Introduced</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{product.year}</dd>
-                      </div>
-                    )}
-                  </dl>
-                </div>
-                
-                {/* Development Status Group */}
-                <div>
-                  <h3 class="text-lg font-medium text-gray-900 mb-3">Development Status</h3>
-                  <dl class="space-y-3">
-                    {product.stage && (
-                      <div>
-                        <dt class="text-sm font-medium text-gray-500">Current Stage</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{getStageName(product.stage)}</dd>
-                      </div>
-                    )}
-                    
-                    {product.status && (
-                      <div>
-                        <dt class="text-sm font-medium text-gray-500">Status</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{product.status}</dd>
-                      </div>
-                    )}
-                    
-                    {/* Maybe add FDA approvals or other key milestones here */}
-                    {product.approvals && product.approvals.length > 0 && (
-                      <div>
-                        <dt class="text-sm font-medium text-gray-500">Latest Approval</dt>
-                        <dd class="mt-1 text-sm text-gray-900">
-                          {formatDate(product.approvals[0].date)} ({product.approvals[0].agency})
-                        </dd>
-                      </div>
-                    )}
-                  </dl>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-          
-          <!-- Regulatory Approvals Section (hidden in overview tab) -->
-          <div class="hidden" id="regulatory-content">
-            <Card>
-              <CardHeader>
-                <h2 class="text-xl font-semibold text-gray-900">Regulatory Approvals</h2>
-              </CardHeader>
-              <CardBody>
-                {product.approvals && product.approvals.length > 0 ? (
-                  <DataTable 
-                    headers={['Region', 'Agency', 'Date', 'Indication', 'Status']}
-                    data={product.approvals.map((approval) => [
-                      approval.region,
-                      approval.agency,
-                      formatDate(approval.date),
-                      approval.indication,
-                      approval.status
-                    ])}
-                  />
-                ) : (
-                  <p class="text-gray-500 italic">No regulatory approval information available.</p>
-                )}
-              </CardBody>
-            </Card>
-          </div>
-          
-          <!-- Timeline Section (hidden in overview tab) -->
-          <div class="hidden" id="timeline-content">
-            <Card>
-              <CardHeader>
-                <h2 class="text-xl font-semibold text-gray-900">Development Timeline</h2>
-              </CardHeader>
-              <CardBody>
-                {product.timeline && product.timeline.length > 0 ? (
-                  <Timeline 
-                    events={product.timeline.map((event) => ({
-                      date: formatDate(event.date),
-                      title: event.stage,
-                      description: event.description
-                    }))}
-                  />
-                ) : (
-                  <p class="text-gray-500 italic">No timeline information available.</p>
-                )}
-              </CardBody>
-            </Card>
-          </div>
-          
-          <!-- Patents Section (hidden in overview tab) -->
-          <div class="hidden" id="patents-content">
-            <Card>
-              <CardHeader>
-                <h2 class="text-xl font-semibold text-gray-900">Patents</h2>
-              </CardHeader>
-              <CardBody>
-                {product.patents && product.patents.length > 0 ? (
-                  <DataTable 
-                    headers={['Patent Number', 'Expiry Date', 'Description']}
-                    data={product.patents.map((patent) => [
-                      patent.number,
-                      formatDate(patent.expiryDate),
-                      patent.description
-                    ])}
-                  />
-                ) : (
-                  <p class="text-gray-500 italic">No patent information available.</p>
-                )}
-              </CardBody>
-            </Card>
-          </div>
-          
-          <!-- Websites Section (hidden in overview tab) -->
-          <div class="hidden" id="websites-content">
-            <Card>
-              <CardHeader>
-                <h2 class="text-xl font-semibold text-gray-900">Official Websites</h2>
-              </CardHeader>
-              <CardBody>
-                {product.website ? (
-                  <div>
-                    <h3 class="text-lg font-medium text-gray-900 mb-3">Product Website</h3>
-                    <a 
-                      href={product.website} 
-                      class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                      Visit Official Website
-                    </a>
+                    {/* Development Status Group */}
+                    <div>
+                      <h3 class="text-lg font-medium text-gray-900 mb-3">Development Status</h3>
+                      <dl class="space-y-3">
+                        {product.stage && (
+                          <div>
+                            <dt class="text-sm font-medium text-gray-500">Current Stage</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{getStageName(product.stage)}</dd>
+                          </div>
+                        )}
+                        
+                        {product.status && (
+                          <div>
+                            <dt class="text-sm font-medium text-gray-500">Status</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{product.status}</dd>
+                          </div>
+                        )}
+                        
+                        {/* Maybe add FDA approvals or other key milestones here */}
+                        {product.approvals && product.approvals.length > 0 && (
+                          <div>
+                            <dt class="text-sm font-medium text-gray-500">Latest Approval</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                              {formatDate(product.approvals[0].date)} ({product.approvals[0].agency})
+                            </dd>
+                          </div>
+                        )}
+                      </dl>
+                    </div>
                   </div>
-                ) : (
-                  <p class="text-gray-500 italic">No official website information available.</p>
-                )}
-              </CardBody>
-            </Card>
+                </CardBody>
+              </Card>
+            </div>
+            
+            <!-- Right Column -->
+            <div class="md:col-span-1 space-y-6">
+              <!-- Related Products -->
+              {relatedProducts && relatedProducts.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <h2 class="text-xl font-semibold text-gray-900">Related Products</h2>
+                  </CardHeader>
+                  <CardBody>
+                    <div class="space-y-4">
+                      {relatedProducts.map((relatedProduct) => (
+                        <ProductCard 
+                          product={relatedProduct}
+                          compact={true}
+                        />
+                      ))}
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        <!-- Regulatory Approvals Section -->
+        <div id="product-tab-content-regulatory" role="tabpanel" aria-labelledby="tab-regulatory" class={activeTab === 'regulatory' ? '' : 'hidden'}>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="md:col-span-3 space-y-6">
+              <Card>
+                <CardHeader>
+                  <h2 class="text-xl font-semibold text-gray-900">Regulatory Approvals</h2>
+                </CardHeader>
+                <CardBody>
+                  {product.approvals && product.approvals.length > 0 ? (
+                    <DataTable 
+                      headers={['Region', 'Agency', 'Date', 'Indication', 'Status']}
+                      data={product.approvals.map((approval) => [
+                        approval.region,
+                        approval.agency,
+                        formatDate(approval.date),
+                        approval.indication,
+                        approval.status
+                      ])}
+                    />
+                  ) : (
+                    <p class="text-gray-500 italic">No regulatory approval information available.</p>
+                  )}
+                </CardBody>
+              </Card>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Timeline Section -->
+        <div id="product-tab-content-timeline" role="tabpanel" aria-labelledby="tab-timeline" class={activeTab === 'timeline' ? '' : 'hidden'}>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="md:col-span-3 space-y-6">
+              <Card>
+                <CardHeader>
+                  <h2 class="text-xl font-semibold text-gray-900">Development Timeline</h2>
+                </CardHeader>
+                <CardBody>
+                  {product.timeline && product.timeline.length > 0 ? (
+                    <Timeline 
+                      events={product.timeline.map((event) => ({
+                        date: formatDate(event.date),
+                        title: event.stage,
+                        description: event.description
+                      }))}
+                    />
+                  ) : (
+                    <p class="text-gray-500 italic">No timeline information available.</p>
+                  )}
+                </CardBody>
+              </Card>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Patents Section -->
+        <div id="product-tab-content-patents" role="tabpanel" aria-labelledby="tab-patents" class={activeTab === 'patents' ? '' : 'hidden'}>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="md:col-span-3 space-y-6">
+              <Card>
+                <CardHeader>
+                  <h2 class="text-xl font-semibold text-gray-900">Patents</h2>
+                </CardHeader>
+                <CardBody>
+                  {product.patents && product.patents.length > 0 ? (
+                    <DataTable 
+                      headers={['Patent Number', 'Expiry Date', 'Description']}
+                      data={product.patents.map((patent) => [
+                        patent.number,
+                        formatDate(patent.expiryDate),
+                        patent.description
+                      ])}
+                    />
+                  ) : (
+                    <p class="text-gray-500 italic">No patent information available.</p>
+                  )}
+                </CardBody>
+              </Card>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Websites Section -->
+        <div id="product-tab-content-websites" role="tabpanel" aria-labelledby="tab-websites" class={activeTab === 'websites' ? '' : 'hidden'}>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="md:col-span-3 space-y-6">
+              <Card>
+                <CardHeader>
+                  <h2 class="text-xl font-semibold text-gray-900">Official Websites</h2>
+                </CardHeader>
+                <CardBody>
+                  {product.website ? (
+                    <div>
+                      <h3 class="text-lg font-medium text-gray-900 mb-3">Product Website</h3>
+                      <a 
+                        href={product.website} 
+                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        Visit Official Website
+                      </a>
+                    </div>
+                  ) : (
+                    <p class="text-gray-500 italic">No official website information available.</p>
+                  )}
+                </CardBody>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
-      
-      <!-- Sidebar -->
-      <div class="space-y-6">
-        <!-- Related Products -->
-        {relatedProducts && relatedProducts.length > 0 && (
-          <Card>
-            <CardHeader>
-              <h2 class="text-xl font-semibold text-gray-900">Related Products</h2>
-            </CardHeader>
-            <CardBody>
-              <div class="space-y-4">
-                {relatedProducts.map((relatedProduct) => (
-                  <ProductCard 
-                    product={relatedProduct}
-                    compact={true}
-                  />
-                ))}
-              </div>
-            </CardBody>
-          </Card>
-        )}
-      </div>
     </div>
   </div>
-</DashboardLayout>
-
-<script>
-  // Simple tab switching logic
-  document.addEventListener('DOMContentLoaded', () => {
-    const tabs = document.querySelectorAll('[data-tab]');
-    const contents = {
-      overview: document.getElementById('overview-content'),
-      websites: document.getElementById('websites-content'),
-      regulatory: document.getElementById('regulatory-content'),
-      timeline: document.getElementById('timeline-content'),
-      patents: document.getElementById('patents-content'),
-    };
-    
-    tabs.forEach(tab => {
-      tab.addEventListener('click', (e) => {
-        e.preventDefault();
-        
-        // Remove active class from all tabs
-        tabs.forEach(t => t.classList.remove('active-tab'));
-        
-        // Add active class to clicked tab
-        tab.classList.add('active-tab');
-        
-        // Hide all content
-        Object.values(contents).forEach(content => {
-          if (content) content.classList.add('hidden');
-        });
-        
-        // Show selected content
-        const tabId = tab.getAttribute('data-tab');
-        if (tabId && contents[tabId]) {
-          contents[tabId].classList.remove('hidden');
-        }
-      });
-    });
-  });
-</script> 
+</DashboardLayout> 

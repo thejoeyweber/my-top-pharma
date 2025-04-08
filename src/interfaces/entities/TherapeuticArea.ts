@@ -9,9 +9,9 @@ export interface TherapeuticArea {
   name: string;
   slug: string;
   description: string;
-  iconPath?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  iconPath: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
 }
 
 /**
@@ -38,11 +38,11 @@ export function dbTherapeuticAreaToTherapeuticArea(dbTherapeuticArea: DbTherapeu
   return {
     id: dbTherapeuticArea.id,
     name: dbTherapeuticArea.name,
-    slug: dbTherapeuticArea.slug,
+    slug: dbTherapeuticArea.slug || '',  // Ensure slug is never null
     description: dbTherapeuticArea.description || '',
-    iconPath: dbTherapeuticArea.icon_path || undefined,
-    createdAt: dbTherapeuticArea.created_at || undefined,
-    updatedAt: dbTherapeuticArea.updated_at || undefined
+    iconPath: dbTherapeuticArea.icon_path,
+    createdAt: dbTherapeuticArea.created_at,
+    updatedAt: dbTherapeuticArea.updated_at
   };
 }
 
@@ -56,7 +56,7 @@ export function therapeuticAreaToDbTherapeuticArea(
     id: therapeuticArea.id,
     name: therapeuticArea.name,
     description: therapeuticArea.description || null,
-    slug: therapeuticArea.slug,
-    icon_path: therapeuticArea.iconPath || null,
+    slug: therapeuticArea.slug || '',  // Ensure slug is never null
+    icon_path: therapeuticArea.iconPath ?? null,
   };
 } 

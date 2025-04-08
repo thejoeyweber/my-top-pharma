@@ -97,12 +97,7 @@ Object.entries(selectedFilters).forEach(([filterId, value]) => {
         <!-- Search and Filters Button Row -->
         <div class="flex flex-col md:flex-row gap-4 items-start">
           <div class="w-full md:flex-1">
-            <SearchBar 
-              id="global-search" 
-              name="q" 
-              placeholder="Search companies, products, therapeutics..."
-              client:load
-            />
+            <SearchBar />
           </div>
           
           {showFilterButton && (
@@ -273,6 +268,6 @@ Object.entries(selectedFilters).forEach(([filterId, value]) => {
   });
 </script>
 
-<SearchBar client:load />
-<SortSelect client:load />
-<MultiSelect client:load /> 
+<SearchBar />
+<SortSelect />
+<MultiSelect /> 

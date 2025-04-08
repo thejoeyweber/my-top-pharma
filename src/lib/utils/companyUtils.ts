@@ -34,6 +34,22 @@ export interface CompanyFilterOptions {
 }
 
 /**
+ * Maps sort parameter to database field name
+ * 
+ * @param sortBy - Sort parameter from URL
+ * @returns Correct database field name to use for sorting
+ */
+export function getSortField(sortBy: string): string {
+  switch(sortBy) {
+    case 'name': return 'name';
+    case 'market': return 'market_cap';
+    case 'market_cap': return 'market_cap';
+    case 'founded': return 'founded';
+    default: return 'name';
+  }
+}
+
+/**
  * Fetches companies from the database with filtering, sorting and pagination
  * 
  * @param filter - Filtering options
@@ -114,8 +130,8 @@ export async function getCompanies(options: CompanyFilter = {}): Promise<Company
       }
     }
     
-    // Apply sorting
-    query = query.order(sortBy, { ascending: sortDirection === 'asc' });
+    // Apply sorting using the extracted sortField function
+    query = query.order(getSortField(sortBy), { ascending: sortDirection === 'asc' });
     
     // Apply pagination
     if (limit) {
@@ -494,4 +510,76 @@ export async function deleteCompany(id: string): Promise<boolean> {
     console.error(`Error deleting company ${id}:`, error);
     throw error;
   }
+}
+
+/**
+ * Fetches products associated with a company
+ * 
+ * @param companyId - The ID of the company
+ * @returns Promise with an array of products
+ */
+export async function getCompanyProducts(companyId: string): Promise<any[]> {
+  try {
+    // Query the products table for products with the matching company_id
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('company_id', companyId);
+    
+    if (error) {
+      console.error('Error fetching company products:', error);
+      return [];
+    }
+    
+    // Convert database records to application entities
+    // We're importing the dbProductToProduct function to ensure consistent mapping
+    const { dbProductToProduct } = await import('../../interfaces/entities/Product');
+    return data.map(dbProduct => dbProductToProduct(dbProduct as any));
+  } catch (error) {
+    console.error('Error in getCompanyProducts:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetches websites associated with a specific company
+ * 
+ * @param companyId - ID of the company
+ * @returns Promise with an array of websites
+ */
+export async function getCompanyWebsites(companyId: string): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('websites')
+      .select('*')
+      .eq('company_id', companyId);
+    
+    if (error) {
+      console.error('Error fetching company websites:', error);
+      return [];
+    }
+    
+    // Convert DB websites to application entities
+    // This assumes there's a conversion function similar to dbCompanyToCompany
+    // If dbWebsiteToWebsite doesn't exist, you'll need to define it or use data directly
+    return data || [];
+  } catch (error) {
+    console.error(`Error fetching websites for company ${companyId}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Get companies related to the specified company (stub function)
+ * Will be implemented fully when the related companies data model is ready
+ * 
+ * @param companyId - ID of the company to find related companies for
+ * @returns Promise with an empty array for now
+ * 
+ * TODO: Implement proper error handling and UI feedback when this feature is developed
+ */
+export async function getRelatedCompanies(companyId: string): Promise<any[]> {
+  // Return empty array for now until the related companies feature is implemented
+  console.log('Related companies feature not yet implemented');
+  return [];
 } 

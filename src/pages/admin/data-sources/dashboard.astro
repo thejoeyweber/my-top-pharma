@@ -1,5 +1,8 @@
 ---
-import AdminLayout from '../../../layouts/AdminLayout.astro';
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import Card from '../../../components/atoms/Card.astro';
+import CardHeader from '../../../components/atoms/CardHeader.astro';
+import CardBody from '../../../components/atoms/CardBody.astro';
 import { supabase } from '../../../lib/supabase';
 
 // Check health
@@ -75,7 +78,12 @@ const displayUrl = databaseUrl?.length > 30
   : databaseUrl;
 ---
 
-<AdminLayout title="Supabase Dashboard">
+<DashboardLayout 
+  title="Data Sources Dashboard" 
+  description="Monitor data source health and statistics"
+  isAdmin={true}
+  showDataSource={true}
+>
   <div class="max-w-7xl mx-auto py-8 px-4">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
       <div>
@@ -352,4 +360,4 @@ const displayUrl = databaseUrl?.length > 30
       </div>
     </div>
   </div>
-</AdminLayout> 
+</DashboardLayout> 

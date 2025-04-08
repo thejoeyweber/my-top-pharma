@@ -273,4 +273,31 @@ const description = "Browse and discover pharmaceutical companies in our databas
     // Form is already functional with native browser behavior
     // Additional JS enhancements could be added here if needed
   });
+
+  // Update URL parameters and navigate
+  function updateUrlParams(params, currentUrl) {
+    const updatedUrl = new URL(currentUrl);
+    
+    // Special handling for sort parameter to prevent changing view mode
+    if (params.sort) {
+      // Get sort value and direction
+      const [field, direction] = params.sort.split('_');
+      
+      // Only update sort-related params, preserve the current view
+      updatedUrl.searchParams.set('sort', field);
+      updatedUrl.searchParams.set('direction', direction || 'asc');
+    } else {
+      // For non-sort params, update normally
+      Object.entries(params).forEach(([key, value]) => {
+        if (value === null || value === undefined || value === '') {
+          updatedUrl.searchParams.delete(key);
+        } else {
+          updatedUrl.searchParams.set(key, value.toString());
+        }
+      });
+    }
+    
+    // Navigate to the new URL
+    window.location.href = updatedUrl.pathname + updatedUrl.search;
+  }
 </script> 

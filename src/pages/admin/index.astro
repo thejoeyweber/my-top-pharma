@@ -1,357 +1,142 @@
 ---
 /**
- * Admin Dashboard Page
+ * Admin Dashboard Home
  * 
- * Main administrative dashboard with system stats and quick access to admin functions.
+ * Main landing page for the admin section.
+ * Displays key administrative features and system status.
  */
+
+import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import Card from '../../components/atoms/Card.astro';
-import AdminLayout from '../../layouts/AdminLayout.astro';
-import { supabase } from '../../lib/supabase';
+import CardHeader from '../../components/atoms/CardHeader.astro';
+import CardBody from '../../components/atoms/CardBody.astro';
+import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
 
-// Mock data (previously imported from dataUtils)
-const systemStats = {
-  companies: 1245,
-  products: 5672,
-  websites: 3198,
-  users: 87,
-  lastCrawl: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-  nextCrawl: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
-  uptime: '99.98%',
-  dbSize: '1.27 GB',
-  apiRequests: 15842
-};
-
-const recentCrawlerJobs = [
-  {
-    id: 'job123',
-    type: 'company-websites',
-    status: 'completed',
-    startTime: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-    endTime: new Date(Date.now() - 11.5 * 60 * 60 * 1000).toISOString(),
-    itemsProcessed: 352,
-    errors: 2
-  },
-  {
-    id: 'job122',
-    type: 'product-data',
-    status: 'completed',
-    startTime: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    endTime: new Date(Date.now() - 23.2 * 60 * 60 * 1000).toISOString(),
-    itemsProcessed: 512,
-    errors: 0
-  },
-  {
-    id: 'job121',
-    type: 'financial-reports',
-    status: 'failed',
-    startTime: new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString(),
-    endTime: new Date(Date.now() - 35.9 * 60 * 60 * 1000).toISOString(),
-    itemsProcessed: 28,
-    errors: 5
-  }
-];
-
-const adminShortcuts = [
-  { name: 'Manage Companies', url: '/admin/companies', icon: 'building' },
-  { name: 'Manage Products', url: '/admin/products', icon: 'beaker' },
-  { name: 'Manage Users', url: '/admin/users', icon: 'users' },
-  { name: 'System Logs', url: '/admin/logs', icon: 'document-report' }
-];
-
-// Format number with commas
-const formatNumber = (num: number): string => {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-};
-
-// Format date
-const formatDate = (dateString: string): string => {
-  if (!dateString) return '--';
-  const date = new Date(dateString);
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  });
-};
-
-// Breadcrumbs for navigation
-const breadcrumbs = [
-  { label: 'Home', href: '/' },
-  { label: 'Admin', href: '/admin', isActive: true },
-];
-
-// Check Supabase connection health
-let isHealthy = false;
-try {
-  const { data, error } = await supabase.from('companies').select('id', { count: 'exact', head: true });
-  isHealthy = !error;
-} catch (error) {
-  console.error('Supabase health check failed:', error);
-}
-
-// Define the admin sections
-const adminSections = [
-  {
-    title: 'Data Management',
-    items: [
-      {
-        title: 'Companies',
-        description: 'Manage pharmaceutical companies',
-        icon: 'building',
-        url: '/admin/companies'
-      },
-      {
-        title: 'Products',
-        description: 'Manage pharmaceutical products',
-        icon: 'beaker',
-        url: '/admin/products'
-      },
-      {
-        title: 'Websites',
-        description: 'Manage pharmaceutical websites',
-        icon: 'globe',
-        url: '/admin/websites'
-      },
-      {
-        title: 'Therapeutic Areas',
-        description: 'Manage therapeutic areas',
-        icon: 'heart',
-        url: '/admin/therapeutic-areas'
-      }
-    ]
-  },
-  {
-    title: 'Data Sources',
-    items: [
-      {
-        title: 'Data Source Dashboard',
-        description: 'Monitor data source health and statistics',
-        icon: 'chart-bar',
-        url: '/admin/data-sources/dashboard'
-      },
-      {
-        title: 'Connection Test',
-        description: 'Test data source connections',
-        icon: 'lightning-bolt',
-        url: '/admin/data-sources/connection-test'
-      },
-      {
-        title: 'Documentation',
-        description: 'Data source documentation',
-        icon: 'document-text',
-        url: '/admin/docs/data-sources'
-      }
-    ]
-  },
-  {
-    title: 'System',
-    items: [
-      {
-        title: 'Settings',
-        description: 'System settings',
-        icon: 'adjustments',
-        url: '/admin/settings'
-      },
-      {
-        title: 'Users',
-        description: 'Manage users',
-        icon: 'users',
-        url: '/admin/users'
-      },
-      {
-        title: 'Logs',
-        description: 'View system logs',
-        icon: 'document-report',
-        url: '/admin/logs'
-      }
-    ]
-  }
-];
-
-// Helper function to render the appropriate icon
-const renderIcon = (iconName: string) => {
-  switch (iconName) {
-    case 'building':
-      return `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-      </svg>`;
-    case 'beaker':
-      return `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-      </svg>`;
-    case 'globe':
-      return `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>`;
-    case 'heart':
-      return `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-      </svg>`;
-    case 'chart-bar':
-      return `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>`;
-    case 'lightning-bolt':
-      return `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>`;
-    case 'cog':
-      return `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>`;
-    case 'document-text':
-      return `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>`;
-    case 'adjustments':
-      return `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-      </svg>`;
-    case 'users':
-      return `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-      </svg>`;
-    case 'document-report':
-      return `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>`;
-    default:
-      return `<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-      </svg>`;
-  }
-};
+const title = 'Admin Dashboard';
+const description = 'MyTopPharma Administration Dashboard';
+const currentPath = Astro.url.pathname;
 ---
 
-<AdminLayout title="Admin Dashboard" breadcrumbs={breadcrumbs}>
-  <div class="max-w-7xl mx-auto py-8 px-4">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-      <div>
-        <h1 class="text-3xl font-bold">Admin Dashboard</h1>
-        <p class="text-gray-600 mt-1">Manage your application data and settings</p>
+<DashboardLayout 
+  title={title} 
+  description={description}
+  currentPath={currentPath}
+  isAdmin={true}
+  showDataSource={true}
+>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- System Status -->
+    <Card class="col-span-full md:col-span-1">
+      <CardHeader>System Status</CardHeader>
+      <CardBody>
+        <div class="space-y-2">
+          <div class="flex justify-between items-center">
+            <span>Database Connection</span>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              Connected
+            </span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span>Data Feeds</span>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              Active
+            </span>
       </div>
-      
-      <div class="mt-4 md:mt-0 flex items-center">
-        <span class="mr-2">System Status:</span>
-        {isHealthy ? (
-          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-            </svg>
-            Healthy
+          <div class="flex justify-between items-center">
+            <span>Airbyte</span>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+              Pending
           </span>
-        ) : (
-          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-            </svg>
-            Unhealthy
+          </div>
+          <div class="flex justify-between items-center">
+            <span>API Status</span>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              Online
           </span>
-        )}
       </div>
     </div>
+      </CardBody>
+    </Card>
     
-    <!-- System Stats -->
-    <div class="mb-8">
-      <h2 class="text-xl font-semibold mb-4">System Statistics</h2>
-      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {systemStats.map((stat) => (
-          <Card>
-            <div class="px-4 py-5 sm:p-6">
-              <div class="flex items-center">
-                <div class="flex-shrink-0 rounded-md bg-primary-50 p-3">
-                  <span set:html={stat.icon} />
+    <!-- Recent Activity -->
+    <Card class="col-span-full md:col-span-1">
+      <CardHeader>Recent Activity</CardHeader>
+      <CardBody>
+        <ul class="space-y-3 max-h-60 overflow-y-auto">
+          <li class="text-sm">
+            <span class="text-gray-500">10:45 AM:</span> Data feed completed: SEC EDGAR
+          </li>
+          <li class="text-sm">
+            <span class="text-gray-500">09:30 AM:</span> User logged in: admin@example.com
+          </li>
+          <li class="text-sm">
+            <span class="text-gray-500">Yesterday:</span> Backup completed successfully
+          </li>
+          <li class="text-sm">
+            <span class="text-gray-500">Yesterday:</span> System update applied: v2.1.4
+          </li>
+        </ul>
+      </CardBody>
+    </Card>
+    
+    <!-- Database Stats -->
+    <Card class="col-span-full md:col-span-1">
+      <CardHeader>Database Statistics</CardHeader>
+      <CardBody>
+        <div class="space-y-2">
+          <div class="flex justify-between">
+            <span>Companies</span>
+            <span class="font-semibold">147</span>
                 </div>
-                <div class="ml-5 w-0 flex-1">
-                  <dt class="text-sm font-medium text-gray-500 truncate">{stat.label}</dt>
-                  <dd class="flex items-baseline">
-                    <div class="text-2xl font-semibold text-gray-900">
-                      {formatNumber(stat.value)}
+          <div class="flex justify-between">
+            <span>Products</span>
+            <span class="font-semibold">2,341</span>
                     </div>
-                    <div class={`ml-2 flex items-baseline text-sm font-semibold ${
-                      stat.trend === 'up' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {stat.change}
+          <div class="flex justify-between">
+            <span>Therapeutic Areas</span>
+            <span class="font-semibold">32</span>
                     </div>
-                  </dd>
+          <div class="flex justify-between">
+            <span>Websites</span>
+            <span class="font-semibold">512</span>
                 </div>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+          <div class="flex justify-between">
+            <span>Users</span>
+            <span class="font-semibold">28</span>
     </div>
-    
-    <!-- Recent Crawler Activity -->
-    <div class="mb-8">
-      <h2 class="text-xl font-semibold mb-4">Recent Crawler Activity</h2>
-      <Card>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead>
-              <tr>
-                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job ID</th>
-                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Time</th>
-                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Time</th>
-                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
-                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Added</th>
-                <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Errors</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              {recentCrawlerJobs.map((job) => (
-                <tr>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{job.id}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(job.startTime)}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(job.endTime)}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm">
-                    <span class={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                      job.status === 'complete' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {job.status}
-                    </span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{job.websitesUpdated}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{job.websitesAdded}</td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <span class={job.errors > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
-                      {job.errors}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
+      </CardBody>
       </Card>
     </div>
     
-    {adminSections.map(section => (
-      <div class="mb-10">
-        <h2 class="text-xl font-semibold mb-4">{section.title}</h2>
-        
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {section.items.map(item => (
-            <a href={item.url} class="block">
-              <div class="bg-white shadow rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-300">
-                <div class="p-5">
-                  <div class="inline-flex items-center justify-center w-12 h-12 rounded-md bg-blue-100 text-blue-600 mb-4">
-                    <span set:html={renderIcon(item.icon)} />
-                  </div>
-                  <h3 class="text-lg font-medium text-gray-900">{item.title}</h3>
-                  <p class="mt-2 text-sm text-gray-500">{item.description}</p>
-                </div>
-              </div>
-            </a>
-          ))}
-        </div>
+  <!-- Quick Links -->
+  <div class="mt-8">
+    <h2 class="text-lg font-medium text-gray-900 mb-4">Quick Links</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <a href="/admin/data-feeds" class="block p-4 bg-white border rounded-lg hover:bg-gray-50 transition">
+        <h3 class="font-medium">Data Feeds</h3>
+        <p class="text-sm text-gray-500">Manage data import processes</p>
+      </a>
+      <a href="/admin/audit/feature-flags" class="block p-4 bg-white border rounded-lg hover:bg-gray-50 transition">
+        <h3 class="font-medium">Feature Flags</h3>
+        <p class="text-sm text-gray-500">Toggle application features</p>
+      </a>
+      <a href="/admin/user-management" class="block p-4 bg-white border rounded-lg hover:bg-gray-50 transition">
+        <h3 class="font-medium">User Management</h3>
+        <p class="text-sm text-gray-500">Manage user accounts</p>
+      </a>
+      <a href="/admin/system-logs" class="block p-4 bg-white border rounded-lg hover:bg-gray-50 transition">
+        <h3 class="font-medium">System Logs</h3>
+        <p class="text-sm text-gray-500">View application logs</p>
+      </a>
+      <a href="/admin/api-config" class="block p-4 bg-white border rounded-lg hover:bg-gray-50 transition">
+        <h3 class="font-medium">API Configuration</h3>
+        <p class="text-sm text-gray-500">Manage API settings</p>
+      </a>
+      <a href="/admin/test-db" class="block p-4 bg-white border rounded-lg hover:bg-gray-50 transition">
+        <h3 class="font-medium">Database Test</h3>
+        <p class="text-sm text-gray-500">Test database connection</p>
+      </a>
       </div>
-    ))}
   </div>
-</AdminLayout> 
+</DashboardLayout> 

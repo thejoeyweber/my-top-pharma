@@ -8,7 +8,11 @@
 /**
  * Get the URL to a company logo
  */
-export function getCompanyLogoUrl(companyId: string): string {
+export function getCompanyLogoUrl(pathOrId: string | null | undefined): string | null {
+  if (!pathOrId) return null;
+  // Extract ID if a full path is provided, otherwise assume it's an ID
+  const companyId = pathOrId.includes('/') ? pathOrId.split('/').pop()?.replace('.svg', '') : pathOrId;
+  if (!companyId) return null; // Return null if ID extraction fails
   const baseUrl = import.meta.env.PUBLIC_ASSETS_BASE_URL || '/assets';
   return `${baseUrl}/companies/${companyId}/logo.svg`;
 }
@@ -16,7 +20,11 @@ export function getCompanyLogoUrl(companyId: string): string {
 /**
  * Get the URL to a company header image
  */
-export function getCompanyHeaderUrl(companyId: string): string {
+export function getCompanyHeaderUrl(pathOrId: string | null | undefined): string | null {
+  if (!pathOrId) return null;
+  // Extract ID if a full path is provided
+  const companyId = pathOrId.includes('/') ? pathOrId.split('/').pop()?.replace('.jpg', '') : pathOrId;
+  if (!companyId) return null;
   const baseUrl = import.meta.env.PUBLIC_ASSETS_BASE_URL || '/assets';
   return `${baseUrl}/companies/${companyId}/header.jpg`;
 }

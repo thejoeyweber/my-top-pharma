@@ -246,28 +246,28 @@ export interface Website {
   };
   domain: string;
   title: string;
-  description?: string;
+  description: string | null;
   type: string;
   createdAt: string;
   updatedAt: string;
   url: string;
   slug: string;
-  siteName?: string;
-  screenshotUrl?: string;
-  status?: string;
-  categories?: string[];
-  companyName?: string;
-  therapeuticAreaIds: number[];
+  siteName: string | null;
+  screenshotUrl: string | null;
+  status: string | null;
+  categories: string[] | null;
+  companyName: string | null;
+  therapeuticAreaIds: string[];
   therapeuticAreas: TherapeuticArea[];
-  categoryId: number;
-  logoUrl?: string;
+  categoryId: number | null;
+  logoUrl: string | null;
   isPrimary: boolean;
-  trafficRank: number;
-  domainExpiresAt?: Date | null;
-  domainCreatedAt?: Date | null;
-  hostingProvider?: string;
-  registrar?: string;
-  technologies?: string[];
+  trafficRank: number | null;
+  domainExpiresAt: Date | null;
+  domainCreatedAt: Date | null;
+  hostingProvider: string | null;
+  registrar: string | null;
+  technologies: string[] | null;
 }
 
 /**
@@ -284,74 +284,63 @@ export interface ProductWebsite {
 }
 
 /**
- * Converts a database website record to the application Website model
+ * Converts a database website record to a Website entity
  */
 export function dbWebsiteToWebsite(dbWebsite: any): Website {
   return {
     id: dbWebsite.id,
-    domain: dbWebsite.domain || '',
-    title: dbWebsite.title || '',
-    type: dbWebsite.website_type || dbWebsite.type || '',
-    url: dbWebsite.url || '',
-    slug: dbWebsite.slug || '',
-    siteName: dbWebsite.site_name,
-    description: dbWebsite.description,
     companyId: dbWebsite.company_id,
-    companyName: dbWebsite.company?.name, // Assuming relation 'company' exists and has 'name'
-    company: dbWebsite.company ? {
-      id: dbWebsite.company.id || '',
-      name: dbWebsite.company.name || ''
-    } : undefined,
-    therapeuticAreaIds: dbWebsite.therapeutic_area_ids || [],
-    therapeuticAreas: dbWebsite.therapeutic_areas?.map(dbTherapeuticAreaToTherapeuticArea) || [],
-    categoryId: dbWebsite.category_id || 0,
-    logoUrl: dbWebsite.logo_url,
+    domain: dbWebsite.domain,
+    title: dbWebsite.title || dbWebsite.domain,
+    description: dbWebsite.description,
+    type: dbWebsite.type || 'unknown',
+    createdAt: dbWebsite.created_at,
+    updatedAt: dbWebsite.updated_at,
+    url: dbWebsite.url || `https://${dbWebsite.domain}`,
+    slug: dbWebsite.slug,
+    siteName: dbWebsite.site_name,
     screenshotUrl: dbWebsite.screenshot_url,
+    status: dbWebsite.status,
+    categories: dbWebsite.categories || [],
+    companyName: dbWebsite.company_name,
+    therapeuticAreaIds: dbWebsite.therapeutic_area_ids || [],
+    therapeuticAreas: [], // Will be populated separately if needed
+    categoryId: dbWebsite.category_id,
+    logoUrl: dbWebsite.logo_url,
     isPrimary: dbWebsite.is_primary || false,
-    trafficRank: dbWebsite.traffic_rank || 0,
-    createdAt: new Date(dbWebsite.created_at).toISOString(),
-    updatedAt: new Date(dbWebsite.updated_at).toISOString(),
-    // Map new properties (handle potential nulls from DB)
+    trafficRank: dbWebsite.traffic_rank,
     domainExpiresAt: dbWebsite.domain_expires_at ? new Date(dbWebsite.domain_expires_at) : null,
     domainCreatedAt: dbWebsite.domain_created_at ? new Date(dbWebsite.domain_created_at) : null,
     hostingProvider: dbWebsite.hosting_provider,
     registrar: dbWebsite.registrar,
     technologies: dbWebsite.technologies || [],
-    categories: dbWebsite.categories || [],
-    status: dbWebsite.status
   };
 }
 
 /**
- * Converts the application Website model (or a partial update) back to a database record format.
- * NOTE: Casting to 'any' as a temporary workaround due to outdated DbWebsite type.
- * Regenerate Supabase types (src/types/database.ts) to fix this properly.
+ * Converts an application Website model to a database insert record
  */
-export function websiteToDbWebsite(website: Partial<Website>): Partial<DbWebsite> {
-  const dbUpdate: any = {}; // Temporary 'any' cast
-
-  // Map standard fields
-  if (website.id !== undefined) dbUpdate.id = website.id;
-  if (website.url !== undefined) dbUpdate.url = website.url;
-  if (website.siteName !== undefined) dbUpdate.site_name = website.siteName;
-  if (website.description !== undefined) dbUpdate.description = website.description;
-  if (website.companyId !== undefined) dbUpdate.company_id = website.companyId;
-  if (website.therapeuticAreaIds !== undefined) dbUpdate.therapeutic_area_ids = website.therapeuticAreaIds;
-  if (website.categoryId !== undefined) dbUpdate.category_id = website.categoryId;
-  if (website.logoUrl !== undefined) dbUpdate.logo_url = website.logoUrl;
-  if (website.screenshotUrl !== undefined) dbUpdate.screenshot_url = website.screenshotUrl;
-  if (website.isPrimary !== undefined) dbUpdate.is_primary = website.isPrimary;
-  if (website.trafficRank !== undefined) dbUpdate.traffic_rank = website.trafficRank;
-  // createdAt and updatedAt are usually handled by the DB
-
-  // Map new fields
-  if (website.domainExpiresAt !== undefined) dbUpdate.domain_expires_at = website.domainExpiresAt?.toISOString();
-  if (website.domainCreatedAt !== undefined) dbUpdate.domain_created_at = website.domainCreatedAt?.toISOString();
-  if (website.hostingProvider !== undefined) dbUpdate.hosting_provider = website.hostingProvider;
-  if (website.registrar !== undefined) dbUpdate.registrar = website.registrar;
-  if (website.technologies !== undefined) dbUpdate.technologies = website.technologies;
-
-  return dbUpdate as Partial<DbWebsite>; // Cast back for return type consistency
+export function websiteToDbWebsite(website: Partial<Website>): Partial<DbWebsiteInsert> {
+  // Only include fields that exist in the database schema
+  return {
+    id: website.id,
+    company_id: website.companyId,
+    domain: website.domain,
+    description: website.description || undefined,
+    url: website.url,
+    slug: website.slug,
+    site_name: website.siteName || undefined,
+    screenshot_url: website.screenshotUrl || undefined,
+    status: website.status || undefined,
+    category_id: website.categoryId !== null ? 
+      String(website.categoryId) : undefined,
+    region: undefined, // Present in DB schema but not in the Website interface
+    language: undefined, // Present in DB schema but not in the Website interface
+    has_ssl: undefined, // Present in DB schema but not in the Website interface
+    // Fields not included in the DB schema:
+    // is_primary, traffic_rank, domain_expires_at, domain_created_at,
+    // hosting_provider, registrar, technologies
+  };
 }
 
 // Zod schema for validating website data (aligned with the Website interface)

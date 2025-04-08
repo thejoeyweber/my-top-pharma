@@ -39,6 +39,36 @@ export function updateUrlParams(
 }
 
 /**
+ * Preserves specified parameters while updating others
+ * 
+ * @param updates - Object containing parameter updates
+ * @param preserveParams - Array of parameter names to preserve
+ * @param baseUrl - The base URL to update (defaults to current URL if used client-side)
+ * @returns String URL with updated parameters
+ */
+export function preserveParams(
+  updates: Record<string, string | string[] | number | null | undefined>,
+  preserveParams: string[] = ['view', 'page', 'filter'],
+  baseUrl?: string | URL
+): string {
+  const url = baseUrl 
+    ? (typeof baseUrl === 'string' ? new URL(baseUrl) : baseUrl)
+    : new URL(window.location.href);
+  
+  // Collect values of parameters to preserve
+  const preserved: Record<string, string> = {};
+  preserveParams.forEach(param => {
+    const value = url.searchParams.get(param);
+    if (value) {
+      preserved[param] = value;
+    }
+  });
+  
+  // Merge preserved values with updates (updates take precedence)
+  return updateUrlParams({...preserved, ...updates}, url);
+}
+
+/**
  * Creates a URL with parameters for pagination
  * 
  * @param baseUrl - The base URL (page path)
@@ -72,4 +102,59 @@ export function getPaginationParams(
   const offset = (page - 1) * limit;
   
   return { page, limit, offset };
+}
+
+/**
+ * Updates sort parameters while preserving view mode and other key parameters
+ * 
+ * @param sortValue - The sort parameter value to set
+ * @param currentUrl - The current URL (defaults to window.location in client context)
+ * @param paramsToPreserve - Array of parameters to preserve (defaults to ['view'])
+ * @returns String URL with updated sort parameter and preserved parameters
+ */
+export function updateSortParams(
+  sortValue: string,
+  currentUrl?: string | URL,
+  paramsToPreserve: string[] = ['view']
+): string {
+  // Create URL object from current URL
+  const url = currentUrl 
+    ? (typeof currentUrl === 'string' ? new URL(currentUrl) : currentUrl)
+    : new URL(window.location.href);
+  
+  // Create updates object with new sort parameter
+  const updates: Record<string, string> = { 
+    sort: sortValue 
+  };
+  
+  // Only preserve parameters that actually exist in the URL
+  paramsToPreserve.forEach(param => {
+    if (url.searchParams.has(param)) {
+      updates[param] = url.searchParams.get(param)!;
+    }
+  });
+  
+  // Use the existing updateUrlParams function to apply the updates
+  return updateUrlParams(updates, url);
+}
+
+/**
+ * Updates view mode parameter while preserving sort and other key parameters
+ * 
+ * @param viewMode - The view mode value to set
+ * @param currentUrl - The current URL (defaults to window.location in client context)
+ * @param paramsToPreserve - Array of parameters to preserve (defaults to ['sort', 'filter'])
+ * @returns String URL with updated view mode parameter and preserved parameters
+ */
+export function updateViewParams(
+  viewMode: string,
+  currentUrl?: string | URL,
+  paramsToPreserve: string[] = ['sort', 'filter']
+): string {
+  // Use the more general preserveParams function
+  return preserveParams(
+    { view: viewMode },
+    paramsToPreserve,
+    currentUrl
+  );
 } 

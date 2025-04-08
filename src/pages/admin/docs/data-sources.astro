@@ -1,5 +1,8 @@
 ---
-import AdminLayout from '../../../layouts/AdminLayout.astro';
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
+import Card from '../../../components/atoms/Card.astro';
+import CardHeader from '../../../components/atoms/CardHeader.astro';
+import CardBody from '../../../components/atoms/CardBody.astro';
 
 // Breadcrumbs
 const breadcrumbs = [
@@ -10,9 +13,13 @@ const breadcrumbs = [
 ];
 ---
 
-<AdminLayout title="Data Sources" breadcrumbs={breadcrumbs}>
+<DashboardLayout 
+  title="Data Sources Documentation" 
+  description="Documentation for available data sources and their usage"
+  isAdmin={true}
+>
   <div class="max-w-4xl mx-auto py-8 px-4">
     <h1 class="text-3xl font-bold mb-6">Data Sources</h1>
     <p>This documentation is under construction.</p>
   </div>
-</AdminLayout> 
+</DashboardLayout> 

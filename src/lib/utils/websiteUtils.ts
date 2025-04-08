@@ -367,23 +367,40 @@ export async function getWebsiteFilters(): Promise<{
       throw companiesError;
     }
     
-    // Get website counts by company (for displaying counts)
-    const { data: companyWebsiteCounts, error: countError } = await supabase
+    // Fetch all websites for counting (client-side aggregation)
+    // This is less efficient than server-side aggregation but more reliable
+    const { data: allWebsites, error: websitesError } = await supabase
       .from('websites')
-      .select(`
-        company_id,
-        count:count(*)
-      `, { count: 'exact', head: false });
-      
-    if (countError) {
-      console.error('Error getting website counts by company:', countError);
+      .select('company_id, website_type');
+    
+    if (websitesError) {
+      console.error('Error fetching websites for counting:', websitesError);
     }
     
     // Create a map of company ID to count
     const companyCountMap = new Map<string, number>();
-    (companyWebsiteCounts || []).forEach((item: any) => {
-      if (item && item.company_id) {
-        companyCountMap.set(item.company_id, parseInt(item.count));
+    
+    // Create a map of website type to count
+    const typeCountMap = new Map<string, number>();
+    
+    // Count occurrences in JavaScript
+    // Use type assertion to specify the expected structure
+    type WebsiteCount = { company_id?: string; website_type?: string };
+    ((allWebsites || []) as WebsiteCount[]).forEach(website => {
+      // Count by company ID
+      if (website.company_id) {
+        companyCountMap.set(
+          website.company_id, 
+          (companyCountMap.get(website.company_id) || 0) + 1
+        );
+      }
+      
+      // Count by website type
+      if (website.website_type) {
+        typeCountMap.set(
+          website.website_type, 
+          (typeCountMap.get(website.website_type) || 0) + 1
+        );
       }
     });
     
@@ -428,27 +445,7 @@ export async function getWebsiteFilters(): Promise<{
       };
     });
     
-    // Define website types with counts
-    const { data: typeCountsData, error: typeCountsError } = await supabase
-      .from('websites')
-      .select(`
-        website_type,
-        count:count(*)
-      `, { count: 'exact', head: false });
-      
-    if (typeCountsError) {
-      console.error('Error getting website counts by type:', typeCountsError);
-    }
-    
-    // Create a map of type to count - explicitly type the items
-    const typeCountMap = new Map<string, number>();
-    (typeCountsData || []).forEach((item: any) => {
-      if (item.website_type) {
-        typeCountMap.set(item.website_type, parseInt(item.count));
-      }
-    });
-    
-    // Define website types for filtering
+    // Define website types for filtering using the counts we collected
     const websiteTypes = [
       { id: 'corporate', name: 'Corporate', count: typeCountMap.get('corporate') || 0 },
       { id: 'product', name: 'Product', count: typeCountMap.get('product') || 0 },

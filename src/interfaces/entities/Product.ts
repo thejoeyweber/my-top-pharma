@@ -136,9 +136,9 @@ export interface Product {
   moleculeType: string | null;
   imageUrl: string | null;
   website: string | null;
-  createdAt: string | Date | null;
-  updatedAt: string | Date | null;
-  therapeuticAreas?: string[]; // Derived field from join table
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  therapeuticAreas?: TherapeuticArea[]; // Derived field from join table
 }
 
 /**
@@ -147,16 +147,16 @@ export interface Product {
 export interface DBProduct {
   id: string;
   name: string;
-  slug: string | null;
-  description?: string;
-  generic_name?: string;
-  molecule_type?: string;
-  image_url?: string;
-  website?: string;
+  slug: string;
+  description: string | null;
+  generic_name: string | null;
+  molecule_type: string | null;
+  image_url: string | null;
+  website: string | null;
   company_id: string;
-  stage?: string;
-  status?: string;
-  year?: number;
+  stage: string | null;
+  status: string | null;
+  year: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -195,21 +195,21 @@ export function dbProductToProduct(dbProduct: DBProduct): Product {
   return {
     id: dbProduct.id,
     name: dbProduct.name,
-    slug: dbProduct.slug || '',
-    description: dbProduct.description || null,
-    genericName: dbProduct.generic_name || null,
-    moleculeType: dbProduct.molecule_type || null,
-    imageUrl: dbProduct.image_url || null,
-    website: dbProduct.website || null,
+    slug: dbProduct.slug,
+    description: dbProduct.description,
+    genericName: dbProduct.generic_name,
+    moleculeType: dbProduct.molecule_type,
+    imageUrl: dbProduct.image_url,
+    website: dbProduct.website,
     companyId: dbProduct.company_id,
     companyName: undefined, // Will be populated separately if needed
     companySlug: undefined, // Will be populated separately if needed
-    stage: dbProduct.stage || null,
-    status: dbProduct.status || null,
-    year: dbProduct.year || null,
+    stage: dbProduct.stage,
+    status: dbProduct.status,
+    year: dbProduct.year,
     therapeuticAreas: [], // Will be populated separately
-    createdAt: new Date(dbProduct.created_at),
-    updatedAt: new Date(dbProduct.updated_at)
+    createdAt: dbProduct.created_at,
+    updatedAt: dbProduct.updated_at
   };
 }
 
@@ -229,7 +229,7 @@ export function productToDbProduct(product: Partial<Product>): Partial<DBProduct
     website: product.website || undefined,
     status: product.status || undefined,
     year: product.year || undefined,
-    slug: product.slug || '',
+    slug: product.slug,
     // Don't set created_at or updated_at, let the database handle those
     // therapeuticAreas is handled separately through the junction table
   };

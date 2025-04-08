@@ -55,10 +55,13 @@ const formatUrl = (url: string): string => {
 };
 
 // Get the proper link URL for the website detail page
-// Using proper slug and removing the fallback logic
+// Using proper slug and providing a fallback when slug is missing
 const getWebsiteDetailUrl = (): string => {
   if (!website.slug) {
-    console.error(`Website is missing slug: ${website.url}`);
+    // Create a fallback using the URL or ID
+    console.warn(`Website is missing slug: ${website.url}`);
+    // Use ID as fallback or URL-derived slug if available
+    return `/websites/${website.id || encodeURIComponent(formatUrl(website.url))}`;
   }
   return `/websites/${website.slug}`;
 };

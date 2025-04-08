@@ -110,14 +110,22 @@ const tabGroupId = `tabgroup-${Math.random().toString(36).substring(2, 9)}`;
 ---
 
 <div 
-  class:list={["tab-group border-b border-gray-200", className]}
+  class:list={["tab-group border-b border-gray-200 relative", className]}
   data-tab-group={tabGroupId}
   data-use-hash={useHash}
   data-tab-panel-id={tabPanelId} 
 >
+  <button 
+    type="button"
+    class="tab-scroll-button left-0 hidden absolute top-1/2 -translate-y-1/2 z-10 mx-1 p-1 border border-gray-200 bg-white/90 rounded-full shadow-md cursor-pointer hover:bg-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+    aria-label="Scroll tabs left"
+  >
+    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+  </button>
+  
   <nav 
     class:list={[
-      "flex -mb-px overflow-x-auto", 
+      "flex -mb-px overflow-x-auto scroll-smooth",
       fullWidth ? "w-full" : "space-x-8"
     ]} 
     aria-label={ariaLabel} 
@@ -163,6 +171,14 @@ const tabGroupId = `tabgroup-${Math.random().toString(36).substring(2, 9)}`;
       );
     })}
   </nav>
+  
+  <button 
+    type="button"
+    class="tab-scroll-button right-0 hidden absolute top-1/2 -translate-y-1/2 z-10 mx-1 p-1 border border-gray-200 bg-white/90 rounded-full shadow-md cursor-pointer hover:bg-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+    aria-label="Scroll tabs right"
+  >
+    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+  </button>
 </div>
 
 <script>
@@ -185,6 +201,7 @@ const tabGroupId = `tabgroup-${Math.random().toString(36).substring(2, 9)}`;
 
       this.addEventListeners();
       this.initializeActiveTab();
+      this.initializeScrollButtons();
     }
 
     initializeActiveTab() {
@@ -229,6 +246,41 @@ const tabGroupId = `tabgroup-${Math.random().toString(36).substring(2, 9)}`;
           this.activateTab(hash, false);
         }
       });
+    }
+
+    initializeScrollButtons() {
+      const navEl = this.tabGroupEl.querySelector('nav');
+      const leftButton = this.tabGroupEl.querySelector('.tab-scroll-button.left-0') as HTMLButtonElement;
+      const rightButton = this.tabGroupEl.querySelector('.tab-scroll-button.right-0') as HTMLButtonElement;
+
+      if (!navEl || !leftButton || !rightButton) return;
+
+      const checkScroll = () => {
+        const scrollLeft = navEl.scrollLeft;
+        const scrollWidth = navEl.scrollWidth;
+        const clientWidth = navEl.clientWidth;
+        const scrollOffset = 5; // Small buffer to prevent hiding too early
+
+        leftButton.classList.toggle('hidden', scrollLeft <= scrollOffset);
+        rightButton.classList.toggle('hidden', scrollLeft >= scrollWidth - clientWidth - scrollOffset);
+      };
+
+      // Add event listeners for scroll buttons
+      leftButton.addEventListener('click', () => {
+        navEl.scrollBy({ left: -navEl.clientWidth / 2, behavior: 'smooth' });
+      });
+
+      rightButton.addEventListener('click', () => {
+        navEl.scrollBy({ left: navEl.clientWidth / 2, behavior: 'smooth' });
+      });
+
+      // Check scroll on nav scroll and resize
+      navEl.addEventListener('scroll', checkScroll);
+      window.addEventListener('resize', checkScroll);
+
+      // Initial check
+      // Use setTimeout to ensure layout is stable after potential hydration
+      setTimeout(checkScroll, 100); 
     }
 
     activateTab(tabId: string, pushState = true) {
@@ -279,4 +331,17 @@ const tabGroupId = `tabgroup-${Math.random().toString(36).substring(2, 9)}`;
   document.querySelectorAll<HTMLElement>('.tab-group[data-tab-group]').forEach(tabGroupEl => {
     new TabGroupController(tabGroupEl);
   });
-</script> 
+</script>
+
+<style>
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .tab-group nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .tab-group nav {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+</style> 

@@ -5,6 +5,7 @@
  * A toggle button group for switching between different view modes (grid/list).
  * Uses server-side rendering with URL parameters.
  */
+import { updateViewParams } from '../../lib/utils/urlUtils';
 
 interface ViewOption {
   value: string;
@@ -18,6 +19,11 @@ interface Props {
   name?: string;
   class?: string;
   onChange?: (value: string) => string;
+  /**
+   * Parameters to preserve when changing view
+   * @default ['sort', 'filter']
+   */
+  preserveParams?: string[];
 }
 
 // Default view options if none provided
@@ -43,8 +49,20 @@ const {
   activeOption = 'grid',
   name = 'view',
   class: className = "",
-  onChange
+  onChange,
+  preserveParams = ['sort', 'filter']
 } = Astro.props;
+
+// Generate the URL for each option
+function getOptionUrl(value: string): string {
+  // If a custom onChange function is provided, use it
+  if (onChange) {
+    return onChange(value);
+  }
+  
+  // Otherwise use the updateViewParams utility to preserve important parameters
+  return updateViewParams(value, Astro.url.href, preserveParams);
+}
 ---
 
 <div class:list={["view-toggle", className]}>
@@ -52,7 +70,7 @@ const {
   <div class="inline-flex rounded-md shadow-sm" role="group">
     {options.map((option, index) => (
       <a
-        href={onChange ? onChange(option.value) : `?${name}=${option.value}`}
+        href={getOptionUrl(option.value)}
         class:list={[
           "view-toggle-btn py-1.5 px-3 text-sm font-medium focus:z-10 focus:ring-2 focus:ring-primary-500 focus:outline-none",
           index === 0 ? "rounded-l-md" : "",

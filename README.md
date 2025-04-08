@@ -20,7 +20,23 @@ Inside of your Astro project, you'll see the following folders and files:
 /
 ├── public/
 │   └── favicon.svg
+├── scripts/
+│   └── generate-db-types.js
 ├── src/
+│   ├── components/
+│   │   ├── atoms/          # Basic UI components
+│   │   ├── molecules/      # Composite components
+│   │   └── organisms/      # Complex components
+│   ├── layouts/            # Layout components
+│   ├── lib/
+│   │   └── utils/          # Utility functions
+│   ├── pages/
+│   ├── styles/
+│   ├── types/
+│   └── utils/
+├── supabase/
+│   ├── migrations/
+│   └── config.toml
 │   ├── layouts/
 │   │   └── Layout.astro
 │   └── pages/

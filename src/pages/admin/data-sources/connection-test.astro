@@ -4,7 +4,7 @@
  * 
  * Tests the connection to the current Supabase database and displays diagnostics.
  */
-import AdminLayout from '../../../layouts/AdminLayout.astro';
+import DashboardLayout from '../../../layouts/DashboardLayout.astro';
 import { supabase } from '../../../lib/supabase';
 
 // Check connection health by testing a simple query
@@ -50,7 +50,12 @@ const breadcrumbs = [
 ];
 ---
 
-<AdminLayout title="Supabase Connection Test" breadcrumbs={breadcrumbs}>
+<DashboardLayout 
+  title="Database Connection Test" 
+  description="Test connectivity to database sources"
+  isAdmin={true}
+  showDataSource={true}
+>
   <div class="max-w-4xl mx-auto">
     <div class="mb-8">
       <h1 class="text-2xl font-bold mb-2">Supabase Connection Test</h1>
@@ -139,4 +144,4 @@ const breadcrumbs = [
       </dl>
     </div>
   </div>
-</AdminLayout> 
+</DashboardLayout> 
