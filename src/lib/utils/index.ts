@@ -9,9 +9,18 @@ export * from './companyUtils';
 // Re-export product utilities
 export * from './productUtils';
 
-// Re-export therapeutic area utilities - need to handle duplicate FilterOption
-import * as taUtils from './therapeuticAreaUtils';
-export { taUtils };
+// Re-export therapeutic area utilities
+// Rename exports to avoid conflicts
+export {
+  getTherapeuticAreas,
+  getTherapeuticAreaBySlug,
+  getTherapeuticAreaCompanies,
+  getTherapeuticAreaProducts,
+  getRelatedTherapeuticAreas,
+  getTherapeuticAreaFilters,
+  type FilterOption,
+  type TherapeuticAreaFilter
+} from './therapeuticAreaUtils';
 
 // Re-export website utilities
 export * from './websiteUtils';
@@ -21,5 +30,14 @@ export * from './stringUtils';
 
 // Re-export URL utilities
 export * from './urlUtils';
+
+// Re-export date utilities
+export * from './dateUtils';
+
+// Re-export hydration utilities
+export * from './hydrationUtils';
+
+// Re-export schema utilities
+export * from './schemaUtils';
 
 // Add other utility exports here as needed 

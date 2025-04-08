@@ -36,47 +36,47 @@ export interface WebsiteTechStack {
   /**
    * Content Management System
    */
-  cms?: string;
+  cms: string | null;
   
   /**
    * Web development framework
    */
-  framework?: string;
+  framework: string | null;
   
   /**
    * Server technology
    */
-  server?: string;
+  server: string | null;
   
   /**
    * Analytics platform
    */
-  analytics?: string;
+  analytics: string | null;
   
   /**
    * Email service provider
    */
-  emailService?: string;
+  emailService: string | null;
   
   /**
    * Marketing automation platform
    */
-  marketingAutomation?: string;
+  marketingAutomation: string | null;
   
   /**
    * Content Delivery Network provider
    */
-  cdnProvider?: string;
+  cdnProvider: string | null;
   
   /**
    * Search technology
    */
-  searchTechnology?: string;
+  searchTechnology: string | null;
   
   /**
    * Chat/bot provider
    */
-  chatProvider?: string;
+  chatProvider: string | null;
 }
 
 /**
@@ -86,42 +86,42 @@ export interface WebsiteHosting {
   /**
    * Hosting provider
    */
-  provider?: string;
+  provider: string | null;
   
   /**
    * IP address
    */
-  ip?: string;
+  ip: string | null;
   
   /**
    * Domain registrar
    */
-  registrar?: string;
+  registrar: string | null;
   
   /**
    * Domain registration date
    */
-  registrationDate?: string;
+  registrationDate: string | null;
   
   /**
    * Domain expiration date
    */
-  expirationDate?: string;
+  expirationDate: string | null;
   
   /**
    * Nameserver information
    */
-  nameservers?: string[];
+  nameservers: string[] | null;
   
   /**
    * SSL certificate provider
    */
-  sslProvider?: string;
+  sslProvider: string | null;
   
   /**
    * SSL certificate expiration date
    */
-  sslExpirationDate?: string;
+  sslExpirationDate: string | null;
 }
 
 /**
@@ -146,32 +146,32 @@ export interface WebsiteFeature {
   /**
    * Category of the feature
    */
-  category?: string;
+  category: string | null;
   
   /**
    * Description of the feature
    */
-  description?: string;
+  description: string | null;
   
   /**
    * Status of the feature
    */
-  status?: string;
+  status: string | null;
   
   /**
    * Date the feature was added to the website
    */
-  addedDate?: string;
+  addedDate: string | null;
   
   /**
    * Creation timestamp
    */
-  createdAt?: string;
+  createdAt: string | null;
   
   /**
    * Last update timestamp
    */
-  updatedAt?: string;
+  updatedAt: string | null;
 }
 
 /**
@@ -191,7 +191,7 @@ export interface WebsiteLegalContent {
   /**
    * URL to the legal content
    */
-  url?: string;
+  url: string | null;
   
   /**
    * Last update date
@@ -201,12 +201,12 @@ export interface WebsiteLegalContent {
   /**
    * Applicable jurisdictions
    */
-  jurisdiction?: string[];
+  jurisdiction: string[] | null;
   
   /**
    * Version number
    */
-  version?: string;
+  version: string | null;
 }
 
 /**
@@ -216,22 +216,22 @@ export interface WebsiteDisclaimers {
   /**
    * Site disclaimer text
    */
-  siteDisclaimerText?: string;
+  siteDisclaimerText: string | null;
   
   /**
    * Link to cookie policy
    */
-  cookiePolicyLink?: string;
+  cookiePolicyLink: string | null;
   
   /**
    * Link to privacy policy
    */
-  privacyPolicyLink?: string;
+  privacyPolicyLink: string | null;
   
   /**
    * Region lock notice
    */
-  regionLockNotice?: string;
+  regionLockNotice: string | null;
 }
 
 /**
@@ -240,10 +240,10 @@ export interface WebsiteDisclaimers {
 export interface Website {
   id: string;
   companyId: string;
-  company?: {
+  company: {
     name: string;
     id: string;
-  };
+  } | null;
   domain: string;
   title: string;
   description: string | null;
@@ -271,6 +271,35 @@ export interface Website {
 }
 
 /**
+ * Interface for Website database records
+ */
+export interface DBWebsite {
+  id: string;
+  company_id: string;
+  domain: string;
+  title: string | null;
+  description: string | null;
+  type: string | null;
+  created_at: string;
+  updated_at: string;
+  url: string | null;
+  slug: string;
+  site_name: string | null;
+  screenshot_url: string | null;
+  status: string | null;
+  categories: string[] | null;
+  category_id: number | null;
+  logo_url: string | null;
+  is_primary: boolean | null;
+  traffic_rank: number | null;
+  domain_expires_at: string | null;
+  domain_created_at: string | null;
+  hosting_provider: string | null;
+  registrar: string | null;
+  technologies: string[] | null;
+}
+
+/**
  * Product Website Join Table
  * 
  * Represents the product_websites join table in the database
@@ -286,10 +315,11 @@ export interface ProductWebsite {
 /**
  * Converts a database website record to a Website entity
  */
-export function dbWebsiteToWebsite(dbWebsite: any): Website {
+export function dbWebsiteToWebsite(dbWebsite: DBWebsite): Website {
   return {
     id: dbWebsite.id,
     companyId: dbWebsite.company_id,
+    company: null, // Will be populated separately if needed
     domain: dbWebsite.domain,
     title: dbWebsite.title || dbWebsite.domain,
     description: dbWebsite.description,
@@ -302,8 +332,8 @@ export function dbWebsiteToWebsite(dbWebsite: any): Website {
     screenshotUrl: dbWebsite.screenshot_url,
     status: dbWebsite.status,
     categories: dbWebsite.categories || [],
-    companyName: dbWebsite.company_name,
-    therapeuticAreaIds: dbWebsite.therapeutic_area_ids || [],
+    companyName: null, // Will be populated separately if needed
+    therapeuticAreaIds: [], // Will be populated separately if needed
     therapeuticAreas: [], // Will be populated separately if needed
     categoryId: dbWebsite.category_id,
     logoUrl: dbWebsite.logo_url,
@@ -320,26 +350,35 @@ export function dbWebsiteToWebsite(dbWebsite: any): Website {
 /**
  * Converts an application Website model to a database insert record
  */
-export function websiteToDbWebsite(website: Partial<Website>): Partial<DbWebsiteInsert> {
+export function websiteToDbWebsite(website: Partial<Website>): Partial<DBWebsite> {
   // Only include fields that exist in the database schema
   return {
     id: website.id,
     company_id: website.companyId,
     domain: website.domain,
-    description: website.description || undefined,
-    url: website.url,
+    description: website.description || null,
+    url: website.url || null,
     slug: website.slug,
-    site_name: website.siteName || undefined,
-    screenshot_url: website.screenshotUrl || undefined,
-    status: website.status || undefined,
-    category_id: website.categoryId !== null ? 
-      String(website.categoryId) : undefined,
-    region: undefined, // Present in DB schema but not in the Website interface
-    language: undefined, // Present in DB schema but not in the Website interface
-    has_ssl: undefined, // Present in DB schema but not in the Website interface
-    // Fields not included in the DB schema:
-    // is_primary, traffic_rank, domain_expires_at, domain_created_at,
-    // hosting_provider, registrar, technologies
+    site_name: website.siteName || null,
+    screenshot_url: website.screenshotUrl || null,
+    status: website.status || null,
+    category_id: website.categoryId,
+    logo_url: website.logoUrl || null,
+    is_primary: website.isPrimary || null,
+    traffic_rank: website.trafficRank || null,
+    domain_expires_at: website.domainExpiresAt ? website.domainExpiresAt.toISOString() : null,
+    domain_created_at: website.domainCreatedAt ? website.domainCreatedAt.toISOString() : null,
+    hosting_provider: website.hostingProvider || null,
+    registrar: website.registrar || null,
+    technologies: website.technologies || null,
+    type: website.type || null,
+    title: website.title || null,
+    // Fields not mapped directly:
+    // - company
+    // - companyName
+    // - therapeuticAreaIds
+    // - therapeuticAreas
+    // - categories
   };
 }
 
@@ -350,23 +389,28 @@ export const WebsiteSchema = z.object({
   slug: z.string(),
   siteName: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
-  companyId: z.string().nullable().optional(),
-  companyName: z.string().nullable().optional(), // Added based on interface
-  therapeuticAreaIds: z.array(z.number()).nullable().optional(), // Corrected type
+  companyId: z.string(),
+  companyName: z.string().nullable().optional(),
+  therapeuticAreaIds: z.array(z.string()).default([]),
   // therapeuticAreas: z.array(TherapeuticAreaSchema).nullable().optional(), // Can't use interface directly here easily, rely on IDs
-  categoryId: z.number().nullable().optional(), // Corrected type
+  categoryId: z.number().nullable().optional(),
   logoUrl: z.string().url().nullable().optional(),
   screenshotUrl: z.string().url().nullable().optional(),
-  isPrimary: z.boolean().nullable().optional(),
+  isPrimary: z.boolean().default(false),
   trafficRank: z.number().nullable().optional(),
-  createdAt: z.date(),
-  updatedAt: z.date(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
   // Add new properties to schema
   domainExpiresAt: z.date().nullable().optional(),
   domainCreatedAt: z.date().nullable().optional(),
   hostingProvider: z.string().nullable().optional(),
   registrar: z.string().nullable().optional(),
   technologies: z.array(z.string()).nullable().optional(),
+  type: z.string().default('unknown'),
+  title: z.string(),
+  status: z.string().nullable().optional(),
+  categories: z.array(z.string()).nullable().optional(),
+  domain: z.string(),
 });
 
 export type WebsiteInput = z.infer<typeof WebsiteSchema>; 

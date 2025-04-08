@@ -1,10 +1,18 @@
 {
   "extends": "astro/tsconfigs/strict",
   "compilerOptions": {
-    // Optional: Add any specific compiler options if needed later
-    // e.g., defining path aliases if you use them:
-    // "baseUrl": ".", 
-    // "paths": { "@/*": ["src/*"] } 
+    "baseUrl": ".",
+    "paths": {
+      "@components/*": ["src/components/*"],
+      "@layouts/*": ["src/layouts/*"],
+      "@utils/*": ["src/lib/utils/*"],
+      "@lib/*": ["src/lib/*"],
+      "@interfaces/*": ["src/interfaces/*"], 
+      "@entities/*": ["src/interfaces/entities/*"],
+      "@styles/*": ["src/styles/*"],
+      "@types/*": ["src/types/*"],
+      "@assets/*": ["src/assets/*"]
+    }
   },
   "include": [
     "src/**/*.astro", // Include all .astro files in src

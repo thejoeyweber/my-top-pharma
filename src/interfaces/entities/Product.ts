@@ -89,7 +89,7 @@ export interface ProductApproval {
   /**
    * Additional details about the approval
    */
-  details?: string;
+  details: string | null;
 }
 
 /**
@@ -127,8 +127,8 @@ export interface Product {
   slug: string;
   genericName: string | null;
   companyId: string | null;
-  companyName?: string; // Derived field
-  companySlug?: string; // Derived field
+  companyName: string | null; // Derived field
+  companySlug: string | null; // Derived field
   description: string | null;
   stage: string | null;
   status: string | null;
@@ -138,7 +138,7 @@ export interface Product {
   website: string | null;
   createdAt: string | Date;
   updatedAt: string | Date;
-  therapeuticAreas?: TherapeuticArea[]; // Derived field from join table
+  therapeuticAreas: TherapeuticArea[]; // Derived field from join table
 }
 
 /**
@@ -153,7 +153,7 @@ export interface DBProduct {
   molecule_type: string | null;
   image_url: string | null;
   website: string | null;
-  company_id: string;
+  company_id: string | null;
   stage: string | null;
   status: string | null;
   year: number | null;
@@ -166,15 +166,15 @@ export interface DBProduct {
  * Defines filtering and sorting options for product queries
  */
 export interface ProductFilter {
-  search?: string;
-  stage?: string;
-  therapeuticAreaId?: string;
-  companyId?: string;
-  moleculeType?: string;
-  limit?: number;
-  offset?: number;
-  sortBy?: string;
-  sortDirection?: 'asc' | 'desc';
+  search: string | null;
+  stage: string | null;
+  therapeuticAreaId: string | null;
+  companyId: string | null;
+  moleculeType: string | null;
+  limit: number | null;
+  offset: number | null;
+  sortBy: string | null;
+  sortDirection: 'asc' | 'desc' | null;
 }
 
 /**
@@ -202,8 +202,8 @@ export function dbProductToProduct(dbProduct: DBProduct): Product {
     imageUrl: dbProduct.image_url,
     website: dbProduct.website,
     companyId: dbProduct.company_id,
-    companyName: undefined, // Will be populated separately if needed
-    companySlug: undefined, // Will be populated separately if needed
+    companyName: null, // Will be populated separately if needed
+    companySlug: null, // Will be populated separately if needed
     stage: dbProduct.stage,
     status: dbProduct.status,
     year: dbProduct.year,
@@ -220,15 +220,15 @@ export function productToDbProduct(product: Partial<Product>): Partial<DBProduct
   return {
     id: product.id,
     name: product.name,
-    generic_name: product.genericName || undefined,
-    company_id: product.companyId || undefined,
-    description: product.description || undefined,
-    stage: product.stage || undefined,
-    molecule_type: product.moleculeType || undefined,
-    image_url: product.imageUrl || undefined,
-    website: product.website || undefined,
-    status: product.status || undefined,
-    year: product.year || undefined,
+    generic_name: product.genericName || null,
+    company_id: product.companyId || null,
+    description: product.description || null,
+    stage: product.stage || null,
+    molecule_type: product.moleculeType || null,
+    image_url: product.imageUrl || null,
+    website: product.website || null,
+    status: product.status || null,
+    year: product.year || null,
     slug: product.slug,
     // Don't set created_at or updated_at, let the database handle those
     // therapeuticAreas is handled separately through the junction table
