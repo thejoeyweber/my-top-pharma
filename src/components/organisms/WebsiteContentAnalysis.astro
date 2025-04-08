@@ -1,0 +1,100 @@
+import Card from '../atoms/Card.astro';
+import CardHeader from '../atoms/CardHeader.astro';
+import CardBody from '../atoms/CardBody.astro';
+import type { Website } from '../../interfaces/entities';
+
+interface Props {
+  website: Website;
+}
+
+const { website } = Astro.props;
+
+// Mock content analysis data - replace with real data when available
+const contentAnalysis = {
+  totalPages: 150,
+  wordCount: 25000,
+  readabilityScore: 65,
+  seoScore: 85,
+  topKeywords: [
+    { keyword: 'pharmaceutical', count: 150 },
+    { keyword: 'clinical trials', count: 120 },
+    { keyword: 'drug development', count: 100 },
+    { keyword: 'patient care', count: 80 },
+    { keyword: 'research', count: 75 }
+  ],
+  contentTypes: [
+    { type: 'Product Information', percentage: 40 },
+    { type: 'Research & Development', percentage: 25 },
+    { type: 'Patient Resources', percentage: 20 },
+    { type: 'Company News', percentage: 15 }
+  ]
+};
+
+<Card>
+  <CardHeader title="Content Analysis" />
+  <CardBody>
+    <div class="space-y-8">
+      <!-- Key Metrics -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <h3 class="text-sm font-medium text-gray-500">Total Pages</h3>
+          <p class="mt-1 text-2xl font-semibold text-gray-900">{contentAnalysis.totalPages}</p>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <h3 class="text-sm font-medium text-gray-500">Word Count</h3>
+          <p class="mt-1 text-2xl font-semibold text-gray-900">{contentAnalysis.wordCount.toLocaleString()}</p>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <h3 class="text-sm font-medium text-gray-500">Readability Score</h3>
+          <p class="mt-1 text-2xl font-semibold text-gray-900">{contentAnalysis.readabilityScore}/100</p>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <h3 class="text-sm font-medium text-gray-500">SEO Score</h3>
+          <p class="mt-1 text-2xl font-semibold text-gray-900">{contentAnalysis.seoScore}/100</p>
+        </div>
+      </div>
+
+      <!-- Top Keywords -->
+      <div>
+        <h3 class="text-sm font-medium text-gray-500 mb-4">Top Keywords</h3>
+        <div class="space-y-2">
+          {contentAnalysis.topKeywords.map(keyword => (
+            <div class="flex items-center">
+              <div class="w-48 text-sm text-gray-600">{keyword.keyword}</div>
+              <div class="flex-1">
+                <div class="h-2 bg-gray-200 rounded-full">
+                  <div
+                    class="h-2 bg-purple-600 rounded-full"
+                    style={`width: ${(keyword.count / contentAnalysis.topKeywords[0].count) * 100}%`}
+                  ></div>
+                </div>
+              </div>
+              <div class="w-16 text-right text-sm text-gray-600">{keyword.count}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Content Types -->
+      <div>
+        <h3 class="text-sm font-medium text-gray-500 mb-4">Content Types</h3>
+        <div class="space-y-2">
+          {contentAnalysis.contentTypes.map(type => (
+            <div class="flex items-center">
+              <div class="w-48 text-sm text-gray-600">{type.type}</div>
+              <div class="flex-1">
+                <div class="h-2 bg-gray-200 rounded-full">
+                  <div
+                    class="h-2 bg-purple-600 rounded-full"
+                    style={`width: ${type.percentage}%`}
+                  ></div>
+                </div>
+              </div>
+              <div class="w-16 text-right text-sm text-gray-600">{type.percentage}%</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </CardBody>
+</Card> 

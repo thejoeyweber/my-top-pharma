@@ -1,0 +1,243 @@
+---
+/**
+ * EntityDetailLayout.astro
+ * 
+ * A shared layout for entity detail pages (Company, Product, Therapeutic Area, Website).
+ * Provides consistent structure for headers, tabs, and content sections.
+ */
+import type { BreadcrumbItem } from '../interfaces/common';
+import DashboardLayout from './DashboardLayout.astro';
+import TabGroup from '../components/molecules/TabGroup.astro';
+
+interface Tab {
+  id: string;
+  label: string;
+  count?: number | null;
+  icon?: string;
+}
+
+interface Props {
+  title: string;
+  description: string;
+  currentPath: string;
+  breadcrumbs: BreadcrumbItem[];
+  gradientFrom: string;
+  gradientTo: string;
+  tabs: Tab[];
+  activeTab: string;
+  logoUrl?: string | null;
+  entityName: string;
+  entitySubtitle?: string;
+}
+
+const {
+  title,
+  description,
+  currentPath,
+  breadcrumbs,
+  gradientFrom,
+  gradientTo,
+  tabs,
+  activeTab,
+  logoUrl,
+  entityName,
+  entitySubtitle
+} = Astro.props;
+---
+
+<DashboardLayout
+  title={title}
+  description={description}
+  currentPath={currentPath}
+  breadcrumbs={breadcrumbs}
+>
+  <div class="space-y-6">
+    <!-- Entity Header -->
+    <div class="relative">
+      <!-- Header Background -->
+      <div class={`h-48 w-full bg-gradient-to-r from-${gradientFrom} to-${gradientTo} relative overflow-hidden shadow-md opacity-90`}>
+        <!-- Background pattern or decoration could go here -->
+      </div>
+      
+      <!-- Entity Info Card -->
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden -mt-24 mb-8">
+          <div class="p-6 sm:p-8">
+            <div class="flex flex-col md:flex-row items-start md:items-center">
+              <!-- Entity Logo/Image -->
+              <div class="w-24 h-24 bg-white rounded-lg shadow-md flex items-center justify-center overflow-hidden mr-6 mb-4 md:mb-0 flex-shrink-0">
+                {logoUrl ? (
+                  <img src={logoUrl} alt={`${entityName} logo`} class="max-w-full max-h-full p-2" />
+                ) : (
+                  <div class={`bg-${gradientFrom}-100 w-full h-full flex items-center justify-center`}>
+                    <span class={`text-4xl font-bold text-${gradientFrom}-600`}>{entityName.charAt(0)}</span>
+                  </div>
+                )}
+              </div>
+              
+              <!-- Entity Basic Info -->
+              <div class="flex-grow">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between flex-wrap">
+                  <div>
+                    <h1 class="text-2xl font-bold text-gray-900">{entityName}</h1>
+                    {entitySubtitle && (
+                      <p class="text-sm text-gray-500 max-w-2xl line-clamp-2">{entitySubtitle}</p>
+                    )}
+                  </div>
+                  
+                  <!-- Action Buttons -->
+                  <div class="mt-4 sm:mt-0">
+                    <slot name="action-buttons" />
+                  </div>
+                </div>
+                
+                <!-- Entity Tags/Badges -->
+                <div class="mt-3">
+                  <slot name="entity-badges" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Page Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <!-- Tabs Navigation -->
+      <TabGroup tabs={tabs} activeTab={activeTab} tabPanelId="entity-tab-content" />
+      
+      <!-- Tab Content -->
+      <div class="mt-6">
+        <!-- Use static slots for common tab types, then conditionally display them -->
+        <div id="entity-tab-content-overview" role="tabpanel" aria-labelledby="tab-overview" class={activeTab === 'overview' ? '' : 'hidden'}>
+          <slot name="overview">
+            <div class="p-8 text-center bg-white rounded-lg shadow">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 class="mt-2 text-lg font-medium text-gray-900">No Overview available</h3>
+              <p class="mt-1 text-sm text-gray-500">There are no overview available for this entity.</p>
+            </div>
+          </slot>
+        </div>
+        
+        <div id="entity-tab-content-products" role="tabpanel" aria-labelledby="tab-products" class={activeTab === 'products' ? '' : 'hidden'}>
+          <slot name="products">
+            <div class="p-8 text-center bg-white rounded-lg shadow">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 class="mt-2 text-lg font-medium text-gray-900">No Products available</h3>
+              <p class="mt-1 text-sm text-gray-500">There are no products available for this entity.</p>
+            </div>
+          </slot>
+        </div>
+        
+        <div id="entity-tab-content-companies" role="tabpanel" aria-labelledby="tab-companies" class={activeTab === 'companies' ? '' : 'hidden'}>
+          <slot name="companies">
+            <div class="p-8 text-center bg-white rounded-lg shadow">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 class="mt-2 text-lg font-medium text-gray-900">No Companies available</h3>
+              <p class="mt-1 text-sm text-gray-500">There are no companies available for this entity.</p>
+            </div>
+          </slot>
+        </div>
+        
+        <div id="entity-tab-content-websites" role="tabpanel" aria-labelledby="tab-websites" class={activeTab === 'websites' ? '' : 'hidden'}>
+          <slot name="websites">
+            <div class="p-8 text-center bg-white rounded-lg shadow">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 class="mt-2 text-lg font-medium text-gray-900">No Websites available</h3>
+              <p class="mt-1 text-sm text-gray-500">There are no websites available for this entity.</p>
+            </div>
+          </slot>
+        </div>
+        
+        <div id="entity-tab-content-therapeutic-areas" role="tabpanel" aria-labelledby="tab-therapeutic-areas" class={activeTab === 'therapeutic-areas' ? '' : 'hidden'}>
+          <slot name="therapeutic-areas">
+            <div class="p-8 text-center bg-white rounded-lg shadow">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 class="mt-2 text-lg font-medium text-gray-900">No Therapeutic Areas available</h3>
+              <p class="mt-1 text-sm text-gray-500">There are no therapeutic areas available for this entity.</p>
+            </div>
+          </slot>
+        </div>
+        
+        <div id="entity-tab-content-related" role="tabpanel" aria-labelledby="tab-related" class={activeTab === 'related' ? '' : 'hidden'}>
+          <slot name="related">
+            <div class="p-8 text-center bg-white rounded-lg shadow">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 class="mt-2 text-lg font-medium text-gray-900">No Related Items available</h3>
+              <p class="mt-1 text-sm text-gray-500">There are no related items available for this entity.</p>
+            </div>
+          </slot>
+        </div>
+        
+        <div id="entity-tab-content-milestones" role="tabpanel" aria-labelledby="tab-milestones" class={activeTab === 'milestones' ? '' : 'hidden'}>
+          <slot name="milestones">
+            <div class="p-8 text-center bg-white rounded-lg shadow">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 class="mt-2 text-lg font-medium text-gray-900">No Milestones available</h3>
+              <p class="mt-1 text-sm text-gray-500">There are no milestones available for this entity.</p>
+            </div>
+          </slot>
+        </div>
+        
+        <div id="entity-tab-content-financials" role="tabpanel" aria-labelledby="tab-financials" class={activeTab === 'financials' ? '' : 'hidden'}>
+          <slot name="financials">
+            <div class="p-8 text-center bg-white rounded-lg shadow">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 class="mt-2 text-lg font-medium text-gray-900">No Financial Data available</h3>
+              <p class="mt-1 text-sm text-gray-500">There are no financial data available for this entity.</p>
+            </div>
+          </slot>
+        </div>
+        
+        <div id="entity-tab-content-news" role="tabpanel" aria-labelledby="tab-news" class={activeTab === 'news' ? '' : 'hidden'}>
+          <slot name="news">
+            <div class="p-8 text-center bg-white rounded-lg shadow">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 class="mt-2 text-lg font-medium text-gray-900">No News available</h3>
+              <p class="mt-1 text-sm text-gray-500">There are no news available for this entity.</p>
+            </div>
+          </slot>
+        </div>
+        
+        <!-- For any other custom tabs, use a fallback mechanism -->
+        {tabs.filter(tab => 
+          !['overview', 'products', 'companies', 'websites', 'therapeutic-areas', 'related', 'milestones', 'financials', 'news'].includes(tab.id)
+        ).map(tab => (
+          <div 
+            id={`entity-tab-content-${tab.id}`} 
+            role="tabpanel" 
+            aria-labelledby={`tab-${tab.id}`}
+            class={activeTab === tab.id ? '' : 'hidden'}
+          >
+            <div class="p-8 text-center bg-white rounded-lg shadow">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 class="mt-2 text-lg font-medium text-gray-900">No {tab.label} available</h3>
+              <p class="mt-1 text-sm text-gray-500">There are no {tab.label.toLowerCase()} available for this entity.</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</DashboardLayout> 

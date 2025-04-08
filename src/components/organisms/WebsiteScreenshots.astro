@@ -1,0 +1,55 @@
+import Card from '../atoms/Card.astro';
+import CardHeader from '../atoms/CardHeader.astro';
+import CardBody from '../atoms/CardBody.astro';
+import type { Website } from '../../interfaces/entities';
+
+interface Props {
+  website: Website;
+}
+
+const { website } = Astro.props;
+
+// Mock screenshots data - replace with real data when available
+const screenshots = [
+  {
+    url: 'https://placehold.co/1200x800/purple/white?text=Homepage',
+    title: 'Homepage',
+    date: '2024-03-15'
+  },
+  {
+    url: 'https://placehold.co/1200x800/purple/white?text=Products',
+    title: 'Products Page',
+    date: '2024-03-15'
+  },
+  {
+    url: 'https://placehold.co/1200x800/purple/white?text=About',
+    title: 'About Us',
+    date: '2024-03-15'
+  },
+  {
+    url: 'https://placehold.co/1200x800/purple/white?text=Contact',
+    title: 'Contact Page',
+    date: '2024-03-15'
+  }
+];
+
+<Card>
+  <CardHeader title="Website Screenshots" />
+  <CardBody>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {screenshots.map(screenshot => (
+        <div class="space-y-2">
+          <img
+            src={screenshot.url}
+            alt={screenshot.title}
+            class="w-full h-auto rounded-lg shadow-sm"
+          />
+          <div class="flex justify-between items-center">
+            <h3 class="text-sm font-medium text-gray-900">{screenshot.title}</h3>
+            <span class="text-sm text-gray-500">{new Date(screenshot.date).toLocaleDateString()}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  </CardBody>
+</Card> 

@@ -4,15 +4,13 @@
  * 
  * Displays detailed information about a specific pharmaceutical company.
  */
-import DashboardLayout from '../../layouts/DashboardLayout.astro';
-// Import new Card subcomponents
+import EntityDetailLayout from '../../layouts/EntityDetailLayout.astro';
 import Card from '../../components/atoms/Card.astro';
 import CardHeader from '../../components/atoms/CardHeader.astro';
 import CardBody from '../../components/atoms/CardBody.astro';
 import CardFooter from '../../components/atoms/CardFooter.astro';
 import Button from '../../components/atoms/Button.astro';
 import FollowButton from '../../components/molecules/FollowButton.astro';
-import TabGroup from '../../components/molecules/TabGroup.astro';
 import KeyMetric from '../../components/molecules/KeyMetric.astro';
 import Timeline from '../../components/molecules/Timeline.astro';
 import FinancialChart from '../../components/molecules/FinancialChart.astro';
@@ -23,41 +21,28 @@ import ProductCard from '../../components/molecules/ProductCard.astro';
 import WebsiteCard from '../../components/molecules/WebsiteCard.astro';
 import TherapeuticAreaCard from '../../components/molecules/TherapeuticAreaCard.astro';
 
-// Import company utilities instead of direct Supabase access
+// Import company utilities
 import { 
   getCompanyBySlug,
   getCompanyTherapeuticAreas,
   getCompanyProducts,
   getCompanyWebsites,
   getRelatedCompanies
-  // Add functions for milestones, financials, etc. when implemented
 } from '../../lib/utils/companyUtils';
 import type { 
   Company, Product, Website, TherapeuticArea, Milestone, FinancialMetric, RelatedCompany
 } from '../../interfaces/entities'; 
 
-// Import other existing utilities
-import { getCompanyLogoUrl, getCompanyHeaderUrl, getWebsiteScreenshotUrl } from '../../utils/assetUtils';
+// Import other utilities
+import { getCompanyLogoUrl } from '../../utils/assetUtils';
 import { formatMarketCap } from '../../utils/stringUtils';
 
-// Define website categories
-const websiteCategories = {
-  CORPORATE: 'corporate',
-  PRODUCT: 'product',
-  DISEASE_AWARENESS: 'disease-awareness',
-  PATIENT_SUPPORT: 'patient-support',
-  CLINICAL_TRIAL: 'clinical-trial',
-  INVESTOR_RELATIONS: 'investor-relations',
-  OTHER: 'other'
-};
-
-// Explicitly set to false to avoid warnings about getStaticPaths being ignored
 export const prerender = false;
 
-// Get company ID or slug from URL parameters
+// Get company slug from URL parameters
 const { slug } = Astro.params;
 
-// Fetch company data using utility function
+// Fetch company data
 const company: Company | null = await getCompanyBySlug(slug);
 
 // Handle company not found
@@ -65,458 +50,400 @@ if (!company) {
   return Astro.redirect('/404');
 }
 
-// Fetch related data using utility functions
-const therapeuticAreas: TherapeuticArea[] = await getCompanyTherapeuticAreas(company.id);
-const products: Product[] = await getCompanyProducts(company.id);
-const websites: Website[] = await getCompanyWebsites(company.id);
-const relatedCompanies: RelatedCompany[] = await getRelatedCompanies(company.id);
+// Fetch related data
+const therapeuticAreas = await getCompanyTherapeuticAreas(company.id);
+const products = await getCompanyProducts(company.id);
+const websites = await getCompanyWebsites(company.id);
+const relatedCompanies = await getRelatedCompanies(company.id);
 
-// Mock data for milestones and financials until utilities are implemented
-const milestones: Milestone[] = [
-  { id: '1', date: new Date('2023-01-15'), description: 'Phase 3 Trial Started for Drug X', category: 'Clinical' },
-  { id: '2', date: new Date('2023-03-22'), description: 'FDA Approval Received for Drug Y', category: 'Regulatory' },
-  { id: '3', date: new Date('2023-05-10'), description: 'Acquisition of Biotech Startup Z', category: 'Business' },
-  { id: '4', date: new Date('2023-07-01'), description: 'Launched New Patient Support Program', category: 'Other' },
-];
+// Mock data for milestones and financials
+const milestones: Milestone[] = [];
 
-const financialData: FinancialMetric[] = [
-  { year: 2020, revenue: 10.5, earnings: 2.1 },
-  { year: 2021, revenue: 12.2, earnings: 2.5 },
-  { year: 2022, revenue: 14.1, earnings: 3.0 },
-  { year: 2023, revenue: 15.8, earnings: 3.5 }, // Example forecast
-];
+// Empty financial data array - no longer using mock data
+const financialData: FinancialMetric[] = [];
 
-// Prepare pipeline data for chart with graceful fallback
-// TODO: Replace with actual pipeline data model when implemented
+// Prepare pipeline data
 let pipelineData = [];
-if (products && products.length > 0) {
+if (products?.length > 0) {
   try {
-    // Create a staging object first
     const stageCountMap = products.reduce((acc, product) => {
       const stage = product.stage || 'unknown';
       acc[stage] = (acc[stage] || 0) + 1;
       return acc;
     }, {});
     
-    // Transform into array format expected by PipelineChart
     pipelineData = Object.entries(stageCountMap).map(([stage, count]) => ({
       stage,
       count
     }));
   } catch (error) {
     console.error('Error creating pipeline data:', error);
-    // Silently continue with empty pipelineData array
   }
 }
 
-// Generate URLs for assets
+// Generate URLs and format data
 const logoUrl = company.logoPath ? getCompanyLogoUrl(company.logoPath) : null;
-const headerUrl = company.headerPath ? getCompanyHeaderUrl(company.headerPath) : null;
-
-// Format market cap
 const marketCapFormatted = company.marketCap ? formatMarketCap(company.marketCap) : 'N/A';
 
 // Set up breadcrumbs
-const breadcrumbItems = [
+const breadcrumbs = [
   { label: 'Home', href: '/' },
   { label: 'Companies', href: '/companies' },
   { label: company.name, href: `/companies/${company.slug}`, isActive: true }
 ];
 
-// Set up tabs
+// Set up tabs with more accurate counts
 const tabs = [
   { id: 'overview', label: 'Overview', count: null, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>' },
-  { id: 'products', label: 'Products', count: products.length, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>' },
+  { id: 'products', label: 'Products', count: products.length > 0 ? products.length : null, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>' },
   { id: 'pipeline', label: 'Pipeline', count: null, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>' },
-  { id: 'websites', label: 'Websites', count: websites.length, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>' },
-  { id: 'financials', label: 'Financials', count: financialData.length > 0 ? null : 0, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>' },
-  { id: 'news', label: 'News & Events', count: 0, /* Update this when real milestone data is fetched */ icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>' },
-  { id: 'related', label: 'Related Companies', count: relatedCompanies.length, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>' },
+  { id: 'websites', label: 'Websites', count: websites.length > 0 ? websites.length : null, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>' },
+  { id: 'financials', label: 'Financials', count: financialData.length > 0 ? financialData.length : null, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>' },
+  { id: 'news', label: 'News & Events', count: milestones.length > 0 ? milestones.length : null, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>' },
+  { id: 'related', label: 'Related Companies', count: relatedCompanies.length > 0 ? relatedCompanies.length : null, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>' },
 ];
 
-// Get active tab from URL query parameter or default to 'overview'
+// Get active tab from URL or default to 'overview'
 const activeTab = Astro.url.searchParams.get('tab') || 'overview';
-
-// Prepare data for tables
-const productTableColumns = [
-  { key: 'name', label: 'Name' },
-  { key: 'genericName', label: 'Generic Name' },
-  { key: 'stage', label: 'Stage' },
-  { key: 'therapeuticAreas', label: 'Therapeutic Areas' },
-];
-
-const productTableData = products.map(p => ({
-  name: `<a href="/products/${p.slug}" class="text-blue-600 hover:underline">${p.name}</a>`,
-  genericName: p.genericName || '-',
-  stage: `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">${p.stage}</span>`,
-  therapeuticAreas: therapeuticAreas.slice(0, 2).map(ta => `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 mr-1">${ta.name}</span>`).join('') || '-'
-}));
-
-const websiteTableColumns = [
-  { key: 'name', label: 'Name' },
-  { key: 'url', label: 'URL' },
-  { key: 'type', label: 'Type' },
-];
-
-const websiteTableData = websites.map(w => ({
-  name: `<a href="/websites/${w.slug}" class="text-blue-600 hover:underline">${w.name || w.url}</a>`,
-  url: `<a href="${w.url}" target="_blank" rel="noopener noreferrer" class="text-gray-500 hover:text-blue-600">${w.url}</a>`,
-  type: w.websiteType ? `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">${w.websiteType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>` : '-',
-}));
 ---
 
-<DashboardLayout 
+<EntityDetailLayout
   title={`${company.name} | Pharmaceutical Company Profile`}
   description={company.description || `Company profile for ${company.name}`}
   currentPath={`/companies/${company.slug}`}
-  breadcrumbs={breadcrumbItems}
+  breadcrumbs={breadcrumbs}
+  gradientFrom="blue-500"
+  gradientTo="blue-600"
+  tabs={tabs}
+  activeTab={activeTab}
+  logoUrl={logoUrl}
+  entityName={company.name}
+  entitySubtitle={company.description}
 >
-  <div class="space-y-6">
-  <!-- Company Header -->
-  <div class="relative">
-      <!-- Header Background -->
-      <div class="h-48 w-full bg-gradient-to-r from-blue-500 to-blue-600 relative overflow-hidden shadow-md">
-        <!-- Header image removed as requested -->
+  <!-- Action Buttons -->
+  <div slot="action-buttons" class="flex space-x-3">
+    <FollowButton companyId={company.id} />
+    {company.website && (
+      <Button href={company.website} target="_blank" variant="outline" size="sm">
+        <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+        Visit Website
+      </Button>
+    )}
+  </div>
+
+  <!-- Entity Badges -->
+  <div slot="entity-badges" class="flex flex-wrap gap-2">
+    {therapeuticAreas.map(ta => (
+      <a href={`/therapeutic-areas/${ta.slug}`} class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors">
+        {ta.name}
+      </a>
+    ))}
+  </div>
+
+  <!-- Overview Tab Content -->
+  <div slot="overview">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Left Column -->
+      <div class="md:col-span-2 space-y-6">
+        <!-- Key Metrics -->
+        <Card>
+          <CardHeader>
+            <h3 class="text-lg font-medium text-gray-900">Key Metrics</h3>
+          </CardHeader>
+          <CardBody>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-6">
+              <KeyMetric 
+                label="Market Cap" 
+                value={marketCapFormatted} 
+                icon='<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>' 
+              />
+              <KeyMetric 
+                label="Employees" 
+                value={company.employeeCount ? company.employeeCount.toLocaleString() : 'N/A'} 
+                icon='<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>' 
+              />
+              <KeyMetric 
+                label="Founded" 
+                value={company.foundedYear?.toString() || 'N/A'} 
+                icon='<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>' 
+              />
+              <KeyMetric 
+                label="Products" 
+                value={products.length.toString()} 
+                icon='<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>' 
+              />
+              <KeyMetric 
+                label="Websites" 
+                value={websites.length.toString()} 
+                icon='<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>' 
+              />
+              <KeyMetric 
+                label="Therapeutic Areas" 
+                value={therapeuticAreas.length.toString()} 
+                icon='<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>' 
+              />
+            </div>
+          </CardBody>
+        </Card>
+        
+        <!-- Recent Milestones -->
+        <Card>
+          <CardHeader>
+            <h3 class="text-lg font-medium text-gray-900">Recent Milestones</h3>
+          </CardHeader>
+          <CardBody>
+            {milestones.length > 0 ? (
+              <Timeline milestones={milestones.slice(0, 5)} />
+            ) : (
+              <p class="text-gray-500 italic">No recent milestones available.</p>
+            )}
+          </CardBody>
+        </Card>
       </div>
-      
-    <!-- Company Info Card -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-      <div class="bg-white rounded-lg shadow-lg overflow-hidden -mt-24 mb-8">
-        <div class="p-6 sm:p-8">
-          <div class="flex flex-col md:flex-row items-start md:items-center">
-            <!-- Company Logo -->
-              <div class="w-24 h-24 bg-white rounded-lg shadow-md flex items-center justify-center overflow-hidden mr-6 mb-4 md:mb-0 flex-shrink-0">
-                {logoUrl ? (
-                  <img src={logoUrl} alt={`${company.name} logo`} class="max-w-full max-h-full p-2" />
-                ) : (
-                  <div class="bg-blue-100 w-full h-full flex items-center justify-center">
-                    <span class="text-4xl font-bold text-blue-600">{company.name.charAt(0)}</span>
-                  </div>
-                )}
-              </div>
-          
-            <!-- Company Basic Info -->
-            <div class="flex-grow">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between flex-wrap">
-                  <h1 class="text-2xl font-bold text-gray-900 mr-4 mb-2 sm:mb-0">{company.name}</h1>
-                  
-                  <div class="flex space-x-3">
-                    <FollowButton companyId={company.id} />
-                    <Button href={company.website} target="_blank" variant="outline" size="sm">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                      Visit Website
-                    </Button>
-                  </div>
-                </div>
-                
-                {company.description && (
-                  <p class="mt-2 text-sm text-gray-500 line-clamp-3">{company.description}</p>
-                )}
-                
-                <div class="mt-3 flex flex-wrap gap-2">
-                  {therapeuticAreas.map(ta => (
-                    <a href={`/therapeutic-areas/${ta.slug}`} class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors">
+
+      <!-- Right Column -->
+      <div class="space-y-6">
+        <!-- Location -->
+        <Card>
+          <CardHeader>
+            <h3 class="text-lg font-medium text-gray-900">Location</h3>
+          </CardHeader>
+          <CardBody>
+            <p class="text-gray-700">{company.address || 'Not specified'}</p>
+            <p class="text-gray-700">{company.city}, {company.state} {company.zip}</p>
+            <p class="text-gray-700">{company.country}</p>
+          </CardBody>
+        </Card>
+
+        <!-- Key Therapeutic Areas -->
+        <Card>
+          <CardHeader>
+            <h3 class="text-lg font-medium text-gray-900">Therapeutic Areas</h3>
+          </CardHeader>
+          <CardBody>
+            {therapeuticAreas.length > 0 ? (
+              <ul class="space-y-2">
+                {therapeuticAreas.slice(0, 5).map(ta => (
+                  <li>
+                    <a href={`/therapeutic-areas/${ta.slug}`} class="text-blue-600 hover:underline">
                       {ta.name}
                     </a>
-                  ))}
-            </div>
-          </div>
-      </div>
-          </div>
-      </div>
-              </div>
-            </div>
-            
-  <!-- Tabs Navigation -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <TabGroup tabs={tabs} activeTab={activeTab} tabPanelId="company-tab-content" />
-    
-    <!-- Tab Content -->
-    <div class="mt-6">
-      <!-- Overview Tab -->
-        <div id="company-tab-content-overview" role="tabpanel" aria-labelledby="tab-overview" class={activeTab === 'overview' ? '' : 'hidden'}>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Left Column -->
-            <div class="md:col-span-2 space-y-6">
-            <!-- Key Metrics -->
-              <Card>
-                <CardHeader>
-                  <h3 class="text-lg font-medium text-gray-900">Key Metrics</h3>
-                </CardHeader>
-                <CardBody>
-                  <div class="grid grid-cols-2 sm:grid-cols-3 gap-6">
-                    <KeyMetric 
-                      label="Market Cap" 
-                      value={marketCapFormatted} 
-                      icon='<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>' 
-                    />
-                    <KeyMetric 
-                      label="Employees" 
-                      value={company.employeeCount ? company.employeeCount.toLocaleString() : 'N/A'} 
-                      icon='<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>' 
-                    />
-                    <KeyMetric 
-                      label="Founded" 
-                      value={company.foundedYear?.toString() || 'N/A'} 
-                      icon='<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>' 
-                    />
-                    <KeyMetric 
-                      label="Products" 
-                      value={products.length.toString()} 
-                      icon='<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>' 
-                    />
-                    <KeyMetric 
-                      label="Websites" 
-                      value={websites.length.toString()} 
-                      icon='<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>' 
-                    />
-                    <KeyMetric 
-                      label="Therapeutic Areas" 
-                      value={therapeuticAreas.length.toString()} 
-                      icon='<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>' 
-                    />
-                  </div>
-                </CardBody>
-              </Card>
-              
-              <!-- Company Description -->
-              {company.description && (
-                <Card>
-                  <CardHeader>
-                    <h3 class="text-lg font-medium text-gray-900">About {company.name}</h3>
-                  </CardHeader>
-                  <CardBody>
-                    <p class="text-gray-700 whitespace-pre-line">{company.description}</p>
-                  </CardBody>
-                </Card>
-              )}
-              
-              <!-- Recent Milestones -->
-            <Card>
-                <CardHeader>
-                  <h3 class="text-lg font-medium text-gray-900">Recent Milestones</h3>
-                </CardHeader>
-                <CardBody>
-                  {milestones.length > 0 ? (
-                    <Timeline milestones={milestones.slice(0, 5)} />
-                  ) : (
-                    <p class="text-gray-500 italic">No recent milestones available.</p>
-                  )}
-                </CardBody>
-              </Card>
-            </div>
-            
-            <!-- Right Column -->
-            <div class="md:col-span-1 space-y-6">
-              <!-- Location -->
-              <Card>
-                <CardHeader>
-                  <h3 class="text-lg font-medium text-gray-900">Location</h3>
-                </CardHeader>
-                <CardBody>
-                  <p class="text-gray-700">{company.address || 'Not specified'}</p>
-                  <p class="text-gray-700">{company.city}, {company.state} {company.zip}</p>
-                  <p class="text-gray-700">{company.country}</p>
-                  {/* Placeholder for map */}
-                  <div class="mt-4 h-40 bg-gray-200 rounded flex items-center justify-center">
-                    <p class="text-gray-500 text-sm">Map Placeholder</p>
-                </div>
-                </CardBody>
-            </Card>
-          
-              <!-- Key Therapeutic Areas -->
-            <Card>
-                <CardHeader>
-                  <h3 class="text-lg font-medium text-gray-900">Therapeutic Areas</h3>
-                </CardHeader>
-                <CardBody>
-                  {therapeuticAreas.length > 0 ? (
-                    <ul class="space-y-2">
-                      {therapeuticAreas.slice(0, 5).map(ta => (
-                        <li>
-                          <a href={`/therapeutic-areas/${ta.slug}`} class="text-blue-600 hover:underline">
-                            {ta.name}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p class="text-gray-500 italic">No therapeutic areas specified.</p>
-                  )}
-                </CardBody>
-                {therapeuticAreas.length > 5 && (
-                  <CardFooter>
-                    <a href="#company-tab-content-therapeutic-areas" class="text-sm font-medium text-blue-600 hover:text-blue-800" onclick="document.getElementById('tab-therapeutic-areas').click(); return false;">
-                      View all {therapeuticAreas.length} therapeutic areas &rarr;
-                    </a>
-                  </CardFooter>
-                )}
-            </Card>
-            
-              <!-- Data Source -->
-              <DataSourceVisualizer />
-          </div>
-        </div>
-      </div>
-      
-      <!-- Products Tab -->
-        <div id="company-tab-content-products" role="tabpanel" aria-labelledby="tab-products" class={activeTab === 'products' ? '' : 'hidden'}>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="md:col-span-3 space-y-6">
-              <Card>
-                <CardHeader>
-                  <h3 class="text-lg font-medium text-gray-900">Products</h3>
-                </CardHeader>
-                <CardBody>
-                  {products.length > 0 ? (
-                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                      {products.map(product => (
-                        <ProductCard product={product} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div class="text-center py-12">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                      </svg>
-                      <h3 class="mt-2 text-lg font-medium text-gray-900">No Products Found</h3>
-                      <p class="mt-1 text-sm text-gray-500">This company currently has no products listed.</p>
-                    </div>
-                  )}
-                </CardBody>
-              </Card>
-            </div>
-          </div>
-        </div>
-      
-        <!-- Pipeline Tab -->
-        <div id="company-tab-content-pipeline" role="tabpanel" aria-labelledby="tab-pipeline" class={activeTab === 'pipeline' ? '' : 'hidden'}>
-        <Card>
-            <CardHeader>
-              <h3 class="text-lg font-medium text-gray-900">Product Pipeline</h3>
-            </CardHeader>
-            <CardBody>
-              {products.length > 0 ? (
-                pipelineData.length > 0 ? (
-                  <PipelineChart
-                    id="company-pipeline-chart"
-                    title={`${company.name} Pipeline by Stage`}
-                    data={pipelineData}
-                  />
-                ) : (
-                  <p class="text-gray-500 italic">Could not generate pipeline visualization.</p>
-                )
-              ) : (
-                <p class="text-gray-500 italic">No pipeline data available.</p>
-              )}
-            </CardBody>
-        </Card>
-      </div>
-        
-        <!-- Websites Tab -->
-        <div id="company-tab-content-websites" role="tabpanel" aria-labelledby="tab-websites" class={activeTab === 'websites' ? '' : 'hidden'}>
-        <Card>
-            <CardHeader>
-              <h3 class="text-lg font-medium text-gray-900">Websites</h3>
-            </CardHeader>
-            <CardBody>
-              {websites.length > 0 ? (
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {websites.map(website => (
-                    <WebsiteCard website={website} />
-                  ))}
-                </div>
-              ) : (
-                <div class="text-center py-12">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                  </svg>
-                  <h3 class="mt-2 text-lg font-medium text-gray-900">No Websites Found</h3>
-                  <p class="mt-1 text-sm text-gray-500">This company currently has no websites listed.</p>
-                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p class="text-gray-500 italic">No therapeutic areas specified.</p>
             )}
-            </CardBody>
+          </CardBody>
+          {therapeuticAreas.length > 5 && (
+            <CardFooter>
+              <a href={`/companies/${company.slug}?tab=therapeutic-areas`} class="text-sm text-blue-600 hover:underline">
+                View all ({therapeuticAreas.length})
+              </a>
+            </CardFooter>
+          )}
         </Card>
-      </div>
-      
-      <!-- Financials Tab -->
-        <div id="company-tab-content-financials" role="tabpanel" aria-labelledby="tab-financials" class={activeTab === 'financials' ? '' : 'hidden'}>
-          <Card>
-            <CardHeader>
-              <h3 class="text-lg font-medium text-gray-900">Financial Overview</h3>
-            </CardHeader>
-            <CardBody>
-              {financialData.length > 0 ? (
-                <FinancialChart
-                  id="company-financial-chart"
-                  title={`${company.name} Financial Performance`}
-                  data={{
-                    revenue: financialData.map(d => ({ year: d.year, value: d.revenue })),
-                    earnings: financialData.map(d => ({ year: d.year, value: d.earnings }))
-                  }}
-                />
-              ) : (
-                <p class="text-gray-500 italic">No financial data available.</p>
-              )}
-            </CardBody>
-        </Card>
-      </div>
-      
-        <!-- News & Events Tab -->
-        <div id="company-tab-content-news" role="tabpanel" aria-labelledby="tab-news" class={activeTab === 'news' ? '' : 'hidden'}>
-            <Card>
-            <CardHeader>
-              <h3 class="text-lg font-medium text-gray-900">News & Events Timeline</h3>
-            </CardHeader>
-            <CardBody>
-              {milestones.length > 0 ? (
-                <Timeline milestones={milestones} />
-              ) : (
-                <p class="text-gray-500 italic">No news or events available.</p>
-              )}
-            </CardBody>
-            </Card>
-          </div>
-          
-        <!-- Related Companies Tab -->
-        <div id="company-tab-content-related" role="tabpanel" aria-labelledby="tab-related" class={activeTab === 'related' ? '' : 'hidden'}>
-            <Card>
-            <CardHeader>
-              <h3 class="text-lg font-medium text-gray-900">Related Companies</h3>
-            </CardHeader>
-            <CardBody>
-              {relatedCompanies.length > 0 ? (
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {relatedCompanies.map(related => (
-                    <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <a href={`/companies/${related.slug}`} class="flex flex-col items-center text-center">
-                        <div class="w-16 h-16 mb-2 rounded-full bg-gray-200 flex items-center justify-center">
-                          {related.logoUrl ? 
-                            <img src={related.logoUrl} alt={related.name} class="w-full h-full object-contain rounded-full" /> : 
-                            <span class="text-2xl font-semibold text-gray-500">{related.name.charAt(0)}</span>
-                          }
-                        </div>
-                        <h4 class="text-sm font-medium text-gray-900">{related.name}</h4>
-                        <p class="text-xs text-gray-500">{related.therapeuticAreas.slice(0, 2).join(', ')}</p>
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div class="text-center py-12">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  <h3 class="mt-2 text-lg font-medium text-gray-900">No Related Companies Found</h3>
-                  <p class="mt-1 text-sm text-gray-500">No related companies were found based on therapeutic areas.</p>
-              </div>
-              )}
-            </CardBody>
-            </Card>
-        </div>
       </div>
     </div>
   </div>
-</DashboardLayout>
+  
+  <!-- Products Tab Content -->
+  <div slot="products">
+    {products.length > 0 ? (
+      <Card>
+        <CardHeader>
+          <h3 class="text-lg font-medium text-gray-900">Company Products</h3>
+        </CardHeader>
+        <CardBody>
+          <DataTable 
+            data={products}
+            columns={[
+              {key: 'name', label: 'Product', render: (value, row) => {
+                if (!row || !row.slug || !row.name) return 'Unknown Product';
+                return `<a href="/products/${row.slug}" class="text-blue-600 hover:underline">${row.name}</a>`;
+              }},
+              {key: 'type', label: 'Type'},
+              {key: 'stage', label: 'Stage'},
+              {key: 'description', label: 'Description', render: (value, row) => {
+                if (!row || !row.description) return 'No description';
+                return row.description.substring(0, 100) + (row.description.length > 100 ? '...' : '');
+              }}
+            ]}
+          />
+        </CardBody>
+      </Card>
+    ) : (
+      <div class="p-8 text-center bg-white rounded-lg shadow">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 class="mt-2 text-lg font-medium text-gray-900">No products found</h3>
+        <p class="mt-1 text-sm text-gray-500">This company doesn't have any products in our database yet.</p>
+      </div>
+    )}
+  </div>
+  
+  <!-- Pipeline Tab Content -->
+  <div slot="pipeline">
+    <div class="space-y-6">
+      <Card>
+        <CardHeader>
+          <h3 class="text-lg font-medium text-gray-900">Pipeline Status</h3>
+        </CardHeader>
+        <CardBody>
+          {pipelineData.length > 0 ? (
+            <div class="h-80">
+              <PipelineChart data={pipelineData} />
+            </div>
+          ) : (
+            <p class="text-gray-500 italic">No pipeline data available.</p>
+          )}
+        </CardBody>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <h3 class="text-lg font-medium text-gray-900">Pipeline Products</h3>
+        </CardHeader>
+        <CardBody>
+          {products.length > 0 ? (
+            <DataTable 
+              data={products}
+              columns={[
+                {key: 'name', label: 'Product', render: (value, row) => {
+                  if (!row || !row.slug || !row.name) return 'Unknown Product';
+                  return `<a href="/products/${row.slug}" class="text-blue-600 hover:underline">${row.name}</a>`;
+                }},
+                {key: 'stage', label: 'Stage'},
+                {key: 'description', label: 'Description', render: (value, row) => {
+                  if (!row || !row.description) return 'No description';
+                  return row.description.substring(0, 100) + (row.description.length > 100 ? '...' : '');
+                }}
+              ]}
+            />
+          ) : (
+            <p class="text-gray-500 italic">No pipeline products available.</p>
+          )}
+        </CardBody>
+      </Card>
+    </div>
+  </div>
+  
+  <!-- Websites Tab Content -->
+  <div slot="websites">
+    {websites.length > 0 ? (
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {websites.map(website => (
+          <WebsiteCard website={website} />
+        ))}
+      </div>
+    ) : (
+      <div class="p-8 text-center bg-white rounded-lg shadow">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 class="mt-2 text-lg font-medium text-gray-900">No websites found</h3>
+        <p class="mt-1 text-sm text-gray-500">This company doesn't have any websites in our database yet.</p>
+      </div>
+    )}
+  </div>
+  
+  <!-- Financials Tab Content -->
+  <div slot="financials">
+    {financialData.length > 0 ? (
+      <div class="space-y-6">
+        <Card>
+          <CardHeader>
+            <h3 class="text-lg font-medium text-gray-900">Financial Overview</h3>
+          </CardHeader>
+          <CardBody>
+            <div class="h-80">
+              <FinancialChart data={financialData} />
+            </div>
+          </CardBody>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <h3 class="text-lg font-medium text-gray-900">Financial Data</h3>
+          </CardHeader>
+          <CardBody>
+            <DataTable 
+              data={financialData}
+              columns={[
+                {key: 'year', label: 'Year'},
+                {key: 'revenue', label: 'Revenue (B)', render: (item) => `$${item.revenue}B`},
+                {key: 'earnings', label: 'Earnings (B)', render: (item) => `$${item.earnings}B`}
+              ]}
+            />
+          </CardBody>
+        </Card>
+      </div>
+    ) : (
+      <div class="p-8 text-center bg-white rounded-lg shadow">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 class="mt-2 text-lg font-medium text-gray-900">No financial data available</h3>
+        <p class="mt-1 text-sm text-gray-500">Financial information for this company has not been added yet.</p>
+      </div>
+    )}
+  </div>
+  
+  <!-- News Tab Content -->
+  <div slot="news">
+    {milestones.length > 0 ? (
+      <Card>
+        <CardHeader>
+          <h3 class="text-lg font-medium text-gray-900">News & Milestones</h3>
+        </CardHeader>
+        <CardBody>
+          <Timeline milestones={milestones} />
+        </CardBody>
+      </Card>
+    ) : (
+      <div class="p-8 text-center bg-white rounded-lg shadow">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 class="mt-2 text-lg font-medium text-gray-900">No news or milestones</h3>
+        <p class="mt-1 text-sm text-gray-500">There are no news items or milestones available for this company yet.</p>
+      </div>
+    )}
+  </div>
+  
+  <!-- Related Companies Tab Content -->
+  <div slot="related">
+    {relatedCompanies.length > 0 ? (
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {relatedCompanies.map(relatedCompany => (
+          <a href={`/companies/${relatedCompany.slug}`} class="block">
+            <Card className="h-full hover:shadow-lg transition-shadow">
+              <CardBody>
+                <div class="flex items-center space-x-4">
+                  <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-lg">
+                    {relatedCompany.name.charAt(0)}
+                  </div>
+                  <div>
+                    <h4 class="text-lg font-medium text-gray-900">{relatedCompany.name}</h4>
+                    <p class="text-sm text-gray-500">{relatedCompany.relationshipType || 'Related company'}</p>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+          </a>
+        ))}
+      </div>
+    ) : (
+      <div class="p-8 text-center bg-white rounded-lg shadow">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 class="mt-2 text-lg font-medium text-gray-900">No related companies</h3>
+        <p class="mt-1 text-sm text-gray-500">There are no related companies available for this company yet.</p>
+      </div>
+    )}
+  </div>
+</EntityDetailLayout>

@@ -194,10 +194,46 @@ const tabGroupId = `tabgroup-${Math.random().toString(36).substring(2, 9)}`;
       this.tabGroupEl = tabGroupEl;
       this.tabPanelId = tabGroupEl.dataset.tabPanelId || 'tab-content';
       this.tabButtons = tabGroupEl.querySelectorAll('a[role="tab"]');
+      
+      // Try multiple strategies to find tab panels
+      // 1. Exact prefix match (most specific)
       this.tabPanels = document.querySelectorAll(`[id^="${this.tabPanelId}-"]`);
-      this.tabIds = Array.from(this.tabButtons).map(tab => tab.dataset.tabId || '');
+      
+      // 2. If no panels found, try finding by role and the tab ID in the ID attribute
+      if (this.tabPanels.length === 0) {
+        this.tabIds = Array.from(this.tabButtons).map(tab => tab.dataset.tabId || '');
+        const panelsByRole = Array.from(document.querySelectorAll('[role="tabpanel"]'));
+        
+        // Filter to only include panels whose IDs contain one of our tab IDs
+        const matchingPanels = panelsByRole.filter(panel => 
+          this.tabIds.some(tabId => panel.id.includes(tabId))
+        );
+        
+        if (matchingPanels.length > 0) {
+          console.info(`[TabGroup] Found ${matchingPanels.length} tab panels by role and ID pattern matching`);
+          this.tabPanels = matchingPanels as NodeListOf<HTMLElement>;
+        }
+      } else {
+        this.tabIds = Array.from(this.tabButtons).map(tab => tab.dataset.tabId || '');
+      }
+      
       this.currentTabIndex = this.tabIds.findIndex(id => this.tabButtons[this.tabIds.indexOf(id)]?.getAttribute('aria-selected') === 'true');
       if (this.currentTabIndex === -1) this.currentTabIndex = 0;
+
+      // Log debugging information when tab panels aren't found
+      if (this.tabPanels.length === 0) {
+        console.warn(`[TabGroup] No tab panels found with ID pattern: [id^="${this.tabPanelId}-"]`);
+        console.info(`[TabGroup] Available tab IDs: ${this.tabIds.join(', ')}`);
+        
+        // Try to find tab panels using alternative patterns in case of ID mismatch
+        const allPossiblePanels = document.querySelectorAll('[role="tabpanel"]');
+        if (allPossiblePanels.length > 0) {
+          console.info(`[TabGroup] Found ${allPossiblePanels.length} elements with role="tabpanel":`);
+          allPossiblePanels.forEach(panel => {
+            console.info(`[TabGroup] - Panel ID: ${panel.id}`);
+          });
+        }
+      }
 
       this.addEventListeners();
       this.initializeActiveTab();
@@ -318,8 +354,18 @@ const tabGroupId = `tabgroup-${Math.random().toString(36).substring(2, 9)}`;
       this.tabPanels.forEach(panel => {
         const panelTabId = panel.id.replace(`${this.tabPanelId}-`, '');
         const isPanelActive = panelTabId === tabId;
+        
+        // Handle both attribute and class-based toggling for maximum compatibility
+        // 1. Toggle the hidden attribute for accessibility
         panel.toggleAttribute('hidden', !isPanelActive);
         panel.setAttribute('aria-hidden', String(!isPanelActive));
+        
+        // 2. Also toggle the 'hidden' CSS class used in Astro templates
+        if (isPanelActive) {
+          panel.classList.remove('hidden');
+        } else {
+          panel.classList.add('hidden');
+        }
 
         if (isPanelActive) {
           panel.dispatchEvent(new CustomEvent('tab:visible', { bubbles: true }));

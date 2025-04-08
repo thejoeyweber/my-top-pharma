@@ -79,7 +79,11 @@ export async function getWebsites(options: WebsiteFilter = {}): Promise<{
     
     // Apply website type filter if provided
     if (options.websiteTypes && options.websiteTypes.length > 0) {
-      query = query.in('website_type', options.websiteTypes);
+      try {
+        query = query.in('type', options.websiteTypes);
+      } catch (error) {
+        console.error('Error fetching websites for counting:', error);
+      }
     }
     
     // Apply sorting
@@ -352,7 +356,7 @@ export async function getRelatedWebsites(
 export async function getWebsiteFilters(): Promise<{
   companies: { id: string|number; name: string; count: number }[];
   therapeuticAreas: { id: string|number; name: string; count: number }[];
-  websiteTypes: { id: string; name: string; count: number }[];
+  types: { value: string; label: string; count: number }[];
   sortOptions: { value: string; label: string }[];
 }> {
   try {
@@ -371,7 +375,7 @@ export async function getWebsiteFilters(): Promise<{
     // This is less efficient than server-side aggregation but more reliable
     const { data: allWebsites, error: websitesError } = await supabase
       .from('websites')
-      .select('company_id, website_type');
+      .select('company_id, type');
     
     if (websitesError) {
       console.error('Error fetching websites for counting:', websitesError);
@@ -385,7 +389,7 @@ export async function getWebsiteFilters(): Promise<{
     
     // Count occurrences in JavaScript
     // Use type assertion to specify the expected structure
-    type WebsiteCount = { company_id?: string; website_type?: string };
+    type WebsiteCount = { company_id?: string; type?: string };
     ((allWebsites || []) as WebsiteCount[]).forEach(website => {
       // Count by company ID
       if (website.company_id) {
@@ -396,10 +400,10 @@ export async function getWebsiteFilters(): Promise<{
       }
       
       // Count by website type
-      if (website.website_type) {
+      if (website.type) {
         typeCountMap.set(
-          website.website_type, 
-          (typeCountMap.get(website.website_type) || 0) + 1
+          website.type, 
+          (typeCountMap.get(website.type) || 0) + 1
         );
       }
     });
@@ -458,6 +462,13 @@ export async function getWebsiteFilters(): Promise<{
       { id: 'other', name: 'Other', count: typeCountMap.get('other') || 0 }
     ];
     
+    // Convert website types to format expected by the UI
+    const types = websiteTypes.map(type => ({
+      value: type.id,
+      label: type.name,
+      count: type.count
+    }));
+    
     // Define sort options
     const sortOptions = [
       { value: 'domain_asc', label: 'Domain (A to Z)' },
@@ -471,11 +482,19 @@ export async function getWebsiteFilters(): Promise<{
     return {
       companies,
       therapeuticAreas,
-      websiteTypes,
+      types,
       sortOptions
     };
   } catch (error) {
     console.error('Error in getWebsiteFilters:', error);
-    throw error;
+    // Return empty arrays to prevent runtime errors
+    return {
+      companies: [],
+      therapeuticAreas: [],
+      types: [],
+      sortOptions: [
+        { value: 'domain_asc', label: 'Domain (A to Z)' },
+      ]
+    };
   }
 } 

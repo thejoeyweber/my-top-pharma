@@ -1,0 +1,70 @@
+import Card from '../atoms/Card.astro';
+import CardHeader from '../atoms/CardHeader.astro';
+import CardBody from '../atoms/CardBody.astro';
+import CompanyCard from '../molecules/CompanyCard.astro';
+import ProductCard from '../molecules/ProductCard.astro';
+import TherapeuticAreaCard from '../molecules/TherapeuticAreaCard.astro';
+import type { Company, Product, TherapeuticArea } from '../../interfaces/entities';
+
+interface Props {
+  companies?: Company[];
+  products?: Product[];
+  therapeuticAreas?: TherapeuticArea[];
+}
+
+const { companies = [], products = [], therapeuticAreas = [] } = Astro.props;
+
+<div class="space-y-8">
+  <!-- Related Companies -->
+  {companies.length > 0 && (
+    <Card>
+      <CardHeader title="Related Companies" />
+      <CardBody>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {companies.map(company => (
+            <CompanyCard company={company} />
+          ))}
+        </div>
+      </CardBody>
+    </Card>
+  )}
+
+  <!-- Related Products -->
+  {products.length > 0 && (
+    <Card>
+      <CardHeader title="Related Products" />
+      <CardBody>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {products.map(product => (
+            <ProductCard product={product} />
+          ))}
+        </div>
+      </CardBody>
+    </Card>
+  )}
+
+  <!-- Related Therapeutic Areas -->
+  {therapeuticAreas.length > 0 && (
+    <Card>
+      <CardHeader title="Related Therapeutic Areas" />
+      <CardBody>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {therapeuticAreas.map(area => (
+            <TherapeuticAreaCard therapeuticArea={area} />
+          ))}
+        </div>
+      </CardBody>
+    </Card>
+  )}
+
+  <!-- No Related Entities -->
+  {companies.length === 0 && products.length === 0 && therapeuticAreas.length === 0 && (
+    <Card>
+      <CardBody>
+        <div class="text-center py-8">
+          <p class="text-gray-500">No related entities found.</p>
+        </div>
+      </CardBody>
+    </Card>
+  )}
+</div> 

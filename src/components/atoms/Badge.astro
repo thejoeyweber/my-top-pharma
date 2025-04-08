@@ -1,0 +1,57 @@
+---
+/**
+ * Badge Component
+ * 
+ * A versatile badge/tag component used for displaying metadata,
+ * categories, or statuses with different color variants.
+ * 
+ * @example
+ * ```astro
+ * <Badge color="blue">Default Badge</Badge>
+ * <Badge color="green">Approved</Badge>
+ * <Badge color="red">Rejected</Badge>
+ * <Badge color="purple">Website</Badge>
+ * <Badge color="amber">Therapeutic Area</Badge>
+ * <Badge color="gray">Other</Badge>
+ * ```
+ */
+
+interface Props {
+  /**
+   * Color variant for the badge, each has a specific predefined styling
+   * @default "blue"
+   */
+  color?: 'blue' | 'green' | 'red' | 'yellow' | 'purple' | 'amber' | 'gray';
+  
+  /**
+   * Additional CSS classes to apply to the badge
+   */
+  class?: string;
+}
+
+const { 
+  color = 'blue',
+  class: className = ''
+} = Astro.props;
+
+// Color variant styles
+const colorStyles = {
+  blue: 'bg-blue-100 text-blue-800',
+  green: 'bg-green-100 text-green-800',
+  red: 'bg-red-100 text-red-800',
+  yellow: 'bg-yellow-100 text-yellow-800',
+  purple: 'bg-purple-100 text-purple-800',
+  amber: 'bg-amber-100 text-amber-800',
+  gray: 'bg-gray-100 text-gray-800'
+};
+
+const colorClasses = colorStyles[color];
+---
+
+<span class:list={[
+  'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+  colorClasses,
+  className
+]}>
+  <slot />
+</span> 

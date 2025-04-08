@@ -349,4 +349,43 @@ export async function getProductFilters(): Promise<ProductFilterOptions> {
     console.error('Error in getProductFilters:', error);
     throw error;
   }
+}
+
+/**
+ * Fetch products associated with a website
+ * 
+ * This retrieves products related to a specific website, typically through
+ * the website's company association
+ * 
+ * @param websiteId ID of the website
+ * @returns Promise with array of products
+ */
+export async function getProductsByWebsiteId(websiteId: string): Promise<Product[]> {
+  try {
+    // First, get the website to find its company_id
+    const { data: website, error: websiteError } = await supabase
+      .from('websites')
+      .select('company_id')
+      .eq('id', websiteId)
+      .single();
+    
+    if (websiteError || !website || !website.company_id) {
+      return [];
+    }
+    
+    // Then fetch products for this company
+    const { data: products, error: productsError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('company_id', website.company_id);
+    
+    if (productsError || !products) {
+      return [];
+    }
+    
+    return products.map(dbProduct => dbProductToProduct(dbProduct as any));
+  } catch (error) {
+    console.error(`Error fetching products by website ID ${websiteId}:`, error);
+    return [];
+  }
 } 

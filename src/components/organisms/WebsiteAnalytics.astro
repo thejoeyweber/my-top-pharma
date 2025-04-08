@@ -1,0 +1,100 @@
+import Card from '../atoms/Card.astro';
+import CardHeader from '../atoms/CardHeader.astro';
+import CardBody from '../atoms/CardBody.astro';
+import type { Website } from '../../interfaces/entities';
+
+interface Props {
+  website: Website;
+}
+
+const { website } = Astro.props;
+
+// Mock analytics data - replace with real data when available
+const analytics = {
+  pageViews: 150000,
+  uniqueVisitors: 45000,
+  avgTimeOnSite: '2m 30s',
+  bounceRate: '45%',
+  topCountries: [
+    { country: 'United States', percentage: 35 },
+    { country: 'United Kingdom', percentage: 25 },
+    { country: 'Germany', percentage: 15 },
+    { country: 'France', percentage: 10 },
+    { country: 'Others', percentage: 15 }
+  ],
+  trafficSources: [
+    { source: 'Organic Search', percentage: 40 },
+    { source: 'Direct', percentage: 30 },
+    { source: 'Referral', percentage: 20 },
+    { source: 'Social', percentage: 10 }
+  ]
+};
+
+<Card>
+  <CardHeader title="Website Analytics" />
+  <CardBody>
+    <div class="space-y-8">
+      <!-- Key Metrics -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <h3 class="text-sm font-medium text-gray-500">Page Views</h3>
+          <p class="mt-1 text-2xl font-semibold text-gray-900">{analytics.pageViews.toLocaleString()}</p>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <h3 class="text-sm font-medium text-gray-500">Unique Visitors</h3>
+          <p class="mt-1 text-2xl font-semibold text-gray-900">{analytics.uniqueVisitors.toLocaleString()}</p>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <h3 class="text-sm font-medium text-gray-500">Avg. Time on Site</h3>
+          <p class="mt-1 text-2xl font-semibold text-gray-900">{analytics.avgTimeOnSite}</p>
+        </div>
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <h3 class="text-sm font-medium text-gray-500">Bounce Rate</h3>
+          <p class="mt-1 text-2xl font-semibold text-gray-900">{analytics.bounceRate}</p>
+        </div>
+      </div>
+
+      <!-- Traffic Sources -->
+      <div>
+        <h3 class="text-sm font-medium text-gray-500 mb-4">Traffic Sources</h3>
+        <div class="space-y-2">
+          {analytics.trafficSources.map(source => (
+            <div class="flex items-center">
+              <div class="w-32 text-sm text-gray-600">{source.source}</div>
+              <div class="flex-1">
+                <div class="h-2 bg-gray-200 rounded-full">
+                  <div
+                    class="h-2 bg-purple-600 rounded-full"
+                    style={`width: ${source.percentage}%`}
+                  ></div>
+                </div>
+              </div>
+              <div class="w-16 text-right text-sm text-gray-600">{source.percentage}%</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Top Countries -->
+      <div>
+        <h3 class="text-sm font-medium text-gray-500 mb-4">Top Countries</h3>
+        <div class="space-y-2">
+          {analytics.topCountries.map(country => (
+            <div class="flex items-center">
+              <div class="w-32 text-sm text-gray-600">{country.country}</div>
+              <div class="flex-1">
+                <div class="h-2 bg-gray-200 rounded-full">
+                  <div
+                    class="h-2 bg-purple-600 rounded-full"
+                    style={`width: ${country.percentage}%`}
+                  ></div>
+                </div>
+              </div>
+              <div class="w-16 text-right text-sm text-gray-600">{country.percentage}%</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </CardBody>
+</Card> 

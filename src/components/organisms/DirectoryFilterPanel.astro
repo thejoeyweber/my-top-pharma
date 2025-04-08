@@ -1,0 +1,137 @@
+---
+/**
+ * DirectoryFilterPanel.astro
+ * 
+ * A standardized filter panel for directory pages with search, sort,
+ * and collapsible advanced filters.
+ */
+import Card from '../atoms/Card.astro';
+import Button from '../atoms/Button.astro';
+import SortSelect from '../molecules/SortSelect.astro';
+import ViewToggle from '../molecules/ViewToggle.astro';
+
+interface Props {
+  search?: string;
+  sortOptions: Array<{ value: string; label: string }>;
+  selectedSort: string;
+  showViewToggle?: boolean;
+  viewMode?: 'grid' | 'list';
+}
+
+const {
+  search = '',
+  sortOptions,
+  selectedSort,
+  showViewToggle = false,
+  viewMode = 'grid'
+} = Astro.props;
+---
+
+<Card>
+  <div class="p-4">
+    <form id="filter-form" method="get" class="space-y-4">
+      <!-- Replace flexbox with grid for better layout control -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+        <!-- Search input (takes more space) -->
+        <div class="md:col-span-2">
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input 
+              type="text" 
+              id="search" 
+              name="search" 
+              value={search}
+              placeholder="Search..."
+              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            />
+          </div>
+        </div>
+
+        <!-- View Toggle & Sort (aligned right) -->
+        <div class="flex items-center justify-end space-x-3">
+          {showViewToggle && (
+            <ViewToggle 
+              options={[
+                { value: 'grid', label: 'Grid', icon: 'grid' },
+                { value: 'list', label: 'List', icon: 'list' }
+              ]}
+              activeOption={viewMode}
+              data-view-toggle="true"
+            />
+          )}
+          
+          <SortSelect 
+            options={sortOptions}
+            selected={selectedSort}
+            data-sort-select="true"
+            class="min-w-[180px]"
+          />
+        </div>
+      </div>
+
+      <!-- Advanced Filters -->
+      <details class="mt-4">
+        <summary class="cursor-pointer text-blue-600 font-medium mb-3">Advanced Filters</summary>
+        <div class="p-4 bg-gray-50 rounded-md">
+          <slot name="advanced-filters" />
+          
+          <!-- Filter Action Buttons -->
+          <div class="flex justify-end mt-4 space-x-2">
+            <Button type="submit" variant="primary">Apply Filters</Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              id="reset-filters"
+            >
+              Reset
+            </Button>
+          </div>
+        </div>
+      </details>
+
+      <!-- Maintain view and sort in form submission -->
+      <input type="hidden" name="view" value={viewMode} />
+      <input type="hidden" name="sort" value={selectedSort} />
+      <input type="hidden" name="page" value="1" /> <!-- Reset to page 1 when filtering -->
+    </form>
+  </div>
+</Card>
+
+<script>
+  // Client-side code for handling view toggle and sort changes
+  document.addEventListener('DOMContentLoaded', () => {
+    // Handle view toggle
+    const viewToggle = document.querySelector('[data-view-toggle="true"]');
+    if (viewToggle) {
+      viewToggle.addEventListener('change', (event) => {
+        const value = event.target.value;
+        const url = new URL(window.location.href);
+        url.searchParams.set('view', value);
+        window.location.href = url.toString();
+      });
+    }
+
+    // Handle sort select
+    const sortSelect = document.querySelector('[data-sort-select="true"]');
+    if (sortSelect) {
+      sortSelect.addEventListener('change', (event) => {
+        const value = event.target.value;
+        const url = new URL(window.location.href);
+        url.searchParams.set('sort', value);
+        window.location.href = url.toString();
+      });
+    }
+
+    // Handle reset button
+    const resetButton = document.getElementById('reset-filters');
+    if (resetButton) {
+      resetButton.addEventListener('click', () => {
+        window.location.href = window.location.pathname;
+      });
+    }
+  });
+</script> 

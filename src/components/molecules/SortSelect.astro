@@ -99,51 +99,34 @@ function getOptionUrl(value: string): string {
 }
 ---
 
-<div class:list={["sort-select flex flex-col md:flex-row md:items-center gap-2", className]}>
-  {label && <label for={id} class="text-sm font-medium text-gray-700 whitespace-nowrap">{label}:</label>}
-  
-  <div class="relative">
-    <select
-      id={id}
-      name={name}
-      onchange={`window.location.href = this.options[this.selectedIndex].dataset.url`}
-      class="block w-full rounded-md border border-gray-300 bg-white py-1.5 pl-3 pr-10 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-      aria-label={label}
-    >
-      {options.map(option => {
-        const url = getOptionUrl(option.value);
-        return (
-          <option 
-            value={option.value} 
-            selected={option.value === selected}
-            disabled={option.disabled}
-            data-url={url}
-          >
-            {option.label}
-          </option>
-        );
-      })}
-    </select>
-    
-    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-      </svg>
-    </div>
-  </div>
+<div class:list={["flex items-center gap-2 whitespace-nowrap", className]}>
+  <label for={id} class="text-sm font-medium text-gray-700 flex-shrink-0">{label}</label>
+  <select
+    id={id}
+    name={name}
+    class="block w-full min-w-[140px] rounded-md border-gray-300 py-1.5 pl-3 pr-10 text-sm focus:border-primary-500 focus:outline-none focus:ring-primary-500"
+    data-sort-select
+  >
+    {options.map((option) => (
+      <option
+        value={option.value}
+        selected={option.value === selected}
+        disabled={option.disabled}
+      >
+        {option.label}
+      </option>
+    ))}
+  </select>
 </div>
 
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const sortSelect = document.getElementById('sort-select') as HTMLSelectElement;
-    
-    sortSelect?.addEventListener('change', () => {
-      const selectedOption = sortSelect.options[sortSelect.selectedIndex];
-      const url = selectedOption.getAttribute('data-url');
-      
-      if (url) {
-        window.location.href = url;
-      }
+  // Handle sort selection
+  document.querySelectorAll('[data-sort-select]').forEach(select => {
+    select.addEventListener('change', (e) => {
+      const value = (e.target as HTMLSelectElement).value;
+      const url = new URL(window.location.href);
+      url.searchParams.set('sort', value);
+      window.location.href = url.toString();
     });
   });
 </script> 

@@ -582,4 +582,41 @@ export async function getRelatedCompanies(companyId: string): Promise<any[]> {
   // Return empty array for now until the related companies feature is implemented
   console.log('Related companies feature not yet implemented');
   return [];
+}
+
+/**
+ * Get company details by website ID
+ * 
+ * @param websiteId The ID of the website
+ * @returns Promise with the company data or null if not found
+ */
+export async function getCompanyByWebsiteId(websiteId: string): Promise<any | null> {
+  try {
+    // First, get the website to find its company_id
+    const { data: website, error: websiteError } = await supabase
+      .from('websites')
+      .select('company_id')
+      .eq('id', websiteId)
+      .single();
+    
+    if (websiteError || !website || !website.company_id) {
+      return null;
+    }
+    
+    // Then fetch the company using the company_id
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .select('*')
+      .eq('id', website.company_id)
+      .single();
+    
+    if (companyError || !company) {
+      return null;
+    }
+    
+    return dbCompanyToCompany(company);
+  } catch (error) {
+    console.error(`Error fetching company by website ID ${websiteId}:`, error);
+    return null;
+  }
 } 

@@ -5,15 +5,13 @@
  * Displays detailed information for a specific therapeutic area,
  * including related companies, products, and websites.
  */
-import DashboardLayout from '../../layouts/DashboardLayout.astro';
-import Breadcrumb from '../../components/molecules/Breadcrumb.astro';
-import TabGroup from '../../components/molecules/TabGroup.astro';
-import CompanyCard from '../../components/molecules/CompanyCard.astro';
-import ProductCard from '../../components/molecules/ProductCard.astro';
-import WebsiteCard from '../../components/molecules/WebsiteCard.astro';
+import EntityDetailLayout from '../../layouts/EntityDetailLayout.astro';
 import Card from '../../components/atoms/Card.astro';
 import CardHeader from '../../components/atoms/CardHeader.astro';
 import CardBody from '../../components/atoms/CardBody.astro';
+import CompanyCard from '../../components/molecules/CompanyCard.astro';
+import ProductCard from '../../components/molecules/ProductCard.astro';
+import WebsiteCard from '../../components/molecules/WebsiteCard.astro';
 
 // Import therapeutic area utilities instead of direct Supabase access
 import { 
@@ -53,266 +51,217 @@ const breadcrumbItems = [
   { label: therapeuticArea.name, href: `/therapeutic-areas/${slug}`, isActive: true }
 ];
 
-// Set up tabs
+// Set up tabs with conditional counts
 const tabs = [
   { 
     id: 'overview', 
     label: 'Overview', 
-    count: null
+    count: null,
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>'
   },
   { 
     id: 'companies', 
     label: 'Companies', 
-    count: companies.length
+    count: companies.length > 0 ? companies.length : null,
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>'
   },
   { 
     id: 'products', 
     label: 'Products', 
-    count: products.length
+    count: products.length > 0 ? products.length : null,
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>'
   },
   { 
     id: 'related', 
     label: 'Related Areas', 
-    count: relatedAreas.length
+    count: relatedAreas.length > 0 ? relatedAreas.length : null,
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 013 0m-3-3.5v3m0 0v3m0-3h-3m3 0h3M4 21h16" /></svg>'
   }
 ];
 
 // Get active tab from URL query parameter or default to 'overview'
 const activeTab = Astro.url.searchParams.get('tab') || 'overview';
+
+// Therapeutic area icon
+const therapeuticAreaIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-amber-600" fill="currentColor" viewBox="0 0 612 612">
+  <g>
+    <path d="M380.406,254.483c-7.043,3.727-14.33,6.947-21.83,9.607c-16.626,5.899-34.283,9.08-52.575,9.08
+      c-33.516,0-66.005,7.368-96.563,21.901c-7.149,3.4-14.112,7.16-20.886,11.26c-4.681,2.834-9.263,5.844-13.756,9.005
+      c-4.306,3.03-8.526,6.205-12.652,9.531c-10.795,8.703-20.974,18.401-30.467,29.075c-45.35,50.992-70.326,118.535-70.326,190.186
+      v47.975c0,10.989,8.908,19.897,19.897,19.897h26.529c10.988,0,19.897-8.908,19.897-19.897v-31.137h14.923h14.923h296.963h14.923
+      h14.923v31.137c0,10.989,8.908,19.897,19.897,19.897h26.529c10.988,0,19.897-8.908,19.897-19.897v-47.975
+      c0-71.652-24.975-139.194-70.325-190.186c-9.493-10.674-19.672-20.372-30.467-29.075c-11.004,7.412-22.507,13.983-34.475,19.675
+      c-11.429,5.436-23.101,9.98-34.975,13.637c23.809,12.596,44.8,31.04,61.573,53.719h-18.929h-20.193H209.144H188.95h-18.929
+      c16.774-22.679,37.764-41.123,61.573-53.719c7.044-3.726,14.33-6.947,21.83-9.607c16.626-5.899,34.283-9.08,52.576-9.08
+      c33.516,0,66.005-7.368,96.563-21.901c7.149-3.4,14.112-7.16,20.886-11.26c4.681-2.834,9.263-5.844,13.756-9.005
+      c4.306-3.03,8.525-6.204,12.652-9.531c10.795-8.703,20.975-18.401,30.467-29.075c45.35-50.992,70.325-118.535,70.325-190.186
+      V19.897C550.649,8.908,541.741,0,530.752,0h-26.529c-10.988,0-19.897,8.908-19.897,19.897v31.071h-14.923h-14.923H157.519h-14.923
+      h-14.923V19.897C127.674,8.908,118.765,0,107.777,0H81.248C70.259,0,61.351,8.908,61.351,19.897v48.638
+      c0,71.652,24.975,139.194,70.325,190.186c9.493,10.674,19.672,20.372,30.467,29.075c11.004-7.412,22.507-13.983,34.475-19.676
+      c11.429-5.435,23.101-9.98,34.975-13.637c-24.064-12.731-45.249-31.435-62.111-54.448h18.853h20.09h195.146h20.09h18.854
+      C425.655,223.048,404.471,241.752,380.406,254.483z M170.966,471.59h270.069h15.944h15.763c3.174,9.575,5.739,19.49,7.64,29.687
+      H465.2h-15.245H162.046h-15.245H131.62c1.901-10.196,4.466-20.111,7.64-29.687h15.763H170.966z M441.312,140.344H170.688h-15.922
+      h-15.748c-3.138-9.578-5.671-19.493-7.536-29.687h15.181h15.23h288.216h15.23h15.182c-1.866,10.194-4.399,20.108-7.536,29.687
+      h-15.748H441.312z"/>
+  </g>
+</svg>`;
 ---
 
-<DashboardLayout 
-  title={`${therapeuticArea.name} - Therapeutic Area | MyTopPharma`}
+<EntityDetailLayout
+  title={`${therapeuticArea.name} - Therapeutic Area`}
   description={`Detailed information about ${therapeuticArea.name} therapeutic area`}
   currentPath={`/therapeutic-areas/${slug}`}
   breadcrumbs={breadcrumbItems}
+  gradientFrom="amber-500"
+  gradientTo="amber-600"
+  tabs={tabs}
+  activeTab={activeTab}
+  logoUrl={therapeuticArea.iconPath}
+  entityName={therapeuticArea.name}
+  entitySubtitle={therapeuticArea.description}
 >
-  <div class="space-y-6">
-    <!-- Therapeutic Area Header - Updated to match company header structure -->
-    <div class="relative">
-      <!-- Header Background -->
-      <div class="h-48 w-full bg-gradient-to-r from-amber-500 to-amber-600 relative overflow-hidden shadow-md">
-        {/* Background could include a relevant medical image */}
-      </div>
+  <!-- Overview Tab Content -->
+  <div slot="overview">
+    <div class="space-y-6">
+      <Card>
+        <CardHeader>
+          <h3 class="text-lg font-medium text-gray-900">Overview</h3>
+        </CardHeader>
+        <CardBody>
+          {therapeuticArea.description ? (
+            <p class="text-gray-700">{therapeuticArea.description}</p>
+          ) : (
+            <p class="text-gray-500 italic">No detailed description available for this therapeutic area.</p>
+          )}
+        </CardBody>
+      </Card>
       
-      <!-- Therapeutic Area Info Card -->
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div class="bg-white rounded-lg shadow-lg overflow-hidden -mt-24 mb-8">
-          <div class="p-6 sm:p-8">
-            <div class="flex flex-col md:flex-row items-start md:items-center">
-              <!-- Therapeutic Area Icon -->
-              <div class="w-24 h-24 bg-white rounded-lg shadow-md flex items-center justify-center overflow-hidden mr-6 mb-4 md:mb-0">
-                {therapeuticArea.iconPath ? (
-                  <img src={therapeuticArea.iconPath} alt={therapeuticArea.name} class="max-w-full max-h-full p-2" />
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-amber-500" fill="currentColor" viewBox="0 0 612 612">
-                    <g>
-                      <path d="M380.406,254.483c-7.043,3.727-14.33,6.947-21.83,9.607c-16.626,5.899-34.283,9.08-52.575,9.08
-                        c-33.516,0-66.005,7.368-96.563,21.901c-7.149,3.4-14.112,7.16-20.886,11.26c-4.681,2.834-9.263,5.844-13.756,9.005
-                        c-4.306,3.03-8.526,6.205-12.652,9.531c-10.795,8.703-20.974,18.401-30.467,29.075c-45.35,50.992-70.326,118.535-70.326,190.186
-                        v47.975c0,10.989,8.908,19.897,19.897,19.897h26.529c10.988,0,19.897-8.908,19.897-19.897v-31.137h14.923h14.923h296.963h14.923
-                        h14.923v31.137c0,10.989,8.908,19.897,19.897,19.897h26.529c10.988,0,19.897-8.908,19.897-19.897v-47.975
-                        c0-71.652-24.975-139.194-70.325-190.186c-9.493-10.674-19.672-20.372-30.467-29.075c-11.004,7.412-22.507,13.983-34.475,19.675
-                        c-11.429,5.436-23.101,9.98-34.975,13.637c23.809,12.596,44.8,31.04,61.573,53.719h-18.929h-20.193H209.144H188.95h-18.929
-                        c16.774-22.679,37.764-41.123,61.573-53.719c7.044-3.726,14.33-6.947,21.83-9.607c16.626-5.899,34.283-9.08,52.576-9.08
-                        c33.516,0,66.005-7.368,96.563-21.901c7.149-3.4,14.112-7.16,20.886-11.26c4.681-2.834,9.263-5.844,13.756-9.005
-                        c4.306-3.03,8.525-6.204,12.652-9.531c10.795-8.703,20.975-18.401,30.467-29.075c45.35-50.992,70.325-118.535,70.325-190.186
-                        V19.897C550.649,8.908,541.741,0,530.752,0h-26.529c-10.988,0-19.897,8.908-19.897,19.897v31.071h-14.923h-14.923H157.519h-14.923
-                        h-14.923V19.897C127.674,8.908,118.765,0,107.777,0H81.248C70.259,0,61.351,8.908,61.351,19.897v48.638
-                        c0,71.652,24.975,139.194,70.325,190.186c9.493,10.674,19.672,20.372,30.467,29.075c11.004-7.412,22.507-13.983,34.475-19.676
-                        c11.429-5.435,23.101-9.98,34.975-13.637c-24.064-12.731-45.249-31.435-62.111-54.448h18.853h20.09h195.146h20.09h18.854
-                        C425.655,223.048,404.471,241.752,380.406,254.483z M170.966,471.59h270.069h15.944h15.763c3.174,9.575,5.739,19.49,7.64,29.687
-                        H465.2h-15.245H162.046h-15.245H131.62c1.901-10.196,4.466-20.111,7.64-29.687h15.763H170.966z M441.312,140.344H170.688h-15.922
-                        h-15.748c-3.138-9.578-5.671-19.493-7.536-29.687h15.181h15.23h288.216h15.23h15.182c-1.866,10.194-4.399,20.108-7.536,29.687
-                        h-15.748H441.312z"/>
-                    </g>
+      <Card>
+        <CardHeader>
+          <h3 class="text-lg font-medium text-gray-900">Summary</h3>
+        </CardHeader>
+        <CardBody>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-blue-50 rounded-lg p-4">
+              <div class="flex items-center">
+                <div class="bg-blue-100 rounded-full p-2 mr-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
-                )}
-              </div>
-              
-              <!-- Therapeutic Area Basic Info -->
-              <div class="flex-grow">
-                <div class="flex items-center justify-between flex-wrap">
-                  <h1 class="text-2xl font-bold text-gray-900 mr-4">{therapeuticArea.name}</h1>
                 </div>
-                
-                {therapeuticArea.description && (
-                  <p class="mt-2 text-sm text-gray-500 line-clamp-2">{therapeuticArea.description}</p>
-                )}
+                <div>
+                  <div class="text-sm text-blue-600 font-medium">Companies</div>
+                  <div class="text-2xl font-bold text-blue-800">{companies.length}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="bg-green-50 rounded-lg p-4">
+              <div class="flex items-center">
+                <div class="bg-green-100 rounded-full p-2 mr-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+                <div>
+                  <div class="text-sm text-green-600 font-medium">Products</div>
+                  <div class="text-2xl font-bold text-green-800">{products.length}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="bg-purple-50 rounded-lg p-4">
+              <div class="flex items-center">
+                <div class="bg-purple-100 rounded-full p-2 mr-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                  </svg>
+                </div>
+                <div>
+                  <div class="text-sm text-purple-600 font-medium">Websites</div>
+                  <div class="text-2xl font-bold text-purple-800">{websiteCount}</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Tabs Navigation -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-      <TabGroup tabs={tabs} activeTab={activeTab} tabPanelId="ta-tab-content" />
-      
-      <!-- Tab Content -->
-      <div class="mt-6">
-        <!-- Overview Tab -->
-        <div id="ta-tab-content-overview" role="tabpanel" aria-labelledby="tab-overview" class={activeTab === 'overview' ? '' : 'hidden'}>
-          <div class="space-y-6">
-            <Card>
-              <CardHeader>
-                <h3 class="text-lg font-medium text-gray-900">Overview</h3>
-              </CardHeader>
-              <CardBody>
-                {therapeuticArea.description ? (
-                  <p class="text-gray-700">{therapeuticArea.description}</p>
-                ) : (
-                  <p class="text-gray-500 italic">No detailed description available for this therapeutic area.</p>
-                )}
-              </CardBody>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <h3 class="text-lg font-medium text-gray-900">Summary</h3>
-              </CardHeader>
-              <CardBody>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div class="bg-blue-50 rounded-lg p-4">
-                    <div class="flex items-center">
-                      <div class="bg-blue-100 rounded-full p-2 mr-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                      </div>
-                      <div>
-                        <div class="text-sm text-blue-600 font-medium">Companies</div>
-                        <div class="text-2xl font-bold text-blue-800">{companies.length}</div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div class="bg-green-50 rounded-lg p-4">
-                    <div class="flex items-center">
-                      <div class="bg-green-100 rounded-full p-2 mr-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <div class="text-sm text-green-600 font-medium">Products</div>
-                        <div class="text-2xl font-bold text-green-800">{products.length}</div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div class="bg-purple-50 rounded-lg p-4">
-                    <div class="flex items-center">
-                      <div class="bg-purple-100 rounded-full p-2 mr-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                        </svg>
-                      </div>
-                      <div>
-                        <div class="text-sm text-purple-600 font-medium">Websites</div>
-                        <div class="text-2xl font-bold text-purple-800">{websiteCount}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
-            
-            <!-- Related Therapeutic Areas -->
-            {relatedAreas.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <h3 class="text-lg font-medium text-gray-900">Related Therapeutic Areas</h3>
-                </CardHeader>
-                <CardBody>
-                  <div class="flex flex-wrap gap-2">
-                    {relatedAreas.map(area => (
-                      <a 
-                        href={`/therapeutic-areas/${area.slug}`}
-                        class="inline-flex items-center px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-sm font-medium hover:bg-amber-100 transition-colors"
-                      >
-                        {area.name}
-                      </a>
-                    ))}
-                  </div>
-                </CardBody>
-              </Card>
-            )}
-          </div>
-        </div>
-        
-        <!-- Companies Tab -->
-        <div id="ta-tab-content-companies" role="tabpanel" aria-labelledby="tab-companies" class={activeTab === 'companies' ? '' : 'hidden'}>
-          <div class="space-y-6">
-            {companies.length > 0 ? (
-              <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {companies.map(company => (
-                  <CompanyCard company={company} />
-                ))}
-              </div>
-            ) : (
-              <Card>
-                <CardBody class="text-center">
-                  <h3 class="text-lg font-medium text-gray-900">No companies found</h3>
-                  <p class="mt-2 text-sm text-gray-500">There are no companies associated with this therapeutic area yet.</p>
-                </CardBody>
-              </Card>
-            )}
-          </div>
-        </div>
-        
-        <!-- Products Tab -->
-        <div id="ta-tab-content-products" role="tabpanel" aria-labelledby="tab-products" class={activeTab === 'products' ? '' : 'hidden'}>
-          <div class="space-y-6">
-            {products.length > 0 ? (
-              <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {products.map(product => (
-                  <ProductCard product={product} />
-                ))}
-              </div>
-            ) : (
-              <Card>
-                <CardBody class="text-center">
-                  <h3 class="text-lg font-medium text-gray-900">No products found</h3>
-                  <p class="mt-2 text-sm text-gray-500">There are no products associated with this therapeutic area yet.</p>
-                </CardBody>
-              </Card>
-            )}
-          </div>
-        </div>
-        
-        <!-- Related Areas Tab -->
-        <div id="ta-tab-content-related" role="tabpanel" aria-labelledby="tab-related" class={activeTab === 'related' ? '' : 'hidden'}>
-          <div class="space-y-6">
-            {relatedAreas.length > 0 ? (
-              <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {relatedAreas.map(area => (
-                  <a href={`/therapeutic-areas/${area.slug}`} class="block">
-                    <Card>
-                      <CardHeader>
-                        <h3 class="text-lg font-medium text-gray-900">{area.name}</h3>
-                      </CardHeader>
-                      <CardBody>
-                        {area.description && (
-                          <p class="mt-2 text-sm text-gray-500 line-clamp-2">{area.description}</p>
-                        )}
-                      </CardBody>
-                    </Card>
-                  </a>
-                ))}
-              </div>
-            ) : (
-              <Card>
-                <CardBody class="text-center">
-                  <h3 class="text-lg font-medium text-gray-900">No related areas found</h3>
-                  <p class="mt-2 text-sm text-gray-500">There are no therapeutic areas related to this one yet.</p>
-                </CardBody>
-              </Card>
-            )}
-          </div>
-        </div>
-      </div>
+        </CardBody>
+      </Card>
     </div>
   </div>
-</DashboardLayout> 
+
+  <!-- Companies Tab Content -->
+  <div slot="companies">
+    {companies.length > 0 ? (
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {companies.map(company => (
+          <CompanyCard company={company} />
+        ))}
+      </div>
+    ) : (
+      <div class="p-8 text-center bg-white rounded-lg shadow">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 class="mt-2 text-lg font-medium text-gray-900">No companies found</h3>
+        <p class="mt-1 text-sm text-gray-500">There are no companies associated with this therapeutic area yet.</p>
+      </div>
+    )}
+  </div>
+
+  <!-- Products Tab Content -->
+  <div slot="products">
+    {products.length > 0 ? (
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {products.map(product => (
+          <ProductCard product={product} />
+        ))}
+      </div>
+    ) : (
+      <div class="p-8 text-center bg-white rounded-lg shadow">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 class="mt-2 text-lg font-medium text-gray-900">No products found</h3>
+        <p class="mt-1 text-sm text-gray-500">There are no products associated with this therapeutic area yet.</p>
+      </div>
+    )}
+  </div>
+
+  <!-- Related Areas Tab Content -->
+  <div slot="related">
+    {relatedAreas.length > 0 ? (
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {relatedAreas.map(relatedArea => (
+          <Card>
+            <CardBody>
+              <div class="flex items-center mb-3">
+                <div class="h-10 w-10 flex-shrink-0 rounded-full bg-amber-100 flex items-center justify-center mr-3">
+                  <span class="text-lg font-medium text-amber-600">{relatedArea.name.charAt(0)}</span>
+                </div>
+                <div>
+                  <h3 class="font-medium text-gray-900">{relatedArea.name}</h3>
+                </div>
+              </div>
+              {relatedArea.description && (
+                <p class="text-sm text-gray-500 mb-4 line-clamp-2">{relatedArea.description}</p>
+              )}
+              <div class="flex justify-end">
+                <a href={`/therapeutic-areas/${relatedArea.slug}`} class="text-sm font-medium text-amber-600 hover:text-amber-800">
+                  View Area &rarr;
+                </a>
+              </div>
+            </CardBody>
+          </Card>
+        ))}
+      </div>
+    ) : (
+      <div class="p-8 text-center bg-white rounded-lg shadow">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 class="mt-2 text-lg font-medium text-gray-900">No related areas found</h3>
+        <p class="mt-1 text-sm text-gray-500">There are no related therapeutic areas for this area yet.</p>
+      </div>
+    )}
+  </div>
+</EntityDetailLayout> 

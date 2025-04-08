@@ -436,4 +436,83 @@ export async function getTherapeuticAreaFilters(): Promise<{
   ];
   
   return { sortOptions };
+}
+
+/**
+ * Get therapeutic areas associated with a website
+ * 
+ * This combines the therapeutic areas of the website's company and products
+ * 
+ * @param websiteId ID of the website
+ * @returns Promise with array of therapeutic areas
+ */
+export async function getTherapeuticAreasByWebsiteId(websiteId: string): Promise<TherapeuticArea[]> {
+  try {
+    // First, get the website to find its company_id
+    const { data: website, error: websiteError } = await supabase
+      .from('websites')
+      .select('company_id')
+      .eq('id', websiteId)
+      .single();
+    
+    if (websiteError || !website) {
+      return [];
+    }
+    
+    const companyId = website.company_id;
+    let taIds: string[] = [];
+    
+    // If there's a company, get its therapeutic areas
+    if (companyId) {
+      const { data: companyTAs, error: companyTAError } = await supabase
+        .from('company_therapeutic_areas')
+        .select('therapeutic_area_id')
+        .eq('company_id', companyId);
+      
+      if (!companyTAError && companyTAs) {
+        taIds = companyTAs.map(relation => relation.therapeutic_area_id);
+      }
+      
+      // Get any products from this company for their TAs too
+      const { data: products, error: productsError } = await supabase
+        .from('products')
+        .select('id')
+        .eq('company_id', companyId);
+      
+      if (!productsError && products && products.length > 0) {
+        const productIds = products.map(product => product.id);
+        
+        const { data: productTAs, error: productTAError } = await supabase
+          .from('product_therapeutic_areas')
+          .select('therapeutic_area_id')
+          .in('product_id', productIds);
+        
+        if (!productTAError && productTAs) {
+          taIds = [...taIds, ...productTAs.map(relation => relation.therapeutic_area_id)];
+        }
+      }
+    }
+    
+    // Remove duplicates
+    const uniqueTaIds = [...new Set(taIds)];
+    
+    if (uniqueTaIds.length === 0) {
+      return [];
+    }
+    
+    // Fetch the therapeutic area details
+    const { data: tas, error: tasError } = await supabase
+      .from('therapeutic_areas')
+      .select('*')
+      .in('id', uniqueTaIds);
+    
+    if (tasError || !tas) {
+      return [];
+    }
+    
+    return tas.map(dbTherapeuticAreaToTherapeuticArea);
+  } catch (error) {
+    console.error(`Error fetching therapeutic areas by website ID ${websiteId}:`, error);
+    return [];
+  }
 } 

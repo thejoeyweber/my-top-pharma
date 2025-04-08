@@ -1,261 +1,261 @@
 ---
 /**
- * Websites List Page
+ * Websites Index Page
  * 
- * Displays a searchable, filterable grid of pharmaceutical websites
- * with options to sort and filter by various criteria.
+ * Displays a filterable list of all websites in the Top Pharma database.
  */
-import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import DirectoryIndexLayout from '../../layouts/DirectoryIndexLayout.astro';
+import DirectoryFilterPanel from '../../components/organisms/DirectoryFilterPanel.astro';
 import WebsiteCard from '../../components/molecules/WebsiteCard.astro';
-import FilterBar from '../../components/organisms/FilterBar.astro';
-import SortSelect from '../../components/molecules/SortSelect.astro';
-import Card from '../../components/atoms/Card.astro';
-import Button from '../../components/atoms/Button.astro';
-import Pagination from '../../components/molecules/Pagination.astro';
 import DataSourceVisualizer from '../../components/DataSourceVisualizer.astro';
+import Pagination from '../../components/molecules/Pagination.astro';
 
-// Import utilities
+// Import utility functions
 import { getWebsites, getWebsiteFilters } from '../../lib/utils/websiteUtils';
-import { updateUrlParams, getPaginationParams } from '../../lib/utils/urlUtils';
-import type { WebsiteFilters } from '../../interfaces/filters';
+import { getPaginationParams } from '../../lib/utils/urlUtils';
 import type { Website } from '../../interfaces/entities';
 
-// Explicitly set to false for dynamic content
+// Set prerender to false for dynamic content
 export const prerender = false;
 
-// Get URL search parameters for filtering
+// Get URL query parameters
 const url = new URL(Astro.request.url);
 const params = url.searchParams;
 
-// Extract filter parameters
+// Extract filter and sort parameters
 const search = params.get('search') || '';
-const companyParam = params.get('company');
-const companyId = companyParam ? parseInt(companyParam) : null;
-const typeParam = params.get('type');
-const therapeuticAreaParam = params.get('area');
-const therapeuticAreaId = therapeuticAreaParam ? parseInt(therapeuticAreaParam) : null;
+const companyId = params.get('company') || '';
+const websiteType = params.get('type') || '';
+const therapeuticAreaId = params.get('ta') || '';
 const sortParam = params.get('sort') || 'name_asc';
+const viewMode = params.get('view') || 'grid';
 
 // Get pagination parameters
 const { page, limit, offset } = getPaginationParams(params);
 
-// Create filters object
-const filters: WebsiteFilters = {
-  search: search || undefined,
-  companyId: companyId || undefined,
-  websiteType: typeParam || undefined,
-  therapeuticAreaId: therapeuticAreaId || undefined
-};
+// Fetch filter options
+const { types, companies, therapeuticAreas, sortOptions } = await getWebsiteFilters();
 
-// Get websites with filtering and pagination
-const { websites, totalCount } = await getWebsites(filters, sortParam, page, limit);
-
-// Get filter options
-const filterOptions = await getWebsiteFilters();
+// Fetch websites based on filters
+const { websites, totalCount } = await getWebsites({
+  search,
+  companyId,
+  websiteType,
+  therapeuticAreaId,
+  sortBy: sortParam.split('_')[0],
+  sortDirection: sortParam.split('_')[1] as 'asc' | 'desc',
+  limit,
+  offset
+});
 
 // Calculate pagination details
 const totalPages = Math.ceil(totalCount / limit);
 
-// Set up breadcrumbs
+// Generate breadcrumbs
 const breadcrumbs = [
   { label: 'Home', href: '/' },
-  { label: 'Websites', href: '/websites', isActive: true }
+  { label: 'Websites', href: '/websites', isActive: true },
 ];
 
 // Set page metadata
-const title = "Pharmaceutical Websites | Top Pharma";
-const description = "Browse and search for pharmaceutical company websites, product sites, and disease awareness portals.";
+const title = "Pharmaceutical Websites";
+const description = "Browse all pharmaceutical company websites in our database, searchable by company, type, and therapeutic area.";
+
+// Website icon SVG
+const websiteIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+</svg>`;
 ---
 
-<DashboardLayout 
+<DirectoryIndexLayout
   title={title}
   description={description}
   currentPath="/websites"
   breadcrumbs={breadcrumbs}
+  gradientFrom="purple-600"
+  gradientTo="purple-700"
+  icon={websiteIcon}
+  totalCount={totalCount}
+  showViewToggle={true}
+  viewMode={viewMode}
 >
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Visual header -->
-    <div class="mb-6 overflow-hidden">
-      <div class="flex border border-gray-100 rounded-lg shadow-sm overflow-hidden">
-        <div class="w-3 bg-gradient-to-b from-purple-600 to-purple-700"></div>
-        <div class="p-6 flex items-center">
-          <div class="bg-white p-3 rounded-full shadow-sm mr-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-            </svg>
-          </div>
-          <div>
-            <h1 class="text-2xl font-bold text-gray-900">Pharmaceutical Websites</h1>
-            <p class="text-gray-600 text-sm">Browse corporate, healthcare professional, patient and campaign websites</p>
-          </div>
+  <!-- Filter Bar -->
+  <div slot="filters">
+    <DirectoryFilterPanel
+      search={search}
+      sortOptions={sortOptions}
+      selectedSort={sortParam}
+      showViewToggle={true}
+      viewMode={viewMode}
+    >
+      <div slot="advanced-filters" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Company Filter -->
+        <div>
+          <label for="company" class="block text-sm font-medium text-gray-700 mb-1">Company</label>
+          <select
+            id="company"
+            name="company"
+            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
+          >
+            <option value="">All Companies</option>
+            {companies.map(company => (
+              <option value={company.id} selected={companyId === company.id.toString()}>
+                {company.name} ({company.count})
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        <!-- Website Type Filter -->
+        <div>
+          <label for="type" class="block text-sm font-medium text-gray-700 mb-1">Website Type</label>
+          <select
+            id="type"
+            name="type"
+            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
+          >
+            <option value="">All Types</option>
+            {types.map(type => (
+              <option value={type.value} selected={websiteType === type.value}>
+                {type.label} ({type.count})
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        <!-- Therapeutic Area Filter -->
+        <div>
+          <label for="ta" class="block text-sm font-medium text-gray-700 mb-1">Therapeutic Area</label>
+          <select
+            id="ta"
+            name="ta"
+            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
+          >
+            <option value="">All Therapeutic Areas</option>
+            {therapeuticAreas.map(area => (
+              <option value={area.id} selected={therapeuticAreaId === area.id.toString()}>
+                {area.name} ({area.count})
+              </option>
+            ))}
+          </select>
         </div>
       </div>
-    </div>
-    
-    <!-- Filter Bar -->
-    <div class="mb-6">
-      <Card>
-        <div class="p-4">
-          <form id="filter-form" method="get" action="/websites">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-              <!-- Search input -->
-              <div class="w-full md:w-1/3">
-                <input 
-                  type="text" 
-                  id="search" 
-                  name="search" 
-                  value={search}
-                  placeholder="Search websites..."
-                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
-                />
-              </div>
-              
-              <!-- Sort Options -->
-              <div class="flex items-center space-x-3">
-                <SortSelect 
-                  options={filterOptions.sortOptions}
-                  selected={sortParam}
-                  onChange={(value) => updateUrlParams({ sort: value }, url)}
-                />
-              </div>
-            </div>
-            
-            <!-- Advanced Filters (collapsible) -->
-            <details class="mt-4">
-              <summary class="cursor-pointer text-purple-600 font-medium mb-3">Advanced Filters</summary>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-md">
-                <!-- Company Filter -->
-                <div>
-                  <label for="company" class="block text-sm font-medium text-gray-700 mb-1">Company</label>
-                  <select
-                    id="company"
-                    name="company"
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
-                  >
-                    <option value="">All Companies</option>
-                    {filterOptions.companies.map(company => (
-                      <option value={company.id} selected={companyId === company.id}>
-                        {company.name} ({company.count})
-                      </option>
-                    ))}
-                  </select>
+    </DirectoryFilterPanel>
+  </div>
+
+  <!-- Results Count -->
+  <div slot="results-count">
+    Showing <span class="font-medium">{websites.length > 0 ? (page - 1) * limit + 1 : 0} - {Math.min(page * limit, totalCount)}</span> of <span class="font-medium">{totalCount}</span> websites
+  </div>
+
+  <!-- List View (Table) -->
+  <div slot="list-view">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Website</th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Therapeutic Areas</th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        {websites.length === 0 ? (
+          <tr>
+            <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">
+              No websites found matching your criteria.
+            </td>
+          </tr>
+        ) : (
+          websites.map((website: Website) => (
+            <tr>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="text-sm font-medium text-gray-900">{website.name}</div>
+                <div class="text-xs text-gray-500 truncate max-w-xs">{website.url}</div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                {website.companyName && (
+                  <a href={`/companies/${website.companySlug}`} class="text-sm text-blue-600 hover:text-blue-800">
+                    {website.companyName}
+                  </a>
+                )}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                {website.type && (
+                  <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                    {website.type}
+                  </span>
+                )}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex flex-wrap gap-1">
+                  {website.therapeuticAreas && website.therapeuticAreas.slice(0, 2).map(ta => (
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                      {ta}
+                    </span>
+                  ))}
+                  {website.therapeuticAreas && website.therapeuticAreas.length > 2 && (
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                      +{website.therapeuticAreas.length - 2}
+                    </span>
+                  )}
                 </div>
-                
-                <!-- Website Type Filter -->
-                <div>
-                  <label for="type" class="block text-sm font-medium text-gray-700 mb-1">Website Type</label>
-                  <select
-                    id="type"
-                    name="type"
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
-                  >
-                    <option value="">All Types</option>
-                    {filterOptions.websiteTypes.map(type => (
-                      <option value={type.id} selected={typeParam === type.id}>
-                        {type.name} ({type.count})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <!-- Therapeutic Area Filter -->
-                <div>
-                  <label for="area" class="block text-sm font-medium text-gray-700 mb-1">Therapeutic Area</label>
-                  <select
-                    id="area"
-                    name="area"
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
-                  >
-                    <option value="">All Therapeutic Areas</option>
-                    {filterOptions.therapeuticAreas.map(area => (
-                      <option value={area.id} selected={therapeuticAreaId === area.id}>
-                        {area.name} ({area.count})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              
-              <!-- Filter Action Buttons -->
-              <div class="flex justify-end mt-4 space-x-2">
-                <Button type="submit" variant="primary">Apply Filters</Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => {
-                    window.location.href = "/websites";
-                  }}
-                >
-                  Reset
-                </Button>
-              </div>
-            </details>
-            
-            <!-- Maintain sort in form submission and reset page -->
-            <input type="hidden" name="sort" value={sortParam} />
-            <input type="hidden" name="page" value="1" /> <!-- Reset to page 1 when filtering -->
-          </form>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <a href={`/websites/${website.slug}`} class="text-purple-600 hover:text-purple-900 mr-2">View</a>
+                <a href={website.url} target="_blank" rel="noopener noreferrer" class="text-gray-600 hover:text-gray-900">
+                  Visit <span class="sr-only">{website.name}</span>
+                </a>
+              </td>
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Results Grid -->
+  <div slot="results">
+    {websites.length === 0 ? (
+      <div class="p-8 text-center bg-white rounded-lg shadow">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 class="mt-2 text-lg font-medium text-gray-900">No websites found</h3>
+        <p class="mt-1 text-sm text-gray-500">Try adjusting your search or filter criteria.</p>
+        <div class="mt-6">
+          <a href="/websites" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+            Reset Filters
+          </a>
         </div>
-      </Card>
-    </div>
-    
-    <!-- Results Count -->
-    <div class="mb-4">
-      <p class="text-sm text-gray-500">
-        Showing <span class="font-medium">{websites.length > 0 ? (page - 1) * limit + 1 : 0} - {Math.min(page * limit, totalCount)}</span> of <span class="font-medium">{totalCount}</span> websites
-      </p>
-    </div>
-    
-    <!-- Websites Grid -->
-    {websites.length > 0 ? (
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      </div>
+    ) : (
+      <div class="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
         {websites.map((website: Website) => (
           <WebsiteCard website={website} />
         ))}
       </div>
-    ) : (
-      <Card>
-        <div class="p-8 text-center">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-          </svg>
-          <h3 class="mt-2 text-lg font-medium text-gray-900">No websites found</h3>
-          <p class="mt-1 text-gray-500">Try adjusting your search or filter criteria</p>
-          <div class="mt-6">
-            <Button 
-              href="/websites" 
-              variant="primary"
-            >
-              View all websites
-            </Button>
-          </div>
-        </div>
-      </Card>
     )}
-    
-    <!-- Pagination -->
-    {totalPages > 1 && (
-      <div class="flex justify-center mt-8">
-        <Pagination
-          currentPage={page}
-          totalPages={totalPages}
-          getPageUrl={(pageNum) => {
-            const updatedUrl = new URL(Astro.url);
-            updatedUrl.searchParams.set('page', pageNum.toString());
-            return updatedUrl.pathname + updatedUrl.search;
-          }}
-        />
-      </div>
-    )}
-    
-    <!-- Data Source Indicator -->
-    <div class="mt-8">
-      <DataSourceVisualizer />
-    </div>
   </div>
-</DashboardLayout>
 
-<script>
-  // All filter functionality handled by form submission
-  // No client-side JS needed for basic functionality
-</script> 
+  <!-- Pagination -->
+  {totalPages > 1 && (
+    <div slot="pagination">
+      <Pagination
+        currentPage={page}
+        totalPages={totalPages}
+        getPageUrl={(pageNum) => {
+          const updatedUrl = new URL(Astro.url);
+          updatedUrl.searchParams.set('page', pageNum.toString());
+          return updatedUrl.pathname + updatedUrl.search;
+        }}
+      />
+    </div>
+  )}
+
+  <!-- Data Source -->
+  <div slot="data-source">
+    <DataSourceVisualizer />
+  </div>
+</DirectoryIndexLayout> 

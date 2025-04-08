@@ -1,0 +1,72 @@
+---
+import Card from '../atoms/Card.astro';
+import CardHeader from '../atoms/CardHeader.astro';
+import CardBody from '../atoms/CardBody.astro';
+import Badge from '../atoms/Badge.astro';
+import type { Website } from '../../interfaces/entities';
+
+interface Props {
+  website: Website;
+}
+
+const { website } = Astro.props;
+---
+
+<Card>
+  <CardHeader title="Website Information" />
+  <CardBody>
+    <div class="space-y-6">
+      <!-- Basic Info -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="text-sm font-medium text-gray-500">URL</h3>
+          <p class="mt-1 text-sm text-gray-900">
+            <a href={website.url} target="_blank" rel="noopener noreferrer" class="text-purple-600 hover:text-purple-700">
+              {website.url}
+            </a>
+          </p>
+        </div>
+        <div>
+          <h3 class="text-sm font-medium text-gray-500">Type</h3>
+          <p class="mt-1 text-sm text-gray-900">{website.type}</p>
+        </div>
+        <div>
+          <h3 class="text-sm font-medium text-gray-500">Languages</h3>
+          <div class="mt-1 flex flex-wrap gap-2">
+            {website.languages.map(lang => (
+              <Badge color="gray">{lang}</Badge>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h3 class="text-sm font-medium text-gray-500">Last Updated</h3>
+          <p class="mt-1 text-sm text-gray-900">{new Date(website.lastUpdated).toLocaleDateString()}</p>
+        </div>
+      </div>
+
+      <!-- Description -->
+      {website.description && (
+        <div>
+          <h3 class="text-sm font-medium text-gray-500">Description</h3>
+          <p class="mt-1 text-sm text-gray-900">{website.description}</p>
+        </div>
+      )}
+
+      <!-- Technical Info -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <h3 class="text-sm font-medium text-gray-500">Technologies</h3>
+          <div class="mt-1 flex flex-wrap gap-2">
+            {website.technologies?.map(tech => (
+              <Badge color="blue">{tech}</Badge>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h3 class="text-sm font-medium text-gray-500">Server Location</h3>
+          <p class="mt-1 text-sm text-gray-900">{website.serverLocation || 'Unknown'}</p>
+        </div>
+      </div>
+    </div>
+  </CardBody>
+</Card> 

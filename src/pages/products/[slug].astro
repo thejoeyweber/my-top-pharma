@@ -4,14 +4,13 @@
  * 
  * Displays detailed information about a specific pharmaceutical product.
  */
-import DashboardLayout from '../../layouts/DashboardLayout.astro';
+import EntityDetailLayout from '../../layouts/EntityDetailLayout.astro';
 import Card from '../../components/atoms/Card.astro';
 import CardHeader from '../../components/atoms/CardHeader.astro';
 import CardBody from '../../components/atoms/CardBody.astro';
 import CardFooter from '../../components/atoms/CardFooter.astro';
 import Button from '../../components/atoms/Button.astro';
 import FollowButton from '../../components/molecules/FollowButton.astro';
-import TabGroup from '../../components/molecules/TabGroup.astro';
 import Timeline from '../../components/molecules/Timeline.astro';
 import DataTable from '../../components/molecules/DataTable.astro';
 import ProductCard from '../../components/molecules/ProductCard.astro';
@@ -111,11 +110,11 @@ const breadcrumbs = [
 // Default tab is "overview"
 const activeTab = Astro.url.searchParams.get('tab') || "overview";
 
-// Define tabs
+// Define tabs with conditional counts
 const tabs = [
   { id: "overview", label: "Overview", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>' },
-  { id: "websites", label: "Official Websites", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>' },
-  { id: "regulatory", label: "Regulatory", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>' },
+  { id: "websites", label: "Official Websites", count: product.websites?.length > 0 ? product.websites.length : null, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>' },
+  { id: "regulatory", label: "Regulatory", count: product.approvals?.length > 0 ? product.approvals.length : null, icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>' },
   { id: "timeline", label: "Development Timeline", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>' },
   { id: "patents", label: "Patents", icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>' },
 ];
@@ -130,363 +129,263 @@ const formatDate = (dateString: string) => {
 export const prerender = false;
 ---
 
-<DashboardLayout
+<EntityDetailLayout
   title={`${product.name} | Top Pharma`}
   description={`Detailed information about ${product.name} (${product.genericName || 'no generic name'}), a ${product.moleculeType} for ${product.indications?.join(', ') || 'various conditions'}`}
   currentPath={`/products/${product.slug}`}
   breadcrumbs={breadcrumbs}
+  gradientFrom="green-600"
+  gradientTo="green-700"
+  tabs={tabs}
+  activeTab={activeTab}
+  logoUrl={product.imageUrl}
+  entityName={product.name}
+  entitySubtitle={product.genericName}
 >
-  <div class="space-y-6">
-    <!-- Product Header Section - Updated to match company header structure -->
-    <div class="relative">
-      <!-- Header Background Image -->
-      <div class="h-48 w-full bg-gradient-to-r from-green-600 to-green-700 relative overflow-hidden shadow-md">
-        {/* We could add a background image with product branding here if available */}
-      </div>
-      
-      <!-- Product Info Card -->
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div class="bg-white rounded-lg shadow-lg overflow-hidden -mt-24 mb-8">
-          <div class="p-6 sm:p-8">
-            <div class="flex flex-col md:flex-row items-start md:items-center">
-              <!-- Product Logo/Image -->
-              <div class="w-24 h-24 bg-white rounded-lg shadow-md flex items-center justify-center overflow-hidden mr-6 mb-4 md:mb-0">
-                {product.imageUrl ? (
-                  <img src={product.imageUrl} alt={product.name} class="max-w-full max-h-full p-2" />
-                ) : (
-                  <div class="bg-green-100 w-full h-full flex items-center justify-center">
-                    <span class="text-3xl font-bold text-green-600">{product.name.charAt(0)}</span>
-                  </div>
-                )}
-              </div>
-              
-              <!-- Product Basic Info -->
-              <div class="flex-grow">
-                <div class="flex items-center justify-between flex-wrap">
-                  <div>
-                    <h1 class="text-2xl font-bold text-gray-900 mb-1">{product.name}</h1>
-                    {product.genericName && (
-                      <p class="text-sm text-gray-500 mb-2">{product.genericName}</p>
-                    )}
-                    <div class="flex flex-wrap gap-2 mb-3">
-                      {/* Stage Badge */}
-                      {product.stage && (
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {getStageName(product.stage)}
-                        </span>
-                      )}
-                      
-                      {/* Molecule Type Badge */}
-                      {product.moleculeType && (
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                          {product.moleculeType}
-                        </span>
-                      )}
-                      
-                      {/* Year Badge */}
-                      {product.year && (
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          {product.year}
-                        </span>
-                      )}
-                    </div>
-                    
-                    {/* Company Info */}
-                    {company && (
-                      <p class="text-sm text-gray-600">
-                        Manufactured by: 
-                        <a href={`/companies/${company.slug}`} class="text-blue-600 hover:text-blue-800 font-medium">
-                          {company.name}
-                        </a>
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div class="mt-4 md:mt-0">
-                    <div class="flex space-x-2">
-                      <FollowButton entityId={product.id} entityType="product" initialFollowing={false} />
-                      
-                      {product.website && (
-                        <a href={product.website} target="_blank" rel="noopener noreferrer">
-                          <Button variant="secondary" icon="external-link">Visit Website</Button>
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+  <!-- Action Buttons -->
+  <div slot="action-buttons" class="flex space-x-2">
+    <FollowButton entityId={product.id} entityType="product" initialFollowing={false} />
     
-    <!-- Page Content -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <!-- Tabs Navigation -->
-      <TabGroup tabs={tabs} activeTab={activeTab} tabPanelId="product-tab-content" />
-      
-      <!-- Tab Content -->
-      <div class="mt-6">
-        <!-- Overview Section -->
-        <div id="product-tab-content-overview" role="tabpanel" aria-labelledby="tab-overview" class={activeTab === 'overview' ? '' : 'hidden'}>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Left Column -->
-            <div class="md:col-span-2 space-y-6">
-              <!-- Description Card -->
-              <Card>
-                <CardHeader>
-                  <h2 class="text-xl font-semibold text-gray-900">About {product.name}</h2>
-                </CardHeader>
-                <CardBody>
-                  <div class="prose max-w-none">
-                    {product.description ? (
-                      <p>{product.description}</p>
-                    ) : (
-                      <p class="text-gray-500 italic">No description available.</p>
-                    )}
-                  </div>
-                  
-                  <!-- Indications -->
-                  {product.indications && product.indications.length > 0 && (
-                    <div class="mt-6">
-                      <h3 class="text-lg font-medium text-gray-900 mb-2">Indications</h3>
-                      <ul class="list-disc pl-5 space-y-1">
-                        {product.indications.map((indication: string) => (
-                          <li>{indication}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  
-                  <!-- Therapeutic Areas -->
-                  {product.therapeuticAreas && product.therapeuticAreas.length > 0 && (
-                    <div class="mt-6">
-                      <h3 class="text-lg font-medium text-gray-900 mb-2">Therapeutic Areas</h3>
-                      <div class="flex flex-wrap gap-2">
-                        {product.therapeuticAreas.map((area: string) => (
-                          <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                            {area}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardBody>
-              </Card>
-              
-              <!-- Key Details Card -->
-              <Card>
-                <CardHeader>
-                  <h2 class="text-xl font-semibold text-gray-900">Key Details</h2>
-                </CardHeader>
-                <CardBody>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    {/* Basic Info Group */}
-                    <div>
-                      <h3 class="text-lg font-medium text-gray-900 mb-3">Product Information</h3>
-                      <dl class="space-y-3">
-                        <div>
-                          <dt class="text-sm font-medium text-gray-500">Brand Name</dt>
-                          <dd class="mt-1 text-sm text-gray-900">{product.name}</dd>
-                        </div>
-                        
-                        {product.genericName && (
-                          <div>
-                            <dt class="text-sm font-medium text-gray-500">Generic Name</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{product.genericName}</dd>
-                          </div>
-                        )}
-                        
-                        {product.moleculeType && (
-                          <div>
-                            <dt class="text-sm font-medium text-gray-500">Molecule Type</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{product.moleculeType}</dd>
-                          </div>
-                        )}
-                        
-                        {product.year && (
-                          <div>
-                            <dt class="text-sm font-medium text-gray-500">Year Introduced</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{product.year}</dd>
-                          </div>
-                        )}
-                      </dl>
-                    </div>
-                    
-                    {/* Development Status Group */}
-                    <div>
-                      <h3 class="text-lg font-medium text-gray-900 mb-3">Development Status</h3>
-                      <dl class="space-y-3">
-                        {product.stage && (
-                          <div>
-                            <dt class="text-sm font-medium text-gray-500">Current Stage</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{getStageName(product.stage)}</dd>
-                          </div>
-                        )}
-                        
-                        {product.status && (
-                          <div>
-                            <dt class="text-sm font-medium text-gray-500">Status</dt>
-                            <dd class="mt-1 text-sm text-gray-900">{product.status}</dd>
-                          </div>
-                        )}
-                        
-                        {/* Maybe add FDA approvals or other key milestones here */}
-                        {product.approvals && product.approvals.length > 0 && (
-                          <div>
-                            <dt class="text-sm font-medium text-gray-500">Latest Approval</dt>
-                            <dd class="mt-1 text-sm text-gray-900">
-                              {formatDate(product.approvals[0].date)} ({product.approvals[0].agency})
-                            </dd>
-                          </div>
-                        )}
-                      </dl>
-                    </div>
-                  </div>
-                </CardBody>
-              </Card>
-            </div>
-            
-            <!-- Right Column -->
-            <div class="md:col-span-1 space-y-6">
-              <!-- Related Products -->
-              {relatedProducts && relatedProducts.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <h2 class="text-xl font-semibold text-gray-900">Related Products</h2>
-                  </CardHeader>
-                  <CardBody>
-                    <div class="space-y-4">
-                      {relatedProducts.map((relatedProduct) => (
-                        <ProductCard 
-                          product={relatedProduct}
-                          compact={true}
-                        />
-                      ))}
-                    </div>
-                  </CardBody>
-                </Card>
+    {product.website && (
+      <a href={product.website} target="_blank" rel="noopener noreferrer">
+        <Button variant="secondary" size="sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+          Visit Website
+        </Button>
+      </a>
+    )}
+  </div>
+
+  <!-- Entity Badges -->
+  <div slot="entity-badges" class="flex flex-wrap gap-2">
+    {/* Stage Badge */}
+    {product.stage && (
+      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+        {getStageName(product.stage)}
+      </span>
+    )}
+    
+    {/* Molecule Type Badge */}
+    {product.moleculeType && (
+      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+        {product.moleculeType}
+      </span>
+    )}
+    
+    {/* Year Badge */}
+    {product.year && (
+      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+        {product.year}
+      </span>
+    )}
+    
+    {/* Company Badge */}
+    {company && (
+      <a href={`/companies/${company.slug}`} class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 hover:bg-green-200 transition-colors">
+        {company.name}
+      </a>
+    )}
+  </div>
+
+  <!-- Overview Tab Content -->
+  <div slot="overview">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Left Column -->
+      <div class="md:col-span-2 space-y-6">
+        <!-- Description Card -->
+        <Card>
+          <CardHeader>
+            <h2 class="text-xl font-semibold text-gray-900">About {product.name}</h2>
+          </CardHeader>
+          <CardBody>
+            <div class="prose max-w-none">
+              {product.description ? (
+                <p>{product.description}</p>
+              ) : (
+                <p class="text-gray-500 italic">No description available.</p>
               )}
             </div>
-          </div>
-        </div>
+            
+            <!-- Indications -->
+            {product.indications && product.indications.length > 0 && (
+              <div class="mt-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Indications</h3>
+                <ul class="list-disc pl-5 space-y-1">
+                  {product.indications.map((indication: string) => (
+                    <li>{indication}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            <!-- Therapeutic Areas -->
+            {product.therapeuticAreas && product.therapeuticAreas.length > 0 && (
+              <div class="mt-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Therapeutic Areas</h3>
+                <div class="flex flex-wrap gap-2">
+                  {product.therapeuticAreas.map((area: string) => (
+                    <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                      {area}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardBody>
+        </Card>
         
-        <!-- Regulatory Approvals Section -->
-        <div id="product-tab-content-regulatory" role="tabpanel" aria-labelledby="tab-regulatory" class={activeTab === 'regulatory' ? '' : 'hidden'}>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="md:col-span-3 space-y-6">
-              <Card>
-                <CardHeader>
-                  <h2 class="text-xl font-semibold text-gray-900">Regulatory Approvals</h2>
-                </CardHeader>
-                <CardBody>
-                  {product.approvals && product.approvals.length > 0 ? (
-                    <DataTable 
-                      headers={['Region', 'Agency', 'Date', 'Indication', 'Status']}
-                      data={product.approvals.map((approval) => [
-                        approval.region,
-                        approval.agency,
-                        formatDate(approval.date),
-                        approval.indication,
-                        approval.status
-                      ])}
-                    />
-                  ) : (
-                    <p class="text-gray-500 italic">No regulatory approval information available.</p>
-                  )}
-                </CardBody>
-              </Card>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Timeline Section -->
-        <div id="product-tab-content-timeline" role="tabpanel" aria-labelledby="tab-timeline" class={activeTab === 'timeline' ? '' : 'hidden'}>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="md:col-span-3 space-y-6">
-              <Card>
-                <CardHeader>
-                  <h2 class="text-xl font-semibold text-gray-900">Development Timeline</h2>
-                </CardHeader>
-                <CardBody>
-                  {product.timeline && product.timeline.length > 0 ? (
-                    <Timeline 
-                      events={product.timeline.map((event) => ({
-                        date: formatDate(event.date),
-                        title: event.stage,
-                        description: event.description
-                      }))}
-                    />
-                  ) : (
-                    <p class="text-gray-500 italic">No timeline information available.</p>
-                  )}
-                </CardBody>
-              </Card>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Patents Section -->
-        <div id="product-tab-content-patents" role="tabpanel" aria-labelledby="tab-patents" class={activeTab === 'patents' ? '' : 'hidden'}>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="md:col-span-3 space-y-6">
-              <Card>
-                <CardHeader>
-                  <h2 class="text-xl font-semibold text-gray-900">Patents</h2>
-                </CardHeader>
-                <CardBody>
-                  {product.patents && product.patents.length > 0 ? (
-                    <DataTable 
-                      headers={['Patent Number', 'Expiry Date', 'Description']}
-                      data={product.patents.map((patent) => [
-                        patent.number,
-                        formatDate(patent.expiryDate),
-                        patent.description
-                      ])}
-                    />
-                  ) : (
-                    <p class="text-gray-500 italic">No patent information available.</p>
-                  )}
-                </CardBody>
-              </Card>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Websites Section -->
-        <div id="product-tab-content-websites" role="tabpanel" aria-labelledby="tab-websites" class={activeTab === 'websites' ? '' : 'hidden'}>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="md:col-span-3 space-y-6">
-              <Card>
-                <CardHeader>
-                  <h2 class="text-xl font-semibold text-gray-900">Official Websites</h2>
-                </CardHeader>
-                <CardBody>
-                  {product.website ? (
+        <!-- Key Details Card -->
+        <Card>
+          <CardHeader>
+            <h2 class="text-xl font-semibold text-gray-900">Key Details</h2>
+          </CardHeader>
+          <CardBody>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* Basic Info Group */}
+              <div>
+                <h3 class="text-lg font-medium text-gray-900 mb-3">Product Information</h3>
+                <dl class="space-y-3">
+                  <div>
+                    <dt class="text-sm font-medium text-gray-500">Brand Name</dt>
+                    <dd class="mt-1 text-sm text-gray-900">{product.name}</dd>
+                  </div>
+                  
+                  {product.genericName && (
                     <div>
-                      <h3 class="text-lg font-medium text-gray-900 mb-3">Product Website</h3>
-                      <a 
-                        href={product.website} 
-                        class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                        Visit Official Website
-                      </a>
+                      <dt class="text-sm font-medium text-gray-500">Generic Name</dt>
+                      <dd class="mt-1 text-sm text-gray-900">{product.genericName}</dd>
                     </div>
-                  ) : (
-                    <p class="text-gray-500 italic">No official website information available.</p>
                   )}
-                </CardBody>
-              </Card>
+                  
+                  {product.moleculeType && (
+                    <div>
+                      <dt class="text-sm font-medium text-gray-500">Molecule Type</dt>
+                      <dd class="mt-1 text-sm text-gray-900">{product.moleculeType}</dd>
+                    </div>
+                  )}
+                  
+                  {product.year && (
+                    <div>
+                      <dt class="text-sm font-medium text-gray-500">Year Introduced</dt>
+                      <dd class="mt-1 text-sm text-gray-900">{product.year}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+              
+              {/* Development Status Group */}
+              <div>
+                <h3 class="text-lg font-medium text-gray-900 mb-3">Development Status</h3>
+                <dl class="space-y-3">
+                  {product.stage && (
+                    <div>
+                      <dt class="text-sm font-medium text-gray-500">Current Stage</dt>
+                      <dd class="mt-1 text-sm text-gray-900">{getStageName(product.stage)}</dd>
+                    </div>
+                  )}
+                  
+                  {product.status && (
+                    <div>
+                      <dt class="text-sm font-medium text-gray-500">Status</dt>
+                      <dd class="mt-1 text-sm text-gray-900">{product.status}</dd>
+                    </div>
+                  )}
+                  
+                  {/* Maybe add FDA approvals or other key milestones here */}
+                  {product.approvals && product.approvals.length > 0 && (
+                    <div>
+                      <dt class="text-sm font-medium text-gray-500">Latest Approval</dt>
+                      <dd class="mt-1 text-sm text-gray-900">
+                        {formatDate(product.approvals[0].date)} ({product.approvals[0].agency})
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
             </div>
-          </div>
-        </div>
+          </CardBody>
+        </Card>
+      </div>
+      
+      <!-- Right Column -->
+      <div class="md:col-span-1 space-y-6">
+        <!-- Related Products -->
+        {relatedProducts && relatedProducts.length > 0 && (
+          <Card>
+            <CardHeader>
+              <h2 class="text-xl font-semibold text-gray-900">Related Products</h2>
+            </CardHeader>
+            <CardBody>
+              <div class="space-y-4">
+                {relatedProducts.map((relatedProduct) => (
+                  <ProductCard 
+                    product={relatedProduct}
+                    compact={true}
+                  />
+                ))}
+              </div>
+            </CardBody>
+          </Card>
+        )}
       </div>
     </div>
   </div>
-</DashboardLayout> 
+
+  <!-- Other tab content slots -->
+  <div slot="regulatory">
+    <Card>
+      <CardHeader>
+        <h2 class="text-xl font-semibold text-gray-900">Regulatory Approvals</h2>
+      </CardHeader>
+      <CardBody>
+        {product.approvals && product.approvals.length > 0 ? (
+          <div class="overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agency</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approved For</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                {product.approvals.map(approval => (
+                  <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatDate(approval.date)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{approval.agency}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">{approval.indication || '-'}</td>
+                    <td class="px-6 py-4 text-sm text-gray-500">{approval.notes || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-gray-500 italic">No regulatory approvals information available.</p>
+        )}
+      </CardBody>
+    </Card>
+  </div>
+  
+  <!-- Add other tab content slots as needed -->
+</EntityDetailLayout>
+
+<style>
+  .prose {
+    max-width: 65ch;
+    color: rgba(55, 65, 81, 1);
+  }
+  .prose p, .prose ul, .prose ol {
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
+  }
+  .prose p:first-child {
+    margin-top: 0;
+  }
+  .prose p:last-child {
+    margin-bottom: 0;
+  }
+</style> 
