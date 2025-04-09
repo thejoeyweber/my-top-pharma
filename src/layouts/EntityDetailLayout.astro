@@ -28,7 +28,16 @@ interface Props {
   logoUrl?: string | null;
   entityName: string;
   entitySubtitle?: string;
+  entityType?: 'company' | 'product' | 'therapeuticArea' | 'website'; // Optional entity type for defaults
 }
+
+// Color mapping for entity types to provide consistent colors
+const colorMap = {
+  company: { from: 'blue-500', to: 'blue-600' },
+  product: { from: 'green-600', to: 'green-700' },
+  therapeuticArea: { from: 'amber-500', to: 'amber-600' },
+  website: { from: 'purple-500', to: 'purple-600' }
+};
 
 const {
   title,
@@ -41,8 +50,13 @@ const {
   activeTab,
   logoUrl,
   entityName,
-  entitySubtitle
+  entitySubtitle,
+  entityType
 } = Astro.props;
+
+// If entity type is provided but gradients aren't, use the default colors
+const effectiveGradientFrom = gradientFrom || (entityType && colorMap[entityType]?.from) || 'primary-500';
+const effectiveGradientTo = gradientTo || (entityType && colorMap[entityType]?.to) || 'primary-600';
 ---
 
 <DashboardLayout
@@ -51,11 +65,28 @@ const {
   currentPath={currentPath}
   breadcrumbs={breadcrumbs}
 >
+  <style define:vars={{
+    entityColorFrom: `var(--color-${effectiveGradientFrom})`, 
+    entityColorTo: `var(--color-${effectiveGradientTo})`,
+    entityColorLight: `var(--color-${effectiveGradientFrom.split('-')[0]}-100)`,
+    entityColorText: `var(--color-${effectiveGradientFrom.split('-')[0]}-600)`
+  }}>
+    .entity-header-bg {
+      background-image: linear-gradient(to right, var(--entityColorFrom), var(--entityColorTo));
+    }
+    .entity-logo-bg {
+      background-color: var(--entityColorLight);
+    }
+    .entity-logo-text {
+      color: var(--entityColorText);
+    }
+  </style>
+
   <div class="space-y-6">
     <!-- Entity Header -->
     <div class="relative">
       <!-- Header Background -->
-      <div class={`h-48 w-full bg-gradient-to-r from-${gradientFrom} to-${gradientTo} relative overflow-hidden shadow-md opacity-90`}>
+      <div class="h-48 w-full entity-header-bg relative overflow-hidden shadow-md opacity-90">
         <!-- Background pattern or decoration could go here -->
       </div>
       
@@ -69,8 +100,8 @@ const {
                 {logoUrl ? (
                   <img src={logoUrl} alt={`${entityName} logo`} class="max-w-full max-h-full p-2" />
                 ) : (
-                  <div class={`bg-${gradientFrom}-100 w-full h-full flex items-center justify-center`}>
-                    <span class={`text-4xl font-bold text-${gradientFrom}-600`}>{entityName.charAt(0)}</span>
+                  <div class="entity-logo-bg w-full h-full flex items-center justify-center">
+                    <span class="entity-logo-text text-4xl font-bold">{entityName.charAt(0)}</span>
                   </div>
                 )}
               </div>

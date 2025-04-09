@@ -119,6 +119,7 @@ const activeTab = Astro.url.searchParams.get('tab') || 'overview';
   logoUrl={logoUrl}
   entityName={company.name}
   entitySubtitle={company.description}
+  entityType="company"
 >
   <!-- Action Buttons -->
   <div slot="action-buttons" class="flex space-x-3">
