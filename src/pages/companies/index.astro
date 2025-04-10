@@ -25,7 +25,7 @@ const url = new URL(Astro.request.url);
 const params = url.searchParams;
 
 // Extract filter and sort parameters
-const sortParam = params.get('sort') || 'name_asc';
+const sortParam = params.get('sort') || 'market_cap_desc';
 const viewMode = params.get('view') || 'grid';
 const search = params.get('search') || '';
 const selectedRegions = params.get('regions')?.split(',').filter(Boolean) || [];

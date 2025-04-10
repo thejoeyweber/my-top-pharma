@@ -30,10 +30,10 @@ const {
 <Card>
   <div class="p-4">
     <form id="filter-form" method="get" class="space-y-4">
-      <!-- Replace flexbox with grid for better layout control -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-        <!-- Search input (takes more space) -->
-        <div class="md:col-span-2">
+      <!-- Use flexbox for layout: stack vertically on small, row on medium+ -->
+      <div class="flex flex-col md:flex-row md:items-center gap-4">
+        <!-- Search input wrapper (allow it to grow) -->
+        <div class="flex-1">
           <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -51,8 +51,8 @@ const {
           </div>
         </div>
 
-        <!-- View Toggle & Sort (aligned right) -->
-        <div class="flex items-center justify-end space-x-3">
+        <!-- View Toggle & Sort container (wraps on small, end-aligned on medium+) -->
+        <div class="flex items-center flex-wrap gap-2 md:justify-end md:space-x-3">
           {showViewToggle && (
             <ViewToggle 
               options={[

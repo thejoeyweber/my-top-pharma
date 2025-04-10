@@ -72,10 +72,32 @@ export async function getCompanies(options: CompanyFilter = {}): Promise<Company
       offset = 0
     } = options;
 
-    // Create the base query
+    // --- Start Filter by Product Existence ---
+    // Get distinct company IDs from the products table
+    const { data: productCompanyLinks, error: productCompaniesError } = await supabase
+      .from('products')
+      .select('company_id')
+      .not('company_id', 'is', null);
+
+    if (productCompaniesError) {
+      console.error('Error fetching company IDs from products:', productCompaniesError);
+      // Return empty if we can't determine which companies have products
+      return { companies: [], total: 0 }; 
+    }
+
+    const companyIdsWithProducts = [...new Set(productCompanyLinks?.map(p => p.company_id).filter(Boolean) as string[])];
+
+    // If no companies have products, return early
+    if (companyIdsWithProducts.length === 0) {
+      return { companies: [], total: 0 };
+    }
+    // --- End Filter by Product Existence ---
+
+    // Create the base query, filtering by companies that have products
     let query = supabase
       .from('companies')
-      .select('*', { head: false, count: 'exact' });
+      .select('*', { head: false, count: 'exact' })
+      .in('id', companyIdsWithProducts); // Filter companies by IDs that have products
     
     let hasFilters = false;
     
